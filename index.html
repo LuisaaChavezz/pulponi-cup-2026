@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pulponi Cup 2026</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🐙</div>
+      <div>
+        <h1>PULPONI <span>CUP 2026</span></h1>
+        <p>La quiniela mundial</p>
+      </div>
+    </div>
+    <nav class="desktop-nav">
+      <a class="active" href="#inicio">Inicio</a>
+      <a href="#partidos">Partidos</a>
+      <a href="#ranking">Ranking</a>
+      <a href="#chat">Chat</a>
+      <a href="#perfil">Perfil</a>
+    </nav>
+  </header>
+
+  <main id="inicio" class="layout">
+    <section class="hero-card">
+      <div>
+        <span class="eyebrow">Compite · comenta · disfruta</span>
+        <h2>Vive el mundial como nunca.</h2>
+        <p>Predicciones visibles, ranking en vivo, chat, logros y modo live match.</p>
+      </div>
+      <div class="hero-actions">
+        <button onclick="scrollToSection('partidos')" class="primary">Hacer picks</button>
+        <button onclick="copyInvite()">Copiar link privado</button>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="phone main-phone">
+        <div class="phone-header"><span>INICIO</span><button>☆</button></div>
+        <div class="live-card">
+          <div class="row"><span class="tag">PARTIDO DEL DÍA</span><span class="live-pill">EN VIVO</span></div>
+          <div class="scoreboard">
+            <div><div class="flag">🇲🇽</div><b>MÉXICO</b></div>
+            <div class="score"><strong>1 - 0</strong><span>67'</span></div>
+            <div><div class="flag">🇦🇷</div><b>ARGENTINA</b></div>
+          </div>
+          <p class="muted center">Estadio Lusail, Qatar</p>
+          <button class="primary full" onclick="openMatch()">VER PARTIDO</button>
+        </div>
+        <div class="mini-card">
+          <div class="row"><h3>Ranking en vivo</h3><a href="#ranking">Ver todo</a></div>
+          <ol class="ranking-list">
+            <li><span>1</span><b>@Lu</b><em>152 pts ▲</em></li>
+            <li><span>2</span><b>@Chavez</b><em>148 pts ▼</em></li>
+            <li><span>3</span><b>@Diego</b><em>139 pts ▲</em></li>
+            <li><span>4</span><b>@Sofi</b><em>134 pts —</em></li>
+          </ol>
+        </div>
+        <div class="mini-card">
+          <h3>Actividad reciente</h3>
+          <div id="activityHome" class="activity-list"></div>
+        </div>
+      </article>
+
+      <article id="partidoLive" class="phone">
+        <div class="phone-header"><button onclick="closeMatch()">←</button><span>LIVE MATCH</span><button>☆</button></div>
+        <div class="live-match-score">
+          <span class="timer">67:23</span>
+          <div class="scoreboard compact">
+            <div><div class="flag">🇲🇽</div></div>
+            <div class="score"><strong>1 - 0</strong></div>
+            <div><div class="flag">🇦🇷</div></div>
+          </div>
+        </div>
+        <div class="timeline">
+          <div><b>67'</b><span>⚽ Gol de México · S. Giménez</span></div>
+          <div><b>54'</b><span>🟨 Tarjeta amarilla · E. Fernández</span></div>
+          <div><b>46'</b><span>Inicio segundo tiempo</span></div>
+          <div><b>45'</b><span>Fin primer tiempo</span></div>
+          <div><b>18'</b><span>⚽ Gol de México · H. Lozano</span></div>
+        </div>
+        <div class="mini-card">
+          <h3>Top puntuación en vivo</h3>
+          <ol class="ranking-list">
+            <li><span>1</span><b>@Lu</b><em>+3 pts</em></li>
+            <li><span>2</span><b>@Chavez</b><em>+1 pts</em></li>
+            <li><span>3</span><b>@Diego</b><em>+1 pts</em></li>
+          </ol>
+        </div>
+      </article>
+
+      <article class="phone" id="chat">
+        <div class="phone-header"><span>CHAT DEL PARTIDO</span><small>985 miembros</small></div>
+        <div class="tabs"><button class="active">Chat</button><button>Eventos</button></div>
+        <div id="chatList" class="chat-list"></div>
+        <div class="message-box">
+          <input id="chatInput" placeholder="Escribe un mensaje..." />
+          <button onclick="sendMessage()">➤</button>
+        </div>
+        <div class="reactions"><button>❤️</button><button>🔥</button><button>😂</button><button>😮</button><button>🐙</button></div>
+      </article>
+
+      <article id="perfil" class="phone">
+        <div class="phone-header"><span>PERFIL</span><button>⚙</button></div>
+        <div class="profile-card">
+          <div class="profile-photo"><img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80"></div>
+          <h2>@Lu</h2><p>Luis Chávez</p><span class="verified">WhatsApp verificado ✓</span>
+          <div class="profile-stats"><div><b>1520</b><span>Puntos</span></div><div><b>38</b><span>Exactos</span></div><div><b>7</b><span>Racha</span></div></div>
+        </div>
+        <div class="mini-card"><div class="row"><h3>Logros</h3><a href="#logros">Ver todos</a></div><div class="badges-row"><span>🎯</span><span>🧠</span><span>🏆</span><span>🔥</span></div></div>
+      </article>
+    </section>
+
+    <section id="partidos" class="panel">
+      <div class="section-title"><div><span class="eyebrow">Predicciones</span><h2>Partidos</h2></div><button onclick="fillDemo()">Llenar demo</button></div>
+      <div id="matches" class="matches-grid"></div>
+    </section>
+
+    <section id="ranking" class="panel">
+      <div class="section-title"><div><span class="eyebrow">Leaderboard</span><h2>Ranking general</h2></div></div>
+      <div class="ranking-table">
+        <div class="rank-head"><span>#</span><span>Usuario</span><span>Puntos</span><span>Exactos</span><span>Racha</span></div>
+        <div class="rank-row"><span>1</span><b>@Lu</b><span>1520</span><span>38</span><span>7</span></div>
+        <div class="rank-row"><span>2</span><b>@Chavez</b><span>1480</span><span>34</span><span>4</span></div>
+        <div class="rank-row"><span>3</span><b>@Sofi</b><span>1395</span><span>31</span><span>6</span></div>
+      </div>
+    </section>
+
+    <section id="logros" class="panel">
+      <div class="section-title"><div><span class="eyebrow">Badges</span><h2>15 logros</h2></div></div>
+      <div class="badges-grid">
+        <div>🎯<b>Exacto Perfecto</b></div><div>🧠<b>Cerebro Mundialista</b></div><div>👑<b>Rey del Marcador</b></div>
+        <div>🔥<b>Enrachado</b></div><div>⚡<b>Imparable</b></div><div>❄️<b>Sangre Fría</b></div>
+        <div>💬<b>Comentarista Oficial</b></div><div>❤️<b>Favorito del Chat</b></div><div>🐙<b>Pulpo Social</b></div>
+        <div>🌎<b>Señor Mundial</b></div><div>🏆<b>Campeón del Mundo</b></div><div>🥇<b>Top 3 Mundial</b></div>
+        <div>👀<b>Visionario</b></div><div>🐐<b>GOAT</b></div><div>🐙<b>Pulponi Supremo</b></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <a class="active" href="#inicio">⌂<span>Inicio</span></a><a href="#partidos">⚽<span>Partidos</span></a><a href="#ranking">🏆<span>Ranking</span></a><a href="#chat">💬<span>Chat</span></a><a href="#perfil">●<span>Perfil</span></a>
+  </nav>
+
+  <audio id="goalSound" preload="auto"><source src="https://actions.google.com/sounds/v1/sports/crowd_cheer.ogg" type="audio/ogg"></audio>
+  <script src="script.js"></script>
+</body>
+</html>
