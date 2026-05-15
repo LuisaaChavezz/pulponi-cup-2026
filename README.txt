@@ -1,7 +1,7 @@
 PULPONI CUP 2026 — PROTOTIPO VISUAL
 
 Incluye:
-- Diseño negro/rojo estilo
+- Diseño negro/rojo estilo F1
 - Home con partido del día
 - Modo Live Match
 - Chat con reacciones
