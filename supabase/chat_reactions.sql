@@ -1,0 +1,4 @@
+-- DEPRECADO: el cliente usa la tabla `public.reactions` (ver reactions.sql).
+-- Si solo tienes chat_reactions, puedes:
+--   ALTER TABLE public.chat_reactions RENAME TO reactions;
+-- y renombrar constraints/índices, o copiar datos a reactions y eliminar chat_reactions.

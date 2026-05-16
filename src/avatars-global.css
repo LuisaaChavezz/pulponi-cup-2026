@@ -1,0 +1,143 @@
+/**
+ * Avatares de perfil en toda la app: círculo perfecto, 1:1, recorte centrado.
+ * Carga después de index.css / layout-dashboard.css.
+ */
+
+.avatar-frame {
+  display: block;
+  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 30, 39, 0.45);
+  background: #0a0a0d;
+  box-shadow: 0 0 14px rgba(255, 30, 39, 0.25);
+  position: relative;
+  box-sizing: border-box;
+}
+
+.avatar-frame > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 9999px;
+}
+
+.avatar-frame--xs {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.avatar-frame--sm {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+}
+
+.avatar-frame--profile {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  box-shadow: none;
+  background: #050505;
+}
+
+.avatar-frame--logo-profile {
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.avatar-frame--logo-profile > img {
+  object-fit: contain;
+  object-position: center;
+  border-radius: 9999px;
+}
+
+/* Foto principal en perfil: anula border-radius:0 heredado; mantiene anillo exterior */
+.profile-photo .avatar-frame > img {
+  border-radius: 9999px !important;
+  object-fit: cover;
+  object-position: center;
+  width: 100%;
+  height: 100%;
+}
+
+.profile-photo .avatar-frame.avatar-frame--logo-profile > img {
+  object-fit: contain;
+}
+
+/* Miniaturas del selector de avatar (perfil) */
+.avatar-option-frame {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 30, 39, 0.35);
+  background: #050505;
+  box-shadow: 0 0 12px rgba(255, 30, 39, 0.2);
+  position: relative;
+  box-sizing: border-box;
+}
+
+.avatar-option-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 9999px;
+}
+
+.avatar-option-frame--logo img {
+  object-fit: contain;
+  object-position: center;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+/* Actividad reciente: contenedor 42×42, círculo perfecto (evita estiramiento en flex) */
+.dash-activity-feed .activity-row--feed > .avatar-frame {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  align-self: flex-start;
+  box-sizing: border-box;
+}
+
+.dash-activity-feed .activity-row--feed > .avatar-frame > img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 50%;
+  display: block;
+}
+
+.dash-activity-feed .activity-row--feed > .avatar-frame.avatar-frame--logo-profile > img {
+  object-fit: cover;
+  object-position: center;
+  padding: 0;
+}

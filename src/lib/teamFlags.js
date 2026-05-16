@@ -1,0 +1,167 @@
+/** Emoji bandera por nombre de selección (ES / EN, API-Football). */
+const TEAM_FLAGS = {
+  mexico: '🇲🇽',
+  méxico: '🇲🇽',
+  argentina: '🇦🇷',
+  brasil: '🇧🇷',
+  brazil: '🇧🇷',
+  francia: '🇫🇷',
+  france: '🇫🇷',
+  alemania: '🇩🇪',
+  germany: '🇩🇪',
+  espana: '🇪🇸',
+  españa: '🇪🇸',
+  spain: '🇪🇸',
+  inglaterra: '🏴',
+  england: '🏴',
+  portugal: '🇵🇹',
+  italia: '🇮🇹',
+  italy: '🇮🇹',
+  uruguay: '🇺🇾',
+  colombia: '🇨🇴',
+  estadosunidos: '🇺🇸',
+  'united states': '🇺🇸',
+  usa: '🇺🇸',
+  canada: '🇨🇦',
+  canadá: '🇨🇦',
+  japon: '🇯🇵',
+  japón: '🇯🇵',
+  japan: '🇯🇵',
+  marruecos: '🇲🇦',
+  morocco: '🇲🇦',
+  sudáfrica: '🇿🇦',
+  sudafrica: '🇿🇦',
+  'south africa': '🇿🇦',
+  holanda: '🇳🇱',
+  netherlands: '🇳🇱',
+  'países bajos': '🇳🇱',
+  belgica: '🇧🇪',
+  bélgica: '🇧🇪',
+  belgium: '🇧🇪',
+  croacia: '🇭🇷',
+  croatia: '🇭🇷',
+  suiza: '🇨🇭',
+  switzerland: '🇨🇭',
+  serbia: '🇷🇸',
+  polonia: '🇵🇱',
+  poland: '🇵🇱',
+  dinamarca: '🇩🇰',
+  denmark: '🇩🇰',
+  suecia: '🇸🇪',
+  sweden: '🇸🇪',
+  austria: '🇦🇹',
+  turquia: '🇹🇷',
+  turkey: '🇹🇷',
+  corea: '🇰🇷',
+  'corea del sur': '🇰🇷',
+  'south korea': '🇰🇷',
+  australia: '🇦🇺',
+  ecuador: '🇪🇨',
+  senegal: '🇸🇳',
+  iran: '🇮🇷',
+  arabiasaudita: '🇸🇦',
+  'saudi arabia': '🇸🇦',
+  qatar: '🇶🇦',
+  tunez: '🇹🇳',
+  túnez: '🇹🇳',
+  tunisia: '🇹🇳',
+  ghana: '🇬🇭',
+  camerun: '🇨🇲',
+  cameroon: '🇨🇲',
+  costarica: '🇨🇷',
+  'costa rica': '🇨🇷',
+  panama: '🇵🇦',
+  chile: '🇨🇱',
+  peru: '🇵🇪',
+  perú: '🇵🇪',
+  paraguay: '🇵🇾',
+  irak: '🇮🇶',
+  iraq: '🇮🇶',
+  uzbekistan: '🇺🇿',
+  uzbekistán: '🇺🇿',
+  argelia: '🇩🇿',
+  algeria: '🇩🇿',
+  bosnia: '🇧🇦',
+  'bosnia y herzegovina': '🇧🇦',
+  'bosnia and herzegovina': '🇧🇦',
+  curacao: '🇨🇼',
+  curaçao: '🇨🇼',
+  bolivia: '🇧🇴',
+  venezuela: '🇻🇪',
+  ucrania: '🇺🇦',
+  ukraine: '🇺🇦',
+  gales: '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
+  wales: '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
+  escocia: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  scotland: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+};
+
+const FLAG_CDN_CODES = {
+  mexico: 'mx',
+  méxico: 'mx',
+  argentina: 'ar',
+  brasil: 'br',
+  brazil: 'br',
+  francia: 'fr',
+  france: 'fr',
+  alemania: 'de',
+  germany: 'de',
+  espana: 'es',
+  españa: 'es',
+  spain: 'es',
+  inglaterra: 'gb-eng',
+  england: 'gb-eng',
+  portugal: 'pt',
+  italia: 'it',
+  italy: 'it',
+  uruguay: 'uy',
+  colombia: 'co',
+  estadosunidos: 'us',
+  'united states': 'us',
+  usa: 'us',
+  canada: 'ca',
+  canadá: 'ca',
+  japon: 'jp',
+  japón: 'jp',
+  japan: 'jp',
+  marruecos: 'ma',
+  morocco: 'ma',
+  sudáfrica: 'za',
+  sudafrica: 'za',
+  'south africa': 'za',
+  paraguay: 'py',
+  irak: 'iq',
+  iraq: 'iq',
+  uzbekistan: 'uz',
+  uzbekistán: 'uz',
+  argelia: 'dz',
+  algeria: 'dz',
+  bosnia: 'ba',
+  'bosnia y herzegovina': 'ba',
+};
+
+function normalizeTeamKey(name) {
+  return String(name ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+export function flagEmojiForTeam(teamName) {
+  if (!teamName) return null;
+  const key = normalizeTeamKey(teamName);
+  if (TEAM_FLAGS[key]) return TEAM_FLAGS[key];
+  const compact = key.replace(/\s/g, '');
+  if (TEAM_FLAGS[compact]) return TEAM_FLAGS[compact];
+  return '⚽';
+}
+
+export function flagLogoUrlForTeam(teamName) {
+  const key = normalizeTeamKey(teamName);
+  const compact = key.replace(/\s/g, '');
+  const code = FLAG_CDN_CODES[key] || FLAG_CDN_CODES[compact];
+  return code ? `https://flagcdn.com/w80/${code}.png` : null;
+}
