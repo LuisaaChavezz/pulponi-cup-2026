@@ -1,0 +1,17 @@
+const matches=[['Jun 11','México','Argentina','Grupo A','🇲🇽','🇦🇷'],['Jun 12','Brasil','Francia','Grupo B','🇧🇷','🇫🇷'],['Jun 13','España','Alemania','Grupo C','🇪🇸','🇩🇪'],['Jun 14','Portugal','Inglaterra','Grupo D','🇵🇹','🏴'],['Jun 15','Uruguay','Italia','Grupo E','🇺🇾','🇮🇹'],['Jun 16','Estados Unidos','Canadá','Grupo F','🇺🇸','🇨🇦'],['Jun 17','Japón','Marruecos','Grupo G','🇯🇵','🇲🇦'],['Jun 18','Colombia','Países Bajos','Grupo H','🇨🇴','🇳🇱'],['Jun 19','México','Francia','Grupo A','🇲🇽','🇫🇷']];
+const chatData=[['@Alex','12:45 PM','¡Qué partidazo! 🇲🇽🔥','❤️ 12 · 🔥 8 · 😮 3'],['@Sofi','12:46 PM','México está jugando increíble','❤️ 9 · 🐙 2'],['@Diego','12:47 PM','Se viene el segundo...','👀 6'],['@Lu','12:48 PM','¡GOLAZOOOO! 🚨🐙','❤️ 15 · 🔥 6 · 😂 2'],['@Chavez','12:49 PM','Vamooooosssss','🔥 12']];
+const activity=[' @Lu acertó marcador exacto en México 1 - 0 Argentina',' @Sofi comentó en Brasil vs Francia',' @Chavez actualizó su pick antes del inicio',' @Diego desbloqueó el badge Visionario'];
+
+function renderMatches(){document.getElementById('matches').innerHTML=matches.map((m,i)=>`<article class="match-card"><header><span>${m[0]}</span><span>${m[3]}</span></header><div class="match-teams"><div><div class="flag">${m[4]}</div><b>${m[1]}</b></div><strong>VS</strong><div><div class="flag">${m[5]}</div><b>${m[2]}</b></div></div><div class="pick-inputs"><input id="h${i}" type="number" min="0" placeholder="0" onchange="logChange('${m[1]} vs ${m[2]}')"><input id="a${i}" type="number" min="0" placeholder="0" onchange="logChange('${m[1]} vs ${m[2]}')"></div><input class="comment-input" placeholder="Comentario del partido..." onchange="logComment('${m[1]} vs ${m[2]}')"></article>`).join('')}
+function renderChat(){document.getElementById('chatList').innerHTML=chatData.map(m=>`<div class="chat-message"><strong>${m[0]}</strong><small>${m[1]}</small><p>${m[2]}</p><div class="reacts">${m[3]}</div></div>`).join('')}
+function renderActivity(){document.getElementById('activityHome').innerHTML=activity.slice(0,5).map((t,i)=>`<p>🔥${t}<small>Hace ${i+1} min</small></p>`).join('')}
+function sendMessage(){const input=document.getElementById('chatInput');if(!input.value.trim())return;chatData.push(['@Lu',new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),input.value.trim(),'❤️ 0 · 🔥 0']);activity.unshift(` @Lu comentó: "${input.value.trim()}"`);input.value='';renderChat();renderActivity()}
+function logChange(match){activity.unshift(` @Lu cambió su pick en ${match}`);renderActivity()}
+function logComment(match){activity.unshift(` @Lu comentó en ${match}`);renderActivity()}
+function fillDemo(){matches.forEach((_,i)=>{const h=document.getElementById(`h${i}`),a=document.getElementById(`a${i}`);if(h&&a){h.value=Math.floor(Math.random()*4);a.value=Math.floor(Math.random()*4)}});activity.unshift(' @Lu llenó picks de demostración');renderActivity()}
+function scrollToSection(id){document.getElementById(id).scrollIntoView({behavior:'smooth'})}
+function openMatch(){document.getElementById('partidoLive').scrollIntoView({behavior:'smooth'});playGoalSound()}
+function closeMatch(){document.getElementById('inicio').scrollIntoView({behavior:'smooth'})}
+function copyInvite(){navigator.clipboard.writeText(location.href).then(()=>alert('Link privado copiado ✅'))}
+function playGoalSound(){const audio=document.getElementById('goalSound');audio.volume=.35;audio.play().catch(()=>{})}
+renderMatches();renderChat();renderActivity();
