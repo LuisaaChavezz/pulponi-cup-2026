@@ -1,25 +1,22 @@
-PULPONI CUP 2026 — PROTOTIPO VISUAL
+PULPONI CUP 2026 — Vite + React + Supabase
 
-Incluye:
-- Diseño negro/rojo estilo F1
-- Home con partido del día
-- Modo Live Match
-- Chat con reacciones
-- Perfil con foto
-- Ranking
-- Picks por partido
-- Comentarios
-- Badges
-- Sonido demo
-- Responsive móvil
+Requisitos: Node.js 18+ y npm
 
-Cómo verlo:
-- Abre index.html en tu navegador.
+1. Copia .env.example a .env.local y agrega tus credenciales:
+   VITE_SUPABASE_URL
+   VITE_SUPABASE_ANON_KEY
 
-Cómo subir a Vercel:
-1. Sube estos archivos a GitHub.
-2. En Vercel: Add New Project.
-3. Selecciona el repo.
-4. Deploy.
+2. En Supabase SQL Editor (ALTER, sin crear tablas):
+   alter table profiles add column if not exists picks jsonb default '{}'::jsonb;
+   alter table profiles add column if not exists pulponi_verified boolean default true;
+   alter table activity_log add column if not exists payload jsonb;
 
-Esto es frontend/prototipo. Para app real falta backend: Next.js, Supabase, Twilio Verify y API-Football.
+3. Instalar y ejecutar:
+   npm install
+   npm run dev
+
+4. Abre http://localhost:5173
+
+Storage: crea bucket público "avatars" para fotos de perfil.
+
+Archivos legacy (backup): styles.css, script.js en raíz ya no se usan; la app vive en src/
