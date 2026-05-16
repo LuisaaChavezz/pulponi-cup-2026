@@ -47,6 +47,11 @@ if (!url) {
   process.exit(1);
 }
 
+if (!url.startsWith('https://')) {
+  console.error('VITE_SUPABASE_URL debe ser una URL https completa, recibido:', url);
+  process.exit(1);
+}
+
 const key = serviceKey || anonKey;
 if (!key) {
   console.error(

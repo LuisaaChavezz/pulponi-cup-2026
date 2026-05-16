@@ -1,15 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!url || !key) {
-  console.warn(
-    'Faltan VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY. Crea .env.local con tus credenciales de Supabase.'
-  );
+if (!supabaseUrl?.startsWith('https://')) {
+  throw new Error('VITE_SUPABASE_URL inválida: ' + supabaseUrl);
 }
 
-export const supabase = createClient(url ?? '', key ?? '', {
+if (!supabaseAnonKey || typeof supabaseAnonKey !== 'string' || !supabaseAnonKey.trim()) {
+  throw new Error('VITE_SUPABASE_ANON_KEY inválida o vacía');
+}
+
+export const supabase = createClient(supabaseUrl.trim(), supabaseAnonKey.trim(), {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
