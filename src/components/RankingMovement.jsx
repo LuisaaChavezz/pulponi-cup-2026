@@ -1,13 +1,33 @@
 import { useMemo } from 'react';
-import { formatMovementLine, selectDisplayName } from '../lib/rankingHistory';
+import { selectDisplayName } from '../lib/rankingHistory';
 import { useRankingMovement } from '../hooks/useRankingMovement';
 import UserAvatar from './UserAvatar';
 
 const TOP_EMOJIS = ['🐙🏆', '🧠', '👑', '🔥', '⚡'];
 
+/** Etiqueta de la burbuja de movimiento (solo UI). */
+function movementBadgeLabel(movement) {
+  if (!movement) return '';
+  const n = movement.delta ?? 0;
+  const posWord = n === 1 ? 'posición' : 'posiciones';
+  switch (movement.direction) {
+    case 'new':
+      return '↑ Nuevo en el ranking';
+    case 'up':
+      return `↑ Subió ${n} ${posWord}`;
+    case 'down':
+      return `↓ Bajó ${n} ${posWord}`;
+    case 'same':
+      return '→ Se mantiene';
+    default:
+      return movement.lineLabel ?? '';
+  }
+}
+
 function MovementBadge({ movement }) {
   if (!movement) return null;
   const dir = movement.direction;
+  const label = movementBadgeLabel(movement);
   const cls = [
     'rm-movement',
     dir === 'up' ? 'rm-movement--up' : '',
@@ -19,9 +39,28 @@ function MovementBadge({ movement }) {
     .join(' ');
 
   return (
-    <span className={cls} title={movement.lineLabel}>
-      {movement.lineLabel}
+    <span className={cls} title={label}>
+      {label}
     </span>
+  );
+}
+
+function RankStats({ points, exacts }) {
+  const pts = Number(points ?? 0);
+  const ex = Number(exacts ?? 0);
+  return (
+    <p className="rm-stats-line">
+      <span className="rm-stat">
+        {pts} PTS
+      </span>
+      <span className="rm-stat-sep" aria-hidden>
+        {' '}
+        •{' '}
+      </span>
+      <span className="rm-stat">
+        {ex} exactos
+      </span>
+    </p>
   );
 }
 
@@ -71,7 +110,6 @@ export default function RankingMovement({ session, className = '' }) {
             {top5.map((r, i) => {
               const rank = r.currentRank ?? i + 1;
               const barPct = Math.min(100, (r.points / maxTop5) * 100);
-              const prevRank = r.previousRank;
               return (
                 <div
                   key={r.id}
@@ -80,24 +118,19 @@ export default function RankingMovement({ session, className = '' }) {
                 >
                   <div className="rm-top-card-inner">
                     <div className="rm-top-row">
-                      <span className="rm-pos-emoji" aria-label={`Puesto ${rank}`}>
+                      <span className="rm-pos-emoji" aria-hidden>
                         {TOP_EMOJIS[i] ?? '◆'}
                       </span>
                       <UserAvatar photoUrl={r.photo_url} className="rm-avatar avatar-frame--sm" alt="" />
-                      <div className="rm-top-meta">
-                        <span className="rm-username">{selectDisplayName(r)}</span>
-                        <div className="rm-rank-positions">
-                          <span className="rm-rank-now">#{rank}</span>
-                          {prevRank != null ? (
-                            <span className="rm-rank-was">antes #{prevRank}</span>
-                          ) : null}
+                      <div className="rm-top-body">
+                        <div className="rm-top-line">
+                          <h3 className="rm-top-title">
+                            <span className="rm-rank-num">#{rank}</span>{' '}
+                            <span className="rm-rank-name">{selectDisplayName(r)}</span>
+                          </h3>
+                          <MovementBadge movement={r.movement} />
                         </div>
-                        <div className="rm-points-line">
-                          <strong>{r.points}</strong>
-                          <span className="rm-pts-label">pts</span>
-                        </div>
-                        <MovementBadge movement={r.movement} />
-                        <p className="rm-movement-line">{formatMovementLine(r, r.movement)}</p>
+                        <RankStats points={r.points} exacts={r.exacts} />
                       </div>
                     </div>
                     <div className="rm-bar-wrap" aria-hidden>
@@ -122,21 +155,16 @@ export default function RankingMovement({ session, className = '' }) {
                       key={r.id}
                       className={`rm-rest-row rm-rest-row--${r.movement?.direction ?? 'same'}`}
                     >
-                      <span className="rm-rest-pos">{pos}</span>
                       <UserAvatar photoUrl={r.photo_url} className="rm-rest-avatar avatar-frame--xs" alt="" />
-                      <div className="rm-rest-main">
-                        <span className="rm-rest-name">{selectDisplayName(r)}</span>
-                        <div className="rm-rest-sub">
-                          <span>
-                            #{pos}
-                            {r.previousRank != null ? ` · antes #${r.previousRank}` : ''}
+                      <div className="rm-rest-body">
+                        <div className="rm-rest-line">
+                          <span className="rm-rest-title">
+                            <span className="rm-rank-num">#{pos}</span>{' '}
+                            <span className="rm-rank-name">{selectDisplayName(r)}</span>
                           </span>
-                          <span className="rm-rest-dot">·</span>
-                          <span>{r.points} pts</span>
-                          <span className="rm-rest-dot">·</span>
-                          <span>{r.exacts} exactos</span>
+                          <MovementBadge movement={r.movement} />
                         </div>
-                        <MovementBadge movement={r.movement} />
+                        <RankStats points={r.points} exacts={r.exacts} />
                       </div>
                     </li>
                   );
@@ -149,7 +177,7 @@ export default function RankingMovement({ session, className = '' }) {
 
       {profileSummary && session?.user?.id ? (
         <p className="rm-you-hint" aria-live="polite">
-          Tu puesto: #{profileSummary.currentRank ?? '—'} · {profileSummary.movement?.lineLabel}
+          Tu puesto: #{profileSummary.currentRank ?? '—'} · {movementBadgeLabel(profileSummary.movement)}
         </p>
       ) : null}
     </article>

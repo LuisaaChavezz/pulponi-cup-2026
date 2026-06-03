@@ -1913,34 +1913,114 @@
   color: #fca5a5;
 }
 
-.rm-rank-positions {
+/* Top 5 + resto: título en una línea, stats y burbuja a la derecha */
+.rm-top-body,
+.rm-rest-body {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: baseline;
-  margin-top: 2px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.rm-rank-now {
-  font-size: 11px;
+.rm-top-line,
+.rm-rest-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rm-top-title,
+.rm-rest-title {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  font-size: 14px;
   font-weight: 950;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rm-rank-num {
+  font-weight: 950;
+}
+
+.rm-top-card--1 .rm-rank-num {
+  color: #fcd34d;
+}
+
+.rm-top-card--2 .rm-rank-num {
+  color: #60a5fa;
+}
+
+.rm-top-card--3 .rm-rank-num {
+  color: #fbbf24;
+}
+
+.rm-top-card--4 .rm-rank-num {
+  color: #f97316;
+}
+
+.rm-top-card--5 .rm-rank-num {
+  color: #a3e635;
+}
+
+.rm-rank-name {
   color: #fff;
 }
 
-.rm-rank-was {
-  font-size: 10px;
-  font-weight: 700;
+.rm-stats-line {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+  font-size: 11px;
+  font-weight: 800;
   color: var(--muted, #a1a1aa);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+.rm-stat {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+.rm-stat-sep {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  opacity: 0.85;
+  text-transform: none;
+}
+
+.rm-stats-line .rm-stat:last-child {
+  text-transform: lowercase;
 }
 
 .rm-movement {
-  display: inline-block;
-  margin-top: 4px;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin: 0;
   padding: 3px 8px;
   border-radius: 999px;
   font-size: 10px;
   font-weight: 950;
   letter-spacing: 0.02em;
+  line-height: 1.2;
+  max-width: min(48vw, 160px);
+  text-align: center;
+  white-space: nowrap;
 }
 
 .rm-movement--up {
@@ -1969,12 +2049,113 @@
   border: 1px solid rgba(250, 204, 21, 0.35);
 }
 
+.rm-top-meta .rm-username,
+.rm-top-meta .rm-rank-positions,
+.rm-top-meta .rm-points-line,
 .rm-movement-line {
-  margin: 4px 0 0;
-  font-size: 11px;
-  font-weight: 800;
-  color: #e4e4e7;
-  line-height: 1.3;
+  display: none !important;
+}
+
+.rm-rest-row {
+  display: flex !important;
+  grid-template-columns: unset !important;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+}
+
+.rm-rest-main,
+.rm-rest-sub,
+.rm-rest-pos {
+  display: none !important;
+}
+
+.rm-rest-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rm-rest-title {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.rm-rest-title .rm-rank-num {
+  color: var(--muted, #a1a1aa);
+}
+
+.rm-rest-title .rm-rank-name {
+  color: #fafafa;
+}
+
+.rm-top-card-inner .rm-bar-wrap {
+  margin-top: 6px;
+}
+
+.dash-ranking .rm-top-row {
+  align-items: center;
+  gap: 10px;
+}
+
+.dash-ranking .rm-top-card-inner {
+  padding: 6px 8px 8px;
+}
+
+.dash-ranking .rm-top-card--1 .rm-top-card-inner {
+  padding: 8px 10px 9px;
+}
+
+.dash-ranking .rm-top-title {
+  font-size: 13px;
+}
+
+.dash-ranking .rm-stats-line {
+  font-size: 10px;
+}
+
+.dash-ranking .rm-movement {
+  font-size: 9px;
+  padding: 2px 6px;
+  max-width: min(42vw, 140px);
+}
+
+.dash-ranking .rm-rest {
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.dash-ranking .rm-rest-list {
+  gap: 6px;
+}
+
+@media (max-width: 480px) {
+  .rm-top-line,
+  .rm-rest-line {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .rm-movement {
+    max-width: 100%;
+    margin-left: auto;
+  }
+
+  .rm-top-title,
+  .rm-rest-title {
+    flex: 1 1 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
+  .dash-ranking .rm-pos-emoji {
+    font-size: 22px;
+    min-width: 40px;
+  }
+
+  .dash-ranking .rm-top-card--1 .rm-pos-emoji {
+    font-size: 24px;
+  }
 }
 
 .rm-top-card--up .rm-top-card-inner {
