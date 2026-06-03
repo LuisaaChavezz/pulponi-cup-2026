@@ -1,5 +1,9 @@
-import { useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import UserAvatar from './UserAvatar';
+import CommunityMatchInsights from './CommunityMatchInsights';
+import { collectMatchPickScores } from '../lib/communityPicks';
+import { areCommunityTrendsRevealed } from '../lib/matchUtils';
+import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   downloadPredictionsPdf,
   downloadPredictionsRaster,
@@ -10,9 +14,12 @@ import {
 export default function DashboardNotifications({
   importantAlerts,
   latestPredictions,
+  matches,
+  communityPickProfiles,
   isAdmin,
   onCreateImportantAlert,
 }) {
+  const now = useKickoffClock();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
@@ -29,6 +36,15 @@ export default function DashboardNotifications({
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [exportOpen]);
+
+  const revealedCommunityMatches = useMemo(() => {
+    const list = (matches ?? []).filter((m) => areCommunityTrendsRevealed(m, now));
+    return list.sort((a, b) => {
+      const ta = a?.kickoff ? new Date(a.kickoff).getTime() : 0;
+      const tb = b?.kickoff ? new Date(b.kickoff).getTime() : 0;
+      return tb - ta;
+    });
+  }, [matches, now]);
 
   async function handleSubmitAnnouncement(e) {
     e.preventDefault();
@@ -111,6 +127,28 @@ export default function DashboardNotifications({
             ))
           )}
         </div>
+      </div>
+
+      <div className="dash-notifications__section dash-notifications__section--community">
+        <div className="dash-notifications__head">
+          <h3 className="dash-notifications__subtitle">Tendencias de la comunidad</h3>
+          <p className="dash-notifications__hint">
+            Porcentajes y picks más elegidos, visibles cuando cierra cada partido (kickoff).
+          </p>
+        </div>
+
+        {!revealedCommunityMatches.length ? (
+          <p className="dash-notifications__empty">
+            Las tendencias aparecerán aquí cuando empiece cada partido.
+          </p>
+        ) : (
+          <div className="dash-notifications__community-list">
+            {revealedCommunityMatches.map((m) => {
+              const scores = collectMatchPickScores(communityPickProfiles, m.id);
+              return <CommunityMatchInsights key={m.id} match={m} scores={scores} compact />;
+            })}
+          </div>
+        )}
       </div>
 
       <div className="dash-notifications__section dash-notifications__section--predictions">

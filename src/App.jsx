@@ -17,6 +17,7 @@ import {
   formatVenueCity,
   isMatchLive,
   isPickLocked,
+  areCommunityTrendsRevealed,
   listCarouselUpcomingMatches,
   pickInicioMatch,
 } from './lib/matchUtils';
@@ -35,9 +36,8 @@ import HighlightsModal from './components/HighlightsModal';
 import RankingMovement from './components/RankingMovement';
 import ProfileRankingSummary from './components/ProfileRankingSummary';
 import PulpoIndexCard from './components/PulpoIndexCard';
-import MatchCommunityPrediction from './components/MatchCommunityPrediction';
-import PulponiThermometer from './components/PulponiThermometer';
-import { collectMatchPickScores, collectThermometerScores } from './lib/communityPicks';
+import { CommunityTrendsLockedHint } from './components/CommunityMatchInsights';
+import { useKickoffClock } from './hooks/useKickoffClock';
 import { normalizeStoredHighlightList } from './lib/highlightsMapper';
 import { pullAndPersistHighlightEvents } from './lib/matchHighlightSync';
 
@@ -103,6 +103,7 @@ export default function App() {
   const matchesRef = useRef([]);
 
   const data = useAppData(session);
+  const kickoffNow = useKickoffClock();
 
   useEffect(() => {
     if (chatTab === 'avisos' && session?.user?.id) {
@@ -692,6 +693,8 @@ export default function App() {
                 <DashboardNotifications
                   importantAlerts={data.events}
                   latestPredictions={data.latestPredictions}
+                  matches={worldCupMatches}
+                  communityPickProfiles={data.communityPickProfiles}
                   isAdmin={Boolean(data.profile?.is_admin)}
                   onCreateImportantAlert={data.createEvent}
                 />
@@ -805,16 +808,7 @@ export default function App() {
               const draft = pickDrafts[m.id] ?? {};
               const status = displayMatchStatus(m);
               const finalLabel = finalScoreLabel(m);
-              const communityScores = collectMatchPickScores(data.communityPickProfiles, m.id);
-              const thermoHome = draft.home ?? pick?.home_pick ?? '';
-              const thermoAway = draft.away ?? pick?.away_pick ?? '';
-              const thermometerScores = collectThermometerScores(
-                data.communityPickProfiles,
-                m.id,
-                session?.user?.id,
-                thermoHome,
-                thermoAway
-              );
+              const trendsRevealed = areCommunityTrendsRevealed(m, kickoffNow);
               return (
                 <article key={m.id} className="match-card">
                   <header>
@@ -856,7 +850,7 @@ export default function App() {
                       ) : null}
                     </div>
                   </div>
-                  <MatchCommunityPrediction scores={communityScores} match={m} />
+                  {!trendsRevealed ? <CommunityTrendsLockedHint /> : null}
                   <div className="pick-inputs">
                     <input
                       type="number"
@@ -885,8 +879,7 @@ export default function App() {
                       }
                     />
                   </div>
-                  <PulponiThermometer scores={thermometerScores} homePick={thermoHome} awayPick={thermoAway} />
-                  {m.is_knockout && (
+                  {m.is_knockout ? (
                     <select
                       disabled={locked}
                       value={draft.advances ?? pick?.advances_team ?? ''}
@@ -902,7 +895,7 @@ export default function App() {
                       <option value={m.home_team}>{m.home_team}</option>
                       <option value={m.away_team}>{m.away_team}</option>
                     </select>
-                  )}
+                  ) : null}
                   {finalLabel ? <p className="match-final">{finalLabel}</p> : null}
                   {locked ? (
                     <p className="pick-locked">

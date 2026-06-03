@@ -1888,6 +1888,133 @@
   margin-top: 8px;
 }
 
+.pulponi-social__locked-hint {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--muted, #a1a1aa);
+  text-align: center;
+}
+
+.community-insights {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 30, 39, 0.22);
+  background: rgba(255, 30, 39, 0.05);
+}
+
+.community-insights--compact {
+  padding: 8px 10px;
+  gap: 6px;
+}
+
+.community-insights__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.community-insights__head strong {
+  font-size: 12px;
+  font-weight: 900;
+  color: #fafafa;
+  line-height: 1.3;
+}
+
+.community-insights__meta {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted, #a1a1aa);
+}
+
+.community-insights__label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fecaca;
+}
+
+.community-insights__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.community-insights__list li {
+  font-size: 11px;
+  font-weight: 700;
+  color: #d4d4d8;
+  line-height: 1.35;
+}
+
+.community-insights__list li span {
+  color: #fff;
+  font-weight: 900;
+}
+
+.community-insights__line {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  font-weight: 700;
+  color: #d4d4d8;
+}
+
+.community-insights__line strong {
+  color: #fff;
+  font-weight: 900;
+}
+
+.community-insights__empty {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted, #a1a1aa);
+  font-weight: 700;
+}
+
+.dash-notifications__section--community {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.dash-notifications__community-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(42vh, 360px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+@media (max-width: 480px) {
+  .dash-notifications__community-list {
+    max-height: none;
+  }
+
+  .community-insights__head strong {
+    font-size: 11px;
+  }
+
+  .pulponi-social__locked-hint {
+    font-size: 10px;
+    padding: 7px 8px;
+  }
+}
+
 /* ——— Ranking: movimiento por jornada (↑ ↓) ——— */
 .rm-jornada-ref {
   margin: 0 10px 8px;

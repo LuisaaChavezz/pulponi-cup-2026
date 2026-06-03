@@ -30,6 +30,15 @@ export function isMatchFinished(match) {
   return uiStatus(match?.status, match?.api_status) === 'Final';
 }
 
+/** Tendencias de comunidad visibles solo desde el kickoff (sin cambiar guardado de picks). */
+export function areCommunityTrendsRevealed(match, now = new Date()) {
+  const kickoff = match?.kickoff;
+  if (!kickoff) return false;
+  const kickoffMs = new Date(kickoff).getTime();
+  if (Number.isNaN(kickoffMs)) return false;
+  return now.getTime() >= kickoffMs;
+}
+
 export function isPickLocked(match) {
   const raw = String(match?.api_status ?? '').toUpperCase();
   const norm = String(match?.status ?? '').toLowerCase();

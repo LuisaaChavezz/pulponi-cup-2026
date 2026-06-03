@@ -165,3 +165,91 @@ export function getPickThermometer(scores, homePick, awayPick) {
     total,
   };
 }
+
+function scoreKey(home, away) {
+  return `${home}-${away}`;
+}
+
+function formatScoreLabel(home, away) {
+  return `${home}-${away}`;
+}
+
+/**
+ * Marcador exacto más repetido en la comunidad.
+ * @param {Array<{ home: number, away: number }>} scores
+ */
+export function getMostChosenScore(scores) {
+  if (!scores?.length) return null;
+
+  const counts = new Map();
+  for (const s of scores) {
+    const key = scoreKey(s.home, s.away);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  let bestKey = null;
+  let bestCount = 0;
+  for (const [key, count] of counts) {
+    if (count > bestCount) {
+      bestCount = count;
+      bestKey = key;
+    }
+  }
+
+  if (!bestKey) return null;
+  const [home, away] = bestKey.split('-').map((n) => Number(n));
+  return {
+    home,
+    away,
+    count: bestCount,
+    label: formatScoreLabel(home, away),
+  };
+}
+
+/**
+ * Marcador exacto menos elegido (pick más arriesgado de la comunidad).
+ * @param {Array<{ home: number, away: number }>} scores
+ */
+export function getRiskiestCommunityPick(scores) {
+  if (!scores?.length || scores.length < MIN_COMMUNITY_PICKS) return null;
+
+  const counts = new Map();
+  for (const s of scores) {
+    const key = scoreKey(s.home, s.away);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  let riskyKey = null;
+  let riskyCount = Infinity;
+  for (const [key, count] of counts) {
+    if (count < riskyCount) {
+      riskyCount = count;
+      riskyKey = key;
+    }
+  }
+
+  if (!riskyKey) return null;
+  const [home, away] = riskyKey.split('-').map((n) => Number(n));
+  return {
+    home,
+    away,
+    count: riskyCount,
+    label: formatScoreLabel(home, away),
+  };
+}
+
+/**
+ * Resumen de tendencias para un partido con predicciones ya cerradas.
+ */
+export function buildCommunityMatchInsights(scores, match) {
+  const outcome = getCommunityOutcomeStats(scores, match);
+  const mostChosen = getMostChosenScore(scores);
+  const riskiest = getRiskiestCommunityPick(scores);
+
+  return {
+    outcome,
+    mostChosen,
+    riskiest,
+    total: scores?.length ?? 0,
+  };
+}
