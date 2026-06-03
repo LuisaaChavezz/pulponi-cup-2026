@@ -104,51 +104,33 @@ export function getPickThermometer(scores, homePick, awayPick) {
   }
 
   const myOutcome = outcomeFromScore(h, a);
-  let exactCount = 0;
   let outcomeCount = 0;
 
   for (const s of scores) {
-    if (s.home === h && s.away === a) exactCount += 1;
     if (outcomeFromScore(s.home, s.away) === myOutcome) outcomeCount += 1;
   }
 
-  const exactPct = Math.round((exactCount / total) * 100);
   const outcomePct = Math.round((outcomeCount / total) * 100);
-
-  if (exactCount <= 1) {
-    return {
-      sufficient: true,
-      kind: 'risky',
-      emoji: '😈',
-      label: 'Pick arriesgado',
-      detail: 'nadie más eligió este marcador',
-      exactPct,
-      outcomePct,
-      total,
-    };
-  }
-
-  if (exactPct <= 15) {
-    return {
-      sufficient: true,
-      kind: 'uncommon',
-      emoji: '🐙',
-      label: 'Pick poco común',
-      detail: `solo ${exactPct}% eligió este marcador`,
-      exactPct,
-      outcomePct,
-      total,
-    };
-  }
 
   if (outcomePct >= 40) {
     return {
       sufficient: true,
       kind: 'popular',
       emoji: '🔥',
-      label: 'Pick popular',
-      detail: `${outcomePct}% eligió este resultado general`,
-      exactPct,
+      label: 'Alineado con la mayoría',
+      detail: `${outcomePct}% de la comunidad eligió el mismo resultado general`,
+      outcomePct,
+      total,
+    };
+  }
+
+  if (outcomePct <= 20) {
+    return {
+      sufficient: true,
+      kind: 'uncommon',
+      emoji: '🐙',
+      label: 'Tendencia minoritaria',
+      detail: `solo ${outcomePct}% comparte este resultado general`,
       outcomePct,
       total,
     };
@@ -158,9 +140,8 @@ export function getPickThermometer(scores, homePick, awayPick) {
     sufficient: true,
     kind: 'neutral',
     emoji: '🐙',
-    label: 'Pick de la comunidad',
-    detail: `${outcomePct}% comparte este resultado · ${exactPct}% el mismo marcador`,
-    exactPct,
+    label: 'En la media',
+    detail: `${outcomePct}% de la comunidad eligió el mismo resultado general`,
     outcomePct,
     total,
   };
@@ -238,18 +219,34 @@ export function getRiskiestCommunityPick(scores) {
   };
 }
 
-/**
- * Resumen de tendencias para un partido con predicciones ya cerradas.
- */
-export function buildCommunityMatchInsights(scores, match) {
-  const outcome = getCommunityOutcomeStats(scores, match);
-  const mostChosen = getMostChosenScore(scores);
-  const riskiest = getRiskiestCommunityPick(scores);
-
+/** Solo tendencia general (1X2 %), sin marcadores exactos ni picks individuales. */
+export function buildCommunityGeneralInsights(scores, match) {
   return {
-    outcome,
-    mostChosen,
-    riskiest,
+    outcome: getCommunityOutcomeStats(scores, match),
     total: scores?.length ?? 0,
   };
+}
+
+/**
+ * @deprecated Usar buildCommunityGeneralInsights en UI pública.
+ */
+export function buildCommunityMatchInsights(scores, match) {
+  return {
+    ...buildCommunityGeneralInsights(scores, match),
+    mostChosen: getMostChosenScore(scores),
+    riskiest: getRiskiestCommunityPick(scores),
+  };
+}
+
+export function hasSufficientCommunityTrends(scores, match) {
+  return getCommunityOutcomeStats(scores, match).sufficient;
+}
+
+/** Partidos con al menos MIN_COMMUNITY_PICKS para mostrar tendencia general. */
+export function listMatchesForCommunityTrends(profileRows, matches) {
+  const list = Array.isArray(matches) ? matches : [];
+  return list.filter((m) => {
+    const scores = collectMatchPickScores(profileRows, m.id);
+    return hasSufficientCommunityTrends(scores, m);
+  });
 }

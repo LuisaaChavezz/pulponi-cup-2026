@@ -1,8 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import UserAvatar from './UserAvatar';
 import CommunityMatchInsights from './CommunityMatchInsights';
-import { collectMatchPickScores } from '../lib/communityPicks';
-import { areCommunityTrendsRevealed } from '../lib/matchUtils';
+import { collectMatchPickScores, listMatchesForCommunityTrends } from '../lib/communityPicks';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   buildAllMatchesExportGroups,
@@ -111,14 +110,14 @@ export default function DashboardNotifications({
 
   const matchLabel = formatMatchVersusLabel(downloadMatch);
 
-  const revealedCommunityMatches = useMemo(() => {
-    const list = (matches ?? []).filter((m) => areCommunityTrendsRevealed(m, now));
+  const communityTrendMatches = useMemo(() => {
+    const list = listMatchesForCommunityTrends(communityPickProfiles, matches);
     return list.sort((a, b) => {
       const ta = a?.kickoff ? new Date(a.kickoff).getTime() : 0;
       const tb = b?.kickoff ? new Date(b.kickoff).getTime() : 0;
-      return tb - ta;
+      return ta - tb;
     });
-  }, [matches, now]);
+  }, [matches, communityPickProfiles]);
 
   async function handleSubmitAnnouncement(e) {
     e.preventDefault();
@@ -220,17 +219,18 @@ export default function DashboardNotifications({
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle">Tendencias de la comunidad</h3>
           <p className="dash-notifications__hint">
-            Tras el kickoff: predicción de la comunidad, marcador más elegido y pick más arriesgado.
+            Porcentajes generales (local / empate / visitante). No se muestran marcadores ni picks
+            individuales.
           </p>
         </div>
 
-        {!revealedCommunityMatches.length ? (
+        {!communityTrendMatches.length ? (
           <p className="dash-notifications__empty">
-            Las tendencias aparecerán aquí cuando cierre cada partido.
+            Las tendencias aparecerán cuando haya suficientes predicciones en un partido.
           </p>
         ) : (
           <div className="dash-notifications__community-list">
-            {revealedCommunityMatches.map((m) => {
+            {communityTrendMatches.map((m) => {
               const scores = collectMatchPickScores(communityPickProfiles, m.id);
               return <CommunityMatchInsights key={m.id} match={m} scores={scores} compact />;
             })}

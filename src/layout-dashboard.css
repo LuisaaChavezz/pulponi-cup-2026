@@ -1987,6 +1987,15 @@
   color: #fca5a5;
 }
 
+.pulponi-social__disclaimer,
+.community-insights__disclaimer {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--muted, #a1a1aa);
+}
+
 .pulponi-social__empty {
   margin: 0;
   font-size: 12px;

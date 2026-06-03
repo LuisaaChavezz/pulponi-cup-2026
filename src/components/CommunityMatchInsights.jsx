@@ -1,12 +1,14 @@
 import {
-  buildCommunityMatchInsights,
+  buildCommunityGeneralInsights,
   getInsufficientMessage,
 } from '../lib/communityPicks';
 import { formatKickoff } from '../lib/matchUtils';
 
+const TREND_DISCLAIMER =
+  'Estos porcentajes muestran la tendencia general, no los marcadores individuales.';
+
 export default function CommunityMatchInsights({ match, scores, compact = false }) {
-  const insights = buildCommunityMatchInsights(scores, match);
-  const { outcome, mostChosen, riskiest } = insights;
+  const { outcome } = buildCommunityGeneralInsights(scores, match);
   const matchLabel = `${match?.home_team ?? 'Local'} vs ${match?.away_team ?? 'Visitante'}`;
   const kickoffLabel = formatKickoff(match?.kickoff);
 
@@ -30,7 +32,8 @@ export default function CommunityMatchInsights({ match, scores, compact = false 
       </header>
 
       <div className="community-insights__block">
-        <p className="community-insights__label">Predicción de la comunidad</p>
+        <p className="community-insights__label">Tendencia de la comunidad</p>
+        <p className="community-insights__disclaimer">{TREND_DISCLAIMER}</p>
         <ul className="community-insights__list">
           <li>
             {outcome.homeLabel} gana: <span>{outcome.homePct}%</span>
@@ -43,28 +46,6 @@ export default function CommunityMatchInsights({ match, scores, compact = false 
           </li>
         </ul>
       </div>
-
-      {mostChosen ? (
-        <p className="community-insights__line">
-          <span className="community-insights__label">Marcador más elegido</span>
-          El marcador más elegido fue: <strong>{mostChosen.label}</strong>
-        </p>
-      ) : null}
-
-      {riskiest ? (
-        <p className="community-insights__line">
-          <span className="community-insights__label">Pick más arriesgado</span>
-          El pick más arriesgado fue: <strong>{riskiest.label}</strong>
-        </p>
-      ) : null}
     </article>
-  );
-}
-
-export function CommunityTrendsLockedHint() {
-  return (
-    <p className="pulponi-social__locked-hint" role="status">
-      Las tendencias de la comunidad se revelarán cuando cierre este partido.
-    </p>
   );
 }

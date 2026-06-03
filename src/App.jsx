@@ -17,7 +17,6 @@ import {
   formatVenueCity,
   isMatchLive,
   isPickLocked,
-  areCommunityTrendsRevealed,
   listCarouselUpcomingMatches,
   pickInicioMatch,
 } from './lib/matchUtils';
@@ -50,7 +49,8 @@ import RankingMovement from './components/RankingMovement';
 import ProfileRankingSummary from './components/ProfileRankingSummary';
 import RankingLeaderboard from './components/RankingLeaderboard';
 import PulpoIndexCard from './components/PulpoIndexCard';
-import { CommunityTrendsLockedHint } from './components/CommunityMatchInsights';
+import MatchCommunityPrediction from './components/MatchCommunityPrediction';
+import { collectMatchPickScores } from './lib/communityPicks';
 import { useKickoffClock } from './hooks/useKickoffClock';
 import { normalizeStoredHighlightList } from './lib/highlightsMapper';
 import { pullAndPersistHighlightEvents } from './lib/matchHighlightSync';
@@ -913,7 +913,7 @@ export default function App() {
               const draft = pickDrafts[m.id] ?? {};
               const status = displayMatchStatus(m);
               const finalLabel = finalScoreLabel(m);
-              const trendsRevealed = areCommunityTrendsRevealed(m, kickoffNow);
+              const communityScores = collectMatchPickScores(data.communityPickProfiles, m.id);
               return (
                 <article key={m.id} className="match-card">
                   <header>
@@ -955,7 +955,7 @@ export default function App() {
                       ) : null}
                     </div>
                   </div>
-                  {!trendsRevealed ? <CommunityTrendsLockedHint /> : null}
+                  <MatchCommunityPrediction scores={communityScores} match={m} />
                   <div className="pick-inputs">
                     <input
                       type="number"

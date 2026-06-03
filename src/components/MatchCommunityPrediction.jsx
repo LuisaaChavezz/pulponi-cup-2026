@@ -1,20 +1,28 @@
 import { getCommunityOutcomeStats, getInsufficientMessage } from '../lib/communityPicks';
 
+const TREND_DISCLAIMER =
+  'Estos porcentajes muestran la tendencia general, no los marcadores individuales.';
+
 export default function MatchCommunityPrediction({ scores, match }) {
   const stats = getCommunityOutcomeStats(scores, match);
 
   if (!stats.sufficient) {
     return (
       <div className="pulponi-social pulponi-social--community" role="status">
-        <p className="pulponi-social__title">Predicción de la comunidad</p>
+        <p className="pulponi-social__title">Tendencia de la comunidad</p>
         <p className="pulponi-social__empty">{stats.message ?? getInsufficientMessage()}</p>
       </div>
     );
   }
 
   return (
-    <div className="pulponi-social pulponi-social--community" role="region" aria-label="Predicción de la comunidad">
-      <p className="pulponi-social__title">Predicción de la comunidad</p>
+    <div
+      className="pulponi-social pulponi-social--community"
+      role="region"
+      aria-label="Tendencia de la comunidad"
+    >
+      <p className="pulponi-social__title">Tendencia de la comunidad</p>
+      <p className="pulponi-social__disclaimer">{TREND_DISCLAIMER}</p>
       <ul className="pulponi-social__bars">
         <li>
           <span className="pulponi-social__bar-label">{stats.homeLabel} gana</span>
