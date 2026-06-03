@@ -32,6 +32,14 @@ import AchievementCard from './components/AchievementCard';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
 import ProfileAchievementsStrip from './components/ProfileAchievementsStrip';
 import UserPublicProfile from './components/UserPublicProfile';
+import Profile from './components/Profile';
+import {
+  ProfilePageCard,
+  ProfileStatsGrid,
+  ProfileBadgesList,
+  ProfileActivityList,
+  ProfilePickHistory,
+} from './components/ProfilePageSections';
 import { usePublicProfile } from './hooks/usePublicProfile';
 import { resolveAvatarUrl } from './lib/avatars';
 import AvatarSelector from './components/AvatarSelector';
@@ -127,6 +135,12 @@ export default function App() {
   );
 
   const publicProfile = usePublicProfile(session ? viewProfileId : null, {
+    matches: worldCupMatches,
+    communityPickProfiles: data.communityPickProfiles ?? [],
+    achievementCatalog,
+  });
+
+  const myProfileView = usePublicProfile(session?.user?.id ?? null, {
     matches: worldCupMatches,
     communityPickProfiles: data.communityPickProfiles ?? [],
     achievementCatalog,
@@ -416,6 +430,24 @@ export default function App() {
   const unlockedAchievementIds = data.userAchievementIds ?? [];
   const unlockedCount = countAchievementsUnlocked(unlockedAchievementIds, achievementCatalog);
   const achievementsTotal = countAchievementsTotal(achievementCatalog);
+
+  const myRankIndex = (data.ranking ?? []).findIndex((r) => r.id === session?.user?.id);
+  const myCurrentRank =
+    myRankIndex >= 0 ? myRankIndex + 1 : myProfileView.data?.rankingSummary?.currentRank ?? null;
+  const myPulpoIndex =
+    Number(profile?.pulpo_index ?? myProfileView.data?.stats?.pulpoIndex ?? 0) || 0;
+  const myProfileExtras = myProfileView.data ?? {};
+  const myBadgesFromCatalog = achievementCatalog.filter((a) =>
+    isAchievementUnlockedById(unlockedAchievementIds, a.id)
+  ).map((a) => ({
+    id: a.id,
+    icon: a.icon,
+    name: a.name,
+    description: a.description,
+    earnedAt: null,
+  }));
+  const myBadges =
+    myProfileExtras.badges?.length > 0 ? myProfileExtras.badges : myBadgesFromCatalog;
 
   function openUserProfile(profileId) {
     if (!profileId) return;
@@ -740,67 +772,99 @@ export default function App() {
             )}
           </article>
 
-          <article className="phone dash-perfil dash-profile pulponi-card" id="perfil">
+          <article className="phone dash-perfil dash-profile pulponi-card profile-page" id="perfil">
             <div className="phone-header">
               <span>PERFIL</span>
               <button type="button" onClick={() => setProfileEdit(!profileEdit)} aria-label="Ajustes">
                 <Settings size={16} />
               </button>
             </div>
-            <div className="profile-card">
-              <label className="profile-photo" style={{ cursor: 'pointer' }}>
-                <UserAvatar avatarUrl={avatarUrl} profile className="avatar-frame--profile" alt="" />
-                <span className="profile-photo-hint">Subir foto propia</span>
-                <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
-              </label>
-              <ProfileAchievementsStrip
-                unlockedIds={unlockedAchievementIds}
-                catalog={achievementCatalog}
-                onViewAll={() => openUserProfile(session.user.id)}
+
+            <div className="profile-page__body">
+              <Profile
+                avatarUrl={avatarUrl}
+                username={profile?.username ?? displayUser.replace('@', '')}
+                displayName={displayName}
+                rank={myCurrentRank}
+                points={profile?.points ?? 0}
+                exacts={profile?.exacts ?? 0}
+                pulpoIndex={myPulpoIndex}
+                streak={profile?.streak ?? 0}
+                verified
+                uploadLabel="Subir foto"
+                onUpload={handleAvatarUpload}
               />
+
               {profileEdit ? (
-                <>
-                  <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nombre" />
-                  <input
-                    value={editUsername}
-                    onChange={(e) => setEditUsername(e.target.value)}
-                    placeholder="Username"
+                <ProfilePageCard title="Editar perfil" className="profile-page-card--edit">
+                  <div className="profile-page__edit">
+                    <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nombre" />
+                    <input
+                      value={editUsername}
+                      onChange={(e) => setEditUsername(e.target.value)}
+                      placeholder="Username"
+                    />
+                    <button type="button" className="primary" onClick={handleSaveProfile}>
+                      Guardar cambios
+                    </button>
+                  </div>
+                </ProfilePageCard>
+              ) : null}
+
+              <div className="profile-page__cards">
+                <ProfilePageCard title="Índice Pulpo">
+                  <PulpoIndexCard
+                    profile={profile}
+                    picks={data.picks}
+                    matches={worldCupMatches}
+                    communityPickProfiles={data.communityPickProfiles}
+                    userId={session?.user?.id}
                   />
-                  <button type="button" className="primary" onClick={handleSaveProfile}>
-                    Guardar cambios
-                  </button>
-                </>
-              ) : (
-                <>
-                  <h2>{displayUser}</h2>
-                  <p>{displayName}</p>
-                </>
-              )}
-              <span className="verified">Pulponi Verified ✓</span>
-              <ProfileRankingSummary userId={session?.user?.id} />
-              <PulpoIndexCard
-                profile={profile}
-                picks={data.picks}
-                matches={worldCupMatches}
-                communityPickProfiles={data.communityPickProfiles}
-                userId={session?.user?.id}
-              />
-              <div className="profile-stats">
-                <div>
-                  <b>{Number(profile?.points ?? 0)}</b>
-                  <span>Puntos</span>
-                </div>
-                <div>
-                  <b>{profile?.exacts ?? 0}</b>
-                  <span>Exactos</span>
-                </div>
-                <div>
-                  <b>{profile?.streak ?? 0}</b>
-                  <span>Racha</span>
-                </div>
+                </ProfilePageCard>
+
+                <ProfilePageCard title="Tu ranking">
+                  <ProfileRankingSummary userId={session?.user?.id} />
+                </ProfilePageCard>
+
+                <ProfilePageCard title="Estadísticas">
+                  <ProfileStatsGrid stats={myProfileExtras.stats} />
+                </ProfilePageCard>
+
+                <ProfilePageCard
+                  title="Badges"
+                  meta={`${unlockedCount} / ${achievementsTotal}`}
+                >
+                  <ProfileAchievementsStrip
+                    unlockedIds={unlockedAchievementIds}
+                    catalog={achievementCatalog}
+                    onViewAll={() => openUserProfile(session.user.id)}
+                  />
+                  <ProfileBadgesList badges={myBadges} />
+                </ProfilePageCard>
+
+                <ProfilePageCard title="Actividad reciente">
+                  <ProfileActivityList
+                    items={
+                      myProfileExtras.activity?.length
+                        ? myProfileExtras.activity
+                        : (data.activity ?? []).map((row, i) => ({
+                            id: `feed-${i}`,
+                            text: row.text,
+                            at: null,
+                          }))
+                    }
+                  />
+                </ProfilePageCard>
+
+                <ProfilePageCard title="Historial de predicciones">
+                  <ProfilePickHistory rows={myProfileExtras.pickHistory} />
+                </ProfilePageCard>
+
+                <ProfilePageCard title="Elegir avatar" className="profile-page-card--avatars">
+                  <AvatarSelector currentPhotoUrl={profile?.photo_url} onSelect={handleSelectPreset} />
+                </ProfilePageCard>
               </div>
             </div>
-            <AvatarSelector currentPhotoUrl={profile?.photo_url} onSelect={handleSelectPreset} />
           </article>
         </section>
 
