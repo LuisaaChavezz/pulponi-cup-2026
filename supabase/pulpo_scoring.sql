@@ -1,248 +1,316 @@
 -- Índice Pulpo + puntuación real (ejecutar en Supabase SQL Editor)
--- Requiere: profiles.picks (jsonb), tabla matches
+-- Seguro para re-ejecutar. Requiere public.profiles y public.matches para RPC.
+-- Ejecutar después de user_profiles_public.sql si pick_scores / RLS ya están listos.
 
--- Columnas de ranking / índice en perfiles
-alter table public.profiles add column if not exists points integer not null default 0;
-alter table public.profiles add column if not exists exacts integer not null default 0;
-alter table public.profiles add column if not exists streak integer not null default 0;
-alter table public.profiles add column if not exists pulpo_index integer not null default 0;
-alter table public.profiles add column if not exists pulpo_stats jsonb not null default '{}'::jsonb;
+-- ── Columnas de ranking / índice en perfiles ───────────────────────────────
+DO $profiles_cols$
+BEGIN
+  IF to_regclass('public.profiles') IS NULL THEN
+    RAISE NOTICE '[pulpo_scoring] profiles no existe; omitiendo columnas.';
+    RETURN;
+  END IF;
 
--- Puntos por partido y usuario (evita doble conteo)
-create table if not exists public.pick_scores (
-  profile_id uuid not null references public.profiles (id) on delete cascade,
-  match_id uuid not null references public.matches (id) on delete cascade,
-  points_awarded integer not null default 0,
-  exact_hit boolean not null default false,
-  winner_hit boolean not null default false,
-  scored_at timestamptz not null default now(),
-  primary key (profile_id, match_id)
-);
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS points integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS exacts integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS streak integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pulpo_index integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pulpo_stats jsonb NOT NULL DEFAULT '{}'::jsonb;
 
-create index if not exists pick_scores_match_id_idx on public.pick_scores (match_id);
-create index if not exists pick_scores_profile_id_idx on public.pick_scores (profile_id);
+  RAISE NOTICE '[pulpo_scoring] Columnas de profiles verificadas.';
+END;
+$profiles_cols$;
 
-alter table public.pick_scores enable row level security;
+-- ── Puntos por partido y usuario (evita doble conteo) ───────────────────────
+DO $pick_scores_table$
+BEGIN
+  IF to_regclass('public.pick_scores') IS NOT NULL THEN
+    RAISE NOTICE '[pulpo_scoring] pick_scores ya existe; omitiendo CREATE.';
+    RETURN;
+  END IF;
 
-drop policy if exists "pick_scores_select_authenticated" on public.pick_scores;
-create policy "pick_scores_select_authenticated"
-  on public.pick_scores
-  for select
-  to authenticated
-  using (true);
+  IF to_regclass('public.profiles') IS NULL THEN
+    RAISE NOTICE '[pulpo_scoring] pick_scores no creada: falta public.profiles.';
+    RETURN;
+  END IF;
 
--- Escritura solo vía funciones SECURITY DEFINER (no insert directo desde cliente)
+  IF to_regclass('public.matches') IS NULL THEN
+    RAISE NOTICE '[pulpo_scoring] pick_scores no creada: falta public.matches.';
+    RETURN;
+  END IF;
 
-create or replace function public._match_is_finished(m public.matches)
-returns boolean
-language sql
-stable
-as $$
-  select (
-    upper(trim(coalesce(m.api_status, ''))) in ('FT', 'AET', 'PEN')
-    or lower(trim(coalesce(m.status, ''))) in ('finished', 'ft', 'aet', 'pen', 'terminado', 'final')
-  )
-  and m.home_score is not null
-  and m.away_score is not null;
-$$;
-
-create or replace function public._grade_pick(
-  pick jsonb,
-  home_score integer,
-  away_score integer
-)
-returns table (
-  points_awarded integer,
-  exact_hit boolean,
-  winner_hit boolean
-)
-language plpgsql
-immutable
-as $$
-declare
-  hp integer;
-  ap integer;
-begin
-  if pick is null or jsonb_typeof(pick) <> 'object' then
-    return query select 0, false, false;
-    return;
-  end if;
-
-  hp := nullif(trim(pick->>'home_pick'), '')::integer;
-  ap := nullif(trim(pick->>'away_pick'), '')::integer;
-
-  if hp is null or ap is null or hp < 0 or ap < 0 then
-    return query select 0, false, false;
-    return;
-  end if;
-
-  if hp = home_score and ap = away_score then
-    return query select 3, true, true;
-    return;
-  end if;
-
-  if (hp > ap and home_score > away_score)
-     or (ap > hp and away_score > home_score)
-     or (hp = ap and home_score = away_score) then
-    return query select 1, false, true;
-    return;
-  end if;
-
-  return query select 0, false, false;
-end;
-$$;
-
-create or replace function public.recompute_profile_streaks()
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  prof record;
-  m record;
-  pts integer;
-  ex_hit boolean;
-  win_hit boolean;
-  run_streak integer;
-begin
-  for prof in select id from public.profiles loop
-    run_streak := 0;
-
-    for m in
-      select id, kickoff
-      from public.matches
-      where public._match_is_finished(matches.*)
-      order by kickoff asc nulls last, id asc
-    loop
-      select ps.points_awarded, ps.exact_hit, ps.winner_hit
-      into pts, ex_hit, win_hit
-      from public.pick_scores ps
-      where ps.profile_id = prof.id and ps.match_id = m.id;
-
-      if not found then
-        run_streak := 0;
-        continue;
-      end if;
-
-      if ex_hit or win_hit then
-        run_streak := run_streak + 1;
-      else
-        run_streak := 0;
-      end if;
-    end loop;
-
-    update public.profiles set streak = run_streak where id = prof.id;
-  end loop;
-end;
-$$;
-
-create or replace function public.score_all_finished_matches()
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  m record;
-  prof record;
-  pick jsonb;
-  g record;
-  mid_text text;
-  scored_matches integer := 0;
-  scored_picks integer := 0;
-begin
-  for m in
-    select *
-    from public.matches
-    where public._match_is_finished(matches.*)
-  loop
-    scored_matches := scored_matches + 1;
-
-    for prof in
-      select id, picks
-      from public.profiles
-      where picks is not null and picks <> '{}'::jsonb
-    loop
-      mid_text := m.id::text;
-      pick := prof.picks -> mid_text;
-      if pick is null then
-        pick := prof.picks -> (mid_text);
-      end if;
-      if pick is null then
-        continue;
-      end if;
-
-      select * into g
-      from public._grade_pick(pick, m.home_score::integer, m.away_score::integer);
-
-      insert into public.pick_scores (
-        profile_id, match_id, points_awarded, exact_hit, winner_hit, scored_at
-      )
-      values (prof.id, m.id, g.points_awarded, g.exact_hit, g.winner_hit, now())
-      on conflict (profile_id, match_id) do update set
-        points_awarded = excluded.points_awarded,
-        exact_hit = excluded.exact_hit,
-        winner_hit = excluded.winner_hit,
-        scored_at = now();
-
-      scored_picks := scored_picks + 1;
-    end loop;
-  end loop;
-
-  update public.profiles p set
-    points = coalesce((
-      select sum(ps.points_awarded)::integer
-      from public.pick_scores ps
-      where ps.profile_id = p.id
-    ), 0),
-    exacts = coalesce((
-      select count(*)::integer
-      from public.pick_scores ps
-      where ps.profile_id = p.id and ps.exact_hit
-    ), 0);
-
-  perform public.recompute_profile_streaks();
-
-  return jsonb_build_object(
-    'scored_matches', scored_matches,
-    'scored_picks', scored_picks
+  CREATE TABLE public.pick_scores (
+    profile_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+    match_id uuid NOT NULL REFERENCES public.matches (id) ON DELETE CASCADE,
+    points_awarded integer NOT NULL DEFAULT 0,
+    exact_hit boolean NOT NULL DEFAULT false,
+    winner_hit boolean NOT NULL DEFAULT false,
+    scored_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (profile_id, match_id)
   );
-end;
-$$;
 
-create or replace function public.sync_pulpo_indexes(updates jsonb)
-returns integer
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  row jsonb;
-  updated_count integer := 0;
-  affected integer;
-begin
-  if updates is null or jsonb_typeof(updates) <> 'array' then
-    return 0;
-  end if;
+  CREATE INDEX IF NOT EXISTS pick_scores_match_id_idx ON public.pick_scores (match_id);
+  CREATE INDEX IF NOT EXISTS pick_scores_profile_id_idx ON public.pick_scores (profile_id);
 
-  for row in select * from jsonb_array_elements(updates) loop
-    update public.profiles
-    set
-      pulpo_index = greatest(0, least(100, coalesce((row->>'pulpo_index')::integer, 0))),
-      pulpo_stats = coalesce(row->'pulpo_stats', '{}'::jsonb)
-    where id = (row->>'profile_id')::uuid;
+  RAISE NOTICE '[pulpo_scoring] pick_scores creada.';
+END;
+$pick_scores_table$;
 
-    get diagnostics affected = row_count;
-    if affected > 0 then
-      updated_count := updated_count + 1;
-    end if;
-  end loop;
+-- ── RLS pick_scores ─────────────────────────────────────────────────────────
+DO $pick_scores_policy$
+BEGIN
+  IF to_regclass('public.pick_scores') IS NULL THEN
+    RAISE NOTICE '[pulpo_scoring] pick_scores no existe; omitiendo políticas.';
+    RETURN;
+  END IF;
 
-  return updated_count;
-end;
-$$;
+  ALTER TABLE public.pick_scores ENABLE ROW LEVEL SECURITY;
 
-grant execute on function public.score_all_finished_matches() to authenticated;
-grant execute on function public.sync_pulpo_indexes(jsonb) to authenticated;
-grant execute on function public.recompute_profile_streaks() to authenticated;
+  DROP POLICY IF EXISTS "pick_scores_select_authenticated" ON public.pick_scores;
+  CREATE POLICY "pick_scores_select_authenticated"
+    ON public.pick_scores
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+  RAISE NOTICE '[pulpo_scoring] Política pick_scores_select_authenticated aplicada.';
+END;
+$pick_scores_policy$;
+
+-- ── Funciones RPC (solo si existen profiles + matches + pick_scores) ────────
+DO $pulpo_functions$
+BEGIN
+  IF to_regclass('public.profiles') IS NULL
+     OR to_regclass('public.matches') IS NULL
+     OR to_regclass('public.pick_scores') IS NULL THEN
+    RAISE NOTICE '[pulpo_scoring] Omitiendo funciones RPC: faltan profiles, matches o pick_scores.';
+    RETURN;
+  END IF;
+
+  -- Escritura solo vía funciones SECURITY DEFINER (no insert directo desde cliente)
+
+  EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION public._match_is_finished(m public.matches)
+    RETURNS boolean
+    LANGUAGE sql
+    STABLE
+    AS $body$
+      SELECT (
+        upper(trim(coalesce(m.api_status, ''))) IN ('FT', 'AET', 'PEN')
+        OR lower(trim(coalesce(m.status, ''))) IN ('finished', 'ft', 'aet', 'pen', 'terminado', 'final')
+      )
+      AND m.home_score IS NOT NULL
+      AND m.away_score IS NOT NULL;
+    $body$;
+  $fn$;
+
+  EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION public._grade_pick(
+      pick jsonb,
+      home_score integer,
+      away_score integer
+    )
+    RETURNS TABLE (
+      points_awarded integer,
+      exact_hit boolean,
+      winner_hit boolean
+    )
+    LANGUAGE plpgsql
+    IMMUTABLE
+    AS $body$
+    DECLARE
+      hp integer;
+      ap integer;
+    BEGIN
+      IF pick IS NULL OR jsonb_typeof(pick) <> 'object' THEN
+        RETURN QUERY SELECT 0, false, false;
+        RETURN;
+      END IF;
+
+      hp := nullif(trim(pick->>'home_pick'), '')::integer;
+      ap := nullif(trim(pick->>'away_pick'), '')::integer;
+
+      IF hp IS NULL OR ap IS NULL OR hp < 0 OR ap < 0 THEN
+        RETURN QUERY SELECT 0, false, false;
+        RETURN;
+      END IF;
+
+      IF hp = home_score AND ap = away_score THEN
+        RETURN QUERY SELECT 3, true, true;
+        RETURN;
+      END IF;
+
+      IF (hp > ap AND home_score > away_score)
+         OR (ap > hp AND away_score > home_score)
+         OR (hp = ap AND home_score = away_score) THEN
+        RETURN QUERY SELECT 1, false, true;
+        RETURN;
+      END IF;
+
+      RETURN QUERY SELECT 0, false, false;
+    END;
+    $body$;
+  $fn$;
+
+  EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION public.recompute_profile_streaks()
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public
+    AS $body$
+    DECLARE
+      prof record;
+      m record;
+      ex_hit boolean;
+      win_hit boolean;
+      run_streak integer;
+    BEGIN
+      FOR prof IN SELECT id FROM public.profiles LOOP
+        run_streak := 0;
+
+        FOR m IN
+          SELECT id, kickoff
+          FROM public.matches
+          WHERE public._match_is_finished(matches.*)
+          ORDER BY kickoff ASC NULLS LAST, id ASC
+        LOOP
+          SELECT ps.exact_hit, ps.winner_hit
+          INTO ex_hit, win_hit
+          FROM public.pick_scores ps
+          WHERE ps.profile_id = prof.id AND ps.match_id = m.id;
+
+          IF NOT FOUND THEN
+            run_streak := 0;
+            CONTINUE;
+          END IF;
+
+          IF ex_hit OR win_hit THEN
+            run_streak := run_streak + 1;
+          ELSE
+            run_streak := 0;
+          END IF;
+        END LOOP;
+
+        UPDATE public.profiles SET streak = run_streak WHERE id = prof.id;
+      END LOOP;
+    END;
+    $body$;
+  $fn$;
+
+  EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION public.score_all_finished_matches()
+    RETURNS jsonb
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public
+    AS $body$
+    DECLARE
+      m record;
+      prof record;
+      pick jsonb;
+      g record;
+      mid_text text;
+      scored_matches integer := 0;
+      scored_picks integer := 0;
+    BEGIN
+      FOR m IN
+        SELECT *
+        FROM public.matches
+        WHERE public._match_is_finished(matches.*)
+      LOOP
+        scored_matches := scored_matches + 1;
+
+        FOR prof IN
+          SELECT id, picks
+          FROM public.profiles
+          WHERE picks IS NOT NULL AND picks <> '{}'::jsonb
+        LOOP
+          mid_text := m.id::text;
+          pick := prof.picks -> mid_text;
+          IF pick IS NULL THEN
+            pick := prof.picks -> (mid_text);
+          END IF;
+          IF pick IS NULL THEN
+            CONTINUE;
+          END IF;
+
+          SELECT * INTO g
+          FROM public._grade_pick(pick, m.home_score::integer, m.away_score::integer);
+
+          INSERT INTO public.pick_scores (
+            profile_id, match_id, points_awarded, exact_hit, winner_hit, scored_at
+          )
+          VALUES (prof.id, m.id, g.points_awarded, g.exact_hit, g.winner_hit, now())
+          ON CONFLICT (profile_id, match_id) DO UPDATE SET
+            points_awarded = excluded.points_awarded,
+            exact_hit = excluded.exact_hit,
+            winner_hit = excluded.winner_hit,
+            scored_at = now();
+
+          scored_picks := scored_picks + 1;
+        END LOOP;
+      END LOOP;
+
+      UPDATE public.profiles p SET
+        points = coalesce((
+          SELECT sum(ps.points_awarded)::integer
+          FROM public.pick_scores ps
+          WHERE ps.profile_id = p.id
+        ), 0),
+        exacts = coalesce((
+          SELECT count(*)::integer
+          FROM public.pick_scores ps
+          WHERE ps.profile_id = p.id AND ps.exact_hit
+        ), 0);
+
+      PERFORM public.recompute_profile_streaks();
+
+      RETURN jsonb_build_object(
+        'scored_matches', scored_matches,
+        'scored_picks', scored_picks
+      );
+    END;
+    $body$;
+  $fn$;
+
+  EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION public.sync_pulpo_indexes(updates jsonb)
+    RETURNS integer
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public
+    AS $body$
+    DECLARE
+      row jsonb;
+      updated_count integer := 0;
+      affected integer;
+    BEGIN
+      IF updates IS NULL OR jsonb_typeof(updates) <> 'array' THEN
+        RETURN 0;
+      END IF;
+
+      FOR row IN SELECT * FROM jsonb_array_elements(updates) LOOP
+        UPDATE public.profiles
+        SET
+          pulpo_index = greatest(0, least(100, coalesce((row->>'pulpo_index')::integer, 0))),
+          pulpo_stats = coalesce(row->'pulpo_stats', '{}'::jsonb)
+        WHERE id = (row->>'profile_id')::uuid;
+
+        GET DIAGNOSTICS affected = row_count;
+        IF affected > 0 THEN
+          updated_count := updated_count + 1;
+        END IF;
+      END LOOP;
+
+      RETURN updated_count;
+    END;
+    $body$;
+  $fn$;
+
+  GRANT EXECUTE ON FUNCTION public.score_all_finished_matches() TO authenticated;
+  GRANT EXECUTE ON FUNCTION public.sync_pulpo_indexes(jsonb) TO authenticated;
+  GRANT EXECUTE ON FUNCTION public.recompute_profile_streaks() TO authenticated;
+
+  RAISE NOTICE '[pulpo_scoring] Funciones RPC instaladas. Ejecuta: select public.score_all_finished_matches();';
+END;
+$pulpo_functions$;
