@@ -10,6 +10,9 @@ import {
   ProfilePickHistory,
 } from './ProfilePageSections';
 
+/** Oculto en UI; activity_log y loadPublicProfile siguen activos para reactivar después. */
+const SHOW_PUBLIC_PROFILE_ACTIVITY = false;
+
 export default function UserPublicProfile({
   data,
   loading,
@@ -40,8 +43,14 @@ export default function UserPublicProfile({
     );
   }
 
-  const { profile, rankingSummary = {}, stats = {}, pickHistory = [], badges = [], activity = [], pulpoStats } =
-    data;
+  const {
+    profile,
+    rankingSummary = {},
+    stats = {},
+    pickHistory = [],
+    badges = [],
+    pulpoStats,
+  } = data;
   const safeStats = {
     points: 0,
     exacts: 0,
@@ -87,22 +96,24 @@ export default function UserPublicProfile({
         streak={safeStats.currentStreak}
       />
 
-      <div className="profile-page__cards">
+      <div className="profile-page__cards profile-page__cards--public">
         <ProfilePageCard title="Estadísticas">
           <ProfileStatsGrid stats={safeStats} />
+        </ProfilePageCard>
+
+        <ProfilePageCard title="Historial de predicciones">
+          <ProfilePickHistory rows={pickHistory} />
         </ProfilePageCard>
 
         <ProfilePageCard title="Badges desbloqueados" meta={`${unlockedBadges} / ${totalBadges}`}>
           <ProfileBadgesList badges={badges} />
         </ProfilePageCard>
 
-        <ProfilePageCard title="Actividad reciente">
-          <ProfileActivityList items={activity} />
-        </ProfilePageCard>
-
-        <ProfilePageCard title="Historial de predicciones">
-          <ProfilePickHistory rows={pickHistory} />
-        </ProfilePageCard>
+        {SHOW_PUBLIC_PROFILE_ACTIVITY ? (
+          <ProfilePageCard title="Actividad reciente">
+            <ProfileActivityList items={data.activity ?? []} />
+          </ProfilePageCard>
+        ) : null}
 
         {pulpoStats?.level?.title ? (
           <p className="profile-page__pulpo-tier profile-page__muted">

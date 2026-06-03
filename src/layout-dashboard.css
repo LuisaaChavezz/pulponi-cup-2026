@@ -3115,6 +3115,16 @@
   min-width: 0;
 }
 
+.profile-page__cards--public {
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.profile-page__cards--public .profile-page__pulpo-tier {
+  margin: 0;
+  padding: 4px 0 0;
+}
+
 .profile-page-card {
   padding: 16px !important;
 }
