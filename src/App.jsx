@@ -122,9 +122,10 @@ export default function App() {
 
   useEffect(() => {
     if (chatTab === 'avisos' && session?.user?.id) {
+      void data.loadCommunityPicks?.();
       void data.loadPredictionFeeds?.();
     }
-  }, [chatTab, session?.user?.id, data.loadPredictionFeeds]);
+  }, [chatTab, session?.user?.id, data.loadCommunityPicks, data.loadPredictionFeeds]);
 
   const worldCupMatches = useMemo(
     () => filterWorldCupMatches(data.matches ?? []),

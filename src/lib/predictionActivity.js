@@ -21,6 +21,18 @@ function trimStr(s) {
   return typeof s === 'string' ? s.trim() : '';
 }
 
+/** Busca pick en JSON (claves string/number). */
+export function getProfilePickForMatch(picks, matchId) {
+  if (!picks || typeof picks !== 'object') return null;
+  const mid = String(matchId);
+  if (picks[mid] != null) return picks[mid];
+  if (matchId != null && picks[matchId] != null) return picks[matchId];
+  for (const [key, val] of Object.entries(picks)) {
+    if (String(key) === mid) return val;
+  }
+  return null;
+}
+
 /** Nombre visible sin @ ni marcador. */
 export function formatActivityDisplayName(profile) {
   if (!profile) return 'Alguien';
@@ -200,15 +212,20 @@ function profileMatchActivityTimes(activityRows, matchId, profileId) {
 }
 
 /**
- * @param {Array<{ id: string, username?: string, name?: string, photo_url?: string, picks?: object }>} profileRows
- * @param {string} matchId
- * @param {Array<object>} [activityRows] - filas activity_log del partido (opcional)
+ * Filas para descarga (CSV/PDF). Marcador oculto si el partido sigue abierto.
  */
-export function buildMatchExportRows(profileRows, matchId, activityRows = []) {
+export function buildMatchDownloadRows(
+  profileRows,
+  matchId,
+  activityRows = [],
+  match = null,
+  now = new Date()
+) {
   const mid = String(matchId);
+  const revealScores = match ? isMatchPredictionsExportable(match, now) : false;
   const rows = [];
   for (const prof of profileRows ?? []) {
-    const pick = prof.picks?.[mid] ?? prof.picks?.[matchId];
+    const pick = getProfilePickForMatch(prof.picks, mid);
     const parsed = parsePickScore(pick);
     if (!parsed) continue;
 
@@ -233,7 +250,7 @@ export function buildMatchExportRows(profileRows, matchId, activityRows = []) {
       username: prof.username ?? null,
       name: prof.name ?? null,
       displayName: formatActivityDisplayName(prof),
-      scoreLabel: `${parsed.home}-${parsed.away}`,
+      scoreLabel: revealScores ? `${parsed.home}-${parsed.away}` : 'Oculto hasta cierre',
       actionLabel,
       sentAt: sentAt && !Number.isNaN(sentAt.getTime()) ? sentAt : null,
       updatedAt: updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt : null,
@@ -251,14 +268,28 @@ export function buildMatchExportRows(profileRows, matchId, activityRows = []) {
   return rows;
 }
 
+/** @deprecated Usar buildMatchDownloadRows */
+export function buildMatchExportRows(profileRows, matchId, activityRows = [], match = null, now = new Date()) {
+  return buildMatchDownloadRows(profileRows, matchId, activityRows, match, now);
+}
+
+/** Partidos que tienen al menos una predicción guardada. */
+export function listMatchesWithPicks(profileRows, matches) {
+  const list = Array.isArray(matches) ? matches : [];
+  return list.filter((m) => {
+    const mid = String(m.id);
+    return (profileRows ?? []).some((p) => parsePickScore(getProfilePickForMatch(p.picks, mid)));
+  });
+}
+
 /** Grupos por partido cerrado para «Descargar todas las predicciones». */
 export function buildAllMatchesExportGroups(profileRows, matches, activityRows = [], now = new Date()) {
-  return listExportableMatches(matches, now)
+  return listMatchesWithPicks(profileRows, matches)
     .map((match) => ({
       match,
       title: buildMatchExportTitle(match),
       kickoffLine: formatExportKickoffLine(match),
-      rows: buildMatchExportRows(profileRows, match.id, activityRows),
+      rows: buildMatchDownloadRows(profileRows, match.id, activityRows, match, now),
     }))
     .filter((g) => g.rows.length > 0);
 }
