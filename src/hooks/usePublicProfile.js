@@ -11,6 +11,7 @@ export function usePublicProfile(profileId, { matches, communityPickProfiles, ac
     if (!profileId) {
       setData(null);
       setLoading(false);
+      setError(null);
       return;
     }
 
@@ -18,12 +19,12 @@ export function usePublicProfile(profileId, { matches, communityPickProfiles, ac
     setError(null);
     try {
       const result = await loadPublicProfile(supabase, profileId, {
-        matches,
-        communityProfiles: communityPickProfiles,
-        achievementCatalog,
+        matches: matches ?? [],
+        communityProfiles: communityPickProfiles ?? [],
+        achievementCatalog: achievementCatalog ?? [],
       });
       setData(result);
-      if (!result) setError('Perfil no encontrado');
+      if (!result) setError('Perfil no disponible');
     } catch (e) {
       console.warn('[usePublicProfile]', e?.message ?? e);
       setError(e?.message ?? 'Error al cargar perfil');
@@ -40,15 +41,24 @@ export function usePublicProfile(profileId, { matches, communityPickProfiles, ac
   useEffect(() => {
     if (!profileId) return undefined;
 
-    const channel = supabase
-      .channel(`public-profile-${profileId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => void reload())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_badges' }, () => void reload())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pick_scores' }, () => void reload())
-      .subscribe();
+    let channel;
+    try {
+      channel = supabase
+        .channel(`public-profile-${profileId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => void reload())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_badges' }, () => void reload())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'pick_scores' }, () => void reload())
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.warn('[usePublicProfile] realtime channel error');
+          }
+        });
+    } catch (e) {
+      console.warn('[usePublicProfile] realtime subscribe', e?.message ?? e);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [profileId, reload]);
 

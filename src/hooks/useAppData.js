@@ -136,12 +136,22 @@ export function useAppData(session) {
   }, []);
 
   const loadRanking = useCallback(async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, username, name, photo_url, points, exacts, streak')
-      .order('points', { ascending: false })
-      .limit(20);
-    setRanking(data ?? []);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, name, photo_url, points, exacts, streak')
+        .order('points', { ascending: false })
+        .limit(20);
+      if (error) {
+        console.warn('[loadRanking]', error.message);
+        setRanking([]);
+        return;
+      }
+      setRanking(data ?? []);
+    } catch (e) {
+      console.warn('[loadRanking]', e?.message ?? e);
+      setRanking([]);
+    }
   }, []);
 
   const loadCommunityPicks = useCallback(async () => {
@@ -156,35 +166,54 @@ export function useAppData(session) {
   }, []);
 
   const loadActivity = useCallback(async () => {
-    const { data } = await supabase
-      .from('activity_log')
-      .select('action, payload, created_at, profiles(username, photo_url)')
-      .order('created_at', { ascending: false })
-      .limit(8);
+    try {
+      const { data, error } = await supabase
+        .from('activity_log')
+        .select('action, payload, created_at, profiles(username, photo_url)')
+        .order('created_at', { ascending: false })
+        .limit(8);
 
-    const matchById = new Map(matches.map((m) => [m.id, m]));
+      if (error) {
+        console.warn('[loadActivity]', error.message);
+        setActivity([]);
+        return;
+      }
 
-    if (data?.length) {
-      setActivity(
-        data.map((row) => ({
-          text: formatActivityLogMessage(row, matchById),
-          avatarUrl: resolveAvatarUrl(row.profiles?.photo_url),
-        }))
-      );
-    } else {
+      const matchById = new Map(matches.map((m) => [m.id, m]));
+
+      if (data?.length) {
+        setActivity(
+          data.map((row) => ({
+            text: formatActivityLogMessage(row, matchById) || 'Actividad reciente',
+            avatarUrl: resolveAvatarUrl(row.profiles?.photo_url),
+          }))
+        );
+      } else {
+        setActivity([]);
+      }
+    } catch (e) {
+      console.warn('[loadActivity]', e?.message ?? e);
       setActivity([]);
     }
   }, [matches]);
 
   const loadBadges = useCallback(async () => {
-    const catalog = await loadAchievementCatalog(supabase);
-    if (catalog?.length) setAchievementCatalog(catalog);
+    try {
+      const catalog = await loadAchievementCatalog(supabase);
+      if (catalog?.length) setAchievementCatalog(catalog);
 
-    const { data } = await supabase.from('badges').select(`
+      const { data, error } = await supabase.from('badges').select(`
       id, name, description, icon,
       user_badges ( earned_at, profiles ( username, name ) )
     `);
-    if (data?.length) setBadges(data);
+      if (error) {
+        console.warn('[loadBadges]', error.message);
+        return;
+      }
+      if (data?.length) setBadges(data);
+    } catch (e) {
+      console.warn('[loadBadges]', e?.message ?? e);
+    }
   }, []);
 
   const refreshUserAchievements = useCallback(async () => {

@@ -49,12 +49,26 @@ export default function UserPublicProfile({
     );
   }
 
-  const { profile, rankingSummary, stats, pickHistory, badges, activity, pulpoStats } = data;
-  const displayName = selectDisplayName(profile);
-  const username = profile.username ? `@${profile.username}` : '@jugador';
-  const avatarUrl = resolveAvatarUrl(profile.photo_url);
+  const { profile, rankingSummary = {}, stats = {}, pickHistory = [], badges = [], activity = [], pulpoStats } =
+    data;
+  const safeStats = {
+    points: 0,
+    exacts: 0,
+    pulpoIndex: 0,
+    currentStreak: 0,
+    predicted: 0,
+    correctResults: 0,
+    effectiveness: 0,
+    riskyHits: 0,
+    bestStreak: 0,
+    bestRank: null,
+    ...stats,
+  };
+  const displayName = selectDisplayName(profile ?? {});
+  const username = profile?.username ? `@${profile.username}` : '@jugador';
+  const avatarUrl = resolveAvatarUrl(profile?.photo_url);
   const totalBadges = achievementsTotal ?? countAchievementsTotal();
-  const unlockedBadges = badges.length;
+  const unlockedBadges = (badges ?? []).length;
 
   return (
     <div className="social-profile">
@@ -78,8 +92,8 @@ export default function UserPublicProfile({
             <p className="social-profile__username">{username}</p>
             <h2 className="social-profile__name">{displayName}</h2>
             <p className="social-profile__rank-line">
-              Puesto <strong>#{rankingSummary.currentRank ?? '—'}</strong>
-              {rankingSummary.bestRank != null ? (
+              Puesto <strong>#{rankingSummary?.currentRank ?? '—'}</strong>
+              {rankingSummary?.bestRank != null ? (
                 <>
                   {' '}
                   · Mejor <strong>#{rankingSummary.bestRank}</strong>
@@ -91,26 +105,26 @@ export default function UserPublicProfile({
 
         <div className="social-profile__hero-stats">
           <div>
-            <b>{stats.points}</b>
+            <b>{safeStats.points}</b>
             <span>Puntos</span>
           </div>
           <div>
-            <b>{stats.exacts}</b>
+            <b>{safeStats.exacts}</b>
             <span>Exactos</span>
           </div>
           <div>
-            <b>{stats.pulpoIndex}%</b>
+            <b>{safeStats.pulpoIndex}%</b>
             <span>Índice Pulpo</span>
           </div>
           <div>
-            <b>{stats.currentStreak}</b>
+            <b>{safeStats.currentStreak}</b>
             <span>Racha</span>
           </div>
         </div>
 
-        {badges.length ? (
+        {(badges ?? []).length ? (
           <div className="social-profile__badge-strip" aria-label="Badges desbloqueados">
-            {badges.slice(0, 10).map((b) => (
+            {(badges ?? []).slice(0, 10).map((b) => (
               <span key={b.id} className="social-profile__badge-chip" title={b.name}>
                 {b.icon}
               </span>
@@ -124,15 +138,15 @@ export default function UserPublicProfile({
           <h3>Estadísticas</h3>
         </div>
         <div className="social-profile-stats-grid">
-          <StatCard label="Partidos pronosticados" value={stats.predicted} />
-          <StatCard label="Resultados acertados" value={stats.correctResults} />
-          <StatCard label="Marcadores exactos" value={stats.exacts} />
-          <StatCard label="Efectividad" value={stats.effectiveness} suffix="%" />
-          <StatCard label="Picks arriesgados acertados" value={stats.riskyHits} />
-          <StatCard label="Mejor racha" value={stats.bestStreak} />
+          <StatCard label="Partidos pronosticados" value={safeStats.predicted} />
+          <StatCard label="Resultados acertados" value={safeStats.correctResults} />
+          <StatCard label="Marcadores exactos" value={safeStats.exacts} />
+          <StatCard label="Efectividad" value={safeStats.effectiveness} suffix="%" />
+          <StatCard label="Picks arriesgados acertados" value={safeStats.riskyHits} />
+          <StatCard label="Mejor racha" value={safeStats.bestStreak} />
           <StatCard
             label="Posición más alta"
-            value={stats.bestRank != null ? `#${stats.bestRank}` : '—'}
+            value={safeStats.bestRank != null ? `#${safeStats.bestRank}` : '—'}
           />
           <StatCard label="Logros" value={`${unlockedBadges}/${totalBadges}`} />
         </div>
@@ -142,7 +156,7 @@ export default function UserPublicProfile({
         <div className="social-profile__section-head">
           <h3>Historial de predicciones</h3>
         </div>
-        {!pickHistory.length ? (
+        {!(pickHistory ?? []).length ? (
           <p className="social-profile__muted">Todavía no hay predicciones registradas.</p>
         ) : (
           <div className="social-profile-history">
@@ -153,7 +167,7 @@ export default function UserPublicProfile({
               <span>Pts</span>
               <span>Estado</span>
             </div>
-            {pickHistory.map((row) => (
+            {(pickHistory ?? []).map((row) => (
               <div key={row.matchId} className={`social-profile-history__row social-profile-history__row--${row.statusClass}`}>
                 <span className="social-profile-history__match">{row.matchLabel}</span>
                 <span className="social-profile-history__mono">{row.prediction}</span>
@@ -175,11 +189,11 @@ export default function UserPublicProfile({
             {unlockedBadges} / {totalBadges}
           </span>
         </div>
-        {!badges.length ? (
+        {!(badges ?? []).length ? (
           <p className="social-profile__muted">Sin badges desbloqueados todavía.</p>
         ) : (
           <ul className="social-profile-badges-list">
-            {badges.map((b) => (
+            {(badges ?? []).map((b) => (
               <li key={b.id} className="social-profile-badge-item">
                 <span className="social-profile-badge-item__icon" aria-hidden>
                   {b.icon}
@@ -207,11 +221,11 @@ export default function UserPublicProfile({
         <div className="social-profile__section-head">
           <h3>Actividad reciente</h3>
         </div>
-        {!activity.length ? (
+        {!(activity ?? []).length ? (
           <p className="social-profile__muted">Sin actividad reciente.</p>
         ) : (
           <ul className="social-profile-activity">
-            {activity.map((item) => (
+            {(activity ?? []).map((item) => (
               <li key={item.id}>
                 <p>{item.text}</p>
                 {item.at ? (

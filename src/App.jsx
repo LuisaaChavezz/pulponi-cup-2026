@@ -121,6 +121,17 @@ export default function App() {
     [data.matches]
   );
 
+  const achievementCatalog = useMemo(
+    () => (data.achievementCatalog?.length ? data.achievementCatalog : ACHIEVEMENT_CATALOG),
+    [data.achievementCatalog]
+  );
+
+  const publicProfile = usePublicProfile(session ? viewProfileId : null, {
+    matches: worldCupMatches,
+    communityPickProfiles: data.communityPickProfiles ?? [],
+    achievementCatalog,
+  });
+
   useEffect(() => {
     console.log('[WORLD CUP MATCHES]', worldCupMatches.length);
   }, [worldCupMatches]);
@@ -402,16 +413,9 @@ export default function App() {
       ? Math.min(upcomingSlideIx, upcomingCarouselMatches.length - 1)
       : 0;
 
-  const achievementCatalog = data.achievementCatalog?.length ? data.achievementCatalog : ACHIEVEMENT_CATALOG;
   const unlockedAchievementIds = data.userAchievementIds ?? [];
   const unlockedCount = countAchievementsUnlocked(unlockedAchievementIds, achievementCatalog);
   const achievementsTotal = countAchievementsTotal(achievementCatalog);
-
-  const publicProfile = usePublicProfile(viewProfileId, {
-    matches: worldCupMatches,
-    communityPickProfiles: data.communityPickProfiles,
-    achievementCatalog,
-  });
 
   function openUserProfile(profileId) {
     if (!profileId) return;
