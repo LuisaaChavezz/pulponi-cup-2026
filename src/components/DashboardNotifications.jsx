@@ -18,12 +18,12 @@ import {
 } from '../lib/exportPredictions';
 
 export default function DashboardNotifications({
-  importantAlerts,
-  predictionActivityFeed,
-  matchExportBundle,
-  matches,
-  communityPickProfiles,
-  isAdmin,
+  importantAlerts = [],
+  predictionActivityFeed = [],
+  matchExportBundle = { match: null, rows: [] },
+  matches = [],
+  communityPickProfiles = [],
+  isAdmin = false,
   onCreateImportantAlert,
 }) {
   const now = useKickoffClock();
@@ -35,12 +35,17 @@ export default function DashboardNotifications({
   const captureRef = useRef(null);
   const exportWrapRef = useRef(null);
 
-  const exportMatch = matchExportBundle?.match ?? null;
-  const exportRows = matchExportBundle?.rows ?? [];
+  const safeBundle =
+    matchExportBundle && typeof matchExportBundle === 'object'
+      ? matchExportBundle
+      : { match: null, rows: [] };
+  const exportMatch = safeBundle.match ?? null;
+  const exportRows = Array.isArray(safeBundle.rows) ? safeBundle.rows : [];
+  const safeFeed = Array.isArray(predictionActivityFeed) ? predictionActivityFeed : [];
   const exportTitle = buildMatchExportTitle(exportMatch);
   const exportKickoff = formatExportKickoffLine(exportMatch);
   const matchLabel = exportMatch
-    ? `${exportMatch.home_team ?? 'Local'} vs ${exportMatch.away_team ?? 'Visitante'}`
+    ? `${exportMatch?.home_team ?? 'Local'} vs ${exportMatch?.away_team ?? 'Visitante'}`
     : '';
 
   useEffect(() => {
@@ -86,8 +91,8 @@ export default function DashboardNotifications({
   async function runExport(kind) {
     const rows = exportRows;
     setExportOpen(false);
-    if (!exportMatch) {
-      window.alert('No hay partido seleccionado para exportar.');
+    if (!exportMatch?.id) {
+      window.alert('No hay partido activo para exportar.');
       return;
     }
     if (kind === 'csv') {
@@ -223,15 +228,15 @@ export default function DashboardNotifications({
           </div>
         </div>
 
-        {!predictionActivityFeed?.length ? (
-          <p className="dash-notifications__empty">Aún no hay actividad de predicciones.</p>
+        {!safeFeed.length ? (
+          <p className="dash-notifications__empty">No hay predicciones registradas todavía.</p>
         ) : (
           <ul className="dash-notifications__pred-feed">
-            {predictionActivityFeed.map((item) => (
+            {safeFeed.map((item) => (
               <li key={item.id} className="dash-notifications__pred-item">
                 <UserAvatar avatarUrl={item.avatarUrl} className="avatar-frame--xs" alt="" />
                 <div className="dash-notifications__pred-copy">
-                  <p>{item.text}</p>
+                  <p>{item?.text ?? 'Sin información todavía'}</p>
                   {item.at ? (
                     <time dateTime={item.at.toISOString()}>{formatExportTime(item.at)}</time>
                   ) : null}

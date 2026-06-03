@@ -52,6 +52,7 @@ export function buildPredictionPublicMessage(displayName, pickAction, homeTeam, 
  * @param {Map<string, object>} matchById
  */
 export function formatPredictionActivityMessage(row, matchById) {
+  if (!row || typeof row !== 'object') return 'Actividad de predicción';
   const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
   const safe = trimStr(p.public_message);
   if (safe) return safe;
@@ -77,7 +78,8 @@ export function formatPredictionActivityMessage(row, matchById) {
 
 /** Partido para exportar: en vivo → próximo → último finalizado. */
 export function pickExportMatch(matches) {
-  return pickInicioMatch(matches)?.match ?? null;
+  const list = Array.isArray(matches) ? matches : [];
+  return pickInicioMatch(list)?.match ?? null;
 }
 
 /**
@@ -158,7 +160,10 @@ export function formatExportTime(at) {
 }
 
 export function formatExportLine(row) {
+  if (!row || typeof row !== 'object') return '—';
   const who = row.displayName || row.username || '—';
   const time = formatExportTime(row.at);
-  return `${who} — ${row.scoreLabel} — ${row.actionLabel} ${time}`;
+  const score = row.scoreLabel ?? '—';
+  const action = row.actionLabel ?? 'enviado';
+  return `${who} — ${score} — ${action} ${time}`;
 }

@@ -122,9 +122,9 @@ export default function App() {
 
   useEffect(() => {
     if (chatTab === 'avisos' && session?.user?.id) {
-      void data.loadLatestPredictions();
+      void data.loadPredictionFeeds?.();
     }
-  }, [chatTab, session?.user?.id]);
+  }, [chatTab, session?.user?.id, data.loadPredictionFeeds]);
 
   const worldCupMatches = useMemo(
     () => filterWorldCupMatches(data.matches ?? []),
@@ -159,13 +159,23 @@ export default function App() {
   }, [worldCupMatches]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: d }) => {
-      setSession(d.session);
-      setAuthLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: d }) => {
+        setSession(d.session);
+        setAuthLoading(false);
+      })
+      .catch((err) => {
+        console.error('[auth] getSession failed', err);
+        setSession(null);
+        setAuthLoading(false);
+      });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      setAuthLoading(false);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -763,11 +773,11 @@ export default function App() {
             ) : (
               <div className="chat-list chat-list--notifications">
                 <DashboardNotifications
-                  importantAlerts={data.events}
-                  predictionActivityFeed={data.predictionActivityFeed}
-                  matchExportBundle={data.matchExportBundle}
-                  matches={worldCupMatches}
-                  communityPickProfiles={data.communityPickProfiles}
+                  importantAlerts={data.events ?? []}
+                  predictionActivityFeed={data.predictionActivityFeed ?? []}
+                  matchExportBundle={data.matchExportBundle ?? { match: null, rows: [] }}
+                  matches={worldCupMatches ?? []}
+                  communityPickProfiles={data.communityPickProfiles ?? []}
                   isAdmin={Boolean(data.profile?.is_admin)}
                   onCreateImportantAlert={data.createEvent}
                 />
