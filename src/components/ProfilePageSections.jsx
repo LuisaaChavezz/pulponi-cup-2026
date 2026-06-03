@@ -109,32 +109,40 @@ export function ProfileActivityList({ items, emptyText = 'Sin actividad reciente
 }
 
 export function ProfilePickHistory({ rows, emptyText = 'Todavía no hay predicciones registradas.' }) {
-  if (!rows?.length) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) {
     return <p className="profile-page__muted">{emptyText}</p>;
   }
   return (
-    <div className="profile-page-history">
-      <div className="profile-page-history__head" aria-hidden>
-        <span>Partido</span>
-        <span>Pick</span>
-        <span>Final</span>
-        <span>Pts</span>
-        <span>Estado</span>
-      </div>
-      {rows.map((row) => (
-        <div
-          key={row.matchId}
-          className={`profile-page-history__row profile-page-history__row--${row.statusClass}`}
-        >
-          <span className="profile-page-history__match">{row.matchLabel}</span>
-          <span className="profile-page-history__mono">{row.prediction}</span>
-          <span className="profile-page-history__mono">{row.finalResult}</span>
-          <span className="profile-page-history__pts">{row.status === 'Pendiente' ? '—' : row.points}</span>
-          <span className={`profile-page-history__status profile-page-history__status--${row.statusClass}`}>
-            {row.status}
-          </span>
+    <div
+      className="profile-page-history-scroll"
+      role="region"
+      aria-label="Historial de predicciones"
+      tabIndex={0}
+    >
+      <div className="profile-page-history">
+        <div className="profile-page-history__head" aria-hidden>
+          <span>Partido</span>
+          <span>Pick</span>
+          <span>Final</span>
+          <span>Pts</span>
+          <span>Estado</span>
         </div>
-      ))}
+        {list.map((row) => (
+          <div
+            key={row.matchId}
+            className={`profile-page-history__row profile-page-history__row--${row.statusClass}`}
+          >
+            <span className="profile-page-history__match">{row.matchLabel}</span>
+            <span className="profile-page-history__mono">{row.prediction}</span>
+            <span className="profile-page-history__mono">{row.finalResult}</span>
+            <span className="profile-page-history__pts">{row.status === 'Pendiente' ? '—' : row.points}</span>
+            <span className={`profile-page-history__status profile-page-history__status--${row.statusClass}`}>
+              {row.status}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
