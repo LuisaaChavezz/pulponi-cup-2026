@@ -210,8 +210,8 @@ export default function DashboardNotifications({
       <div className="dash-notifications__hub">
         <h3 className="dash-notifications__title">Mensajes importantes</h3>
         <p className="dash-notifications__hint">
-          Centro de información de la comunidad: tendencias al cierre de partidos, predicciones
-          colectivas, anuncios de Pulponi Cup y avisos del sistema.
+          Centro de información de la comunidad: tendencias generales (sin picks individuales),
+          predicciones colectivas, anuncios de Pulponi Cup y avisos del sistema.
         </p>
       </div>
 
