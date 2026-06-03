@@ -1,5 +1,10 @@
 import { parsePickScore } from './communityPicks';
-import { formatKickoff, isMatchLive, isPickLocked } from './matchUtils';
+import {
+  formatKickoff,
+  isMatchLive,
+  isPickLocked,
+  listCarouselUpcomingMatches,
+} from './matchUtils';
 
 const PREDICTION_ACTIONS = new Set([
   'prediction_created',
@@ -108,6 +113,55 @@ export function pickExportMatch(matches, now = new Date()) {
 
 export function listExportableMatches(matches, now = new Date()) {
   return sortMatchesByKickoffDesc((matches ?? []).filter((m) => isMatchPredictionsExportable(m, now)));
+}
+
+export function formatMatchVersusLabel(match) {
+  if (!match) return '';
+  const home = trimStr(match.home_team) || 'Local';
+  const away = trimStr(match.away_team) || 'Visitante';
+  return `${home} vs ${away}`;
+}
+
+/** Etiqueta del botón según el partido mostrado (vivo → próximo → más reciente). */
+export function getPredictionExportButtonLabel(match, matches, now = new Date()) {
+  if (!match) return 'Descargar predicciones del partido más reciente';
+  if (isMatchLive(match)) return 'Descargar predicciones del partido en vivo';
+  const nextUpcoming = listCarouselUpcomingMatches(matches ?? [])[0];
+  if (nextUpcoming && String(nextUpcoming.id) === String(match.id)) {
+    return 'Descargar predicciones del próximo partido';
+  }
+  return 'Descargar predicciones del partido más reciente';
+}
+
+/**
+ * Partido mostrado en UI y partido con datos exportables (puede diferir si el próximo aún no cerró).
+ */
+export function resolvePredictionExportContext(matches, now = new Date()) {
+  const list = matches ?? [];
+  const live = list.find((m) => isMatchLive(m));
+  if (live) {
+    return {
+      displayMatch: live,
+      exportMatch: isMatchPredictionsExportable(live, now) ? live : pickDefaultExportMatch(list, now),
+      buttonLabel: getPredictionExportButtonLabel(live, list, now),
+    };
+  }
+  const upcoming = listCarouselUpcomingMatches(list)[0];
+  if (upcoming) {
+    return {
+      displayMatch: upcoming,
+      exportMatch: isMatchPredictionsExportable(upcoming, now)
+        ? upcoming
+        : pickDefaultExportMatch(list, now),
+      buttonLabel: getPredictionExportButtonLabel(upcoming, list, now),
+    };
+  }
+  const recent = pickDefaultExportMatch(list, now);
+  return {
+    displayMatch: recent,
+    exportMatch: recent,
+    buttonLabel: getPredictionExportButtonLabel(recent, list, now),
+  };
 }
 
 function isUpdateActivityAction(action, payload) {

@@ -8,13 +8,14 @@ import {
   buildAllMatchesExportGroups,
   buildMatchExportRows,
   buildMatchExportTitle,
-  formatExportKickoffLine,
   formatExportLine,
   formatExportTime,
   formatMatchSectionHeading,
+  formatMatchVersusLabel,
+  getPredictionExportButtonLabel,
   isMatchPredictionsExportable,
   listExportableMatches,
-  pickDefaultExportMatch,
+  resolvePredictionExportContext,
 } from '../lib/predictionActivity';
 import {
   downloadAllPredictionsPdf,
@@ -26,6 +27,8 @@ import {
 } from '../lib/exportPredictions';
 
 const PREDICTION_FEED_RECENT_COUNT = 5;
+const EXPORT_MSG_OK = 'Predicciones descargadas correctamente.';
+const EXPORT_MSG_ERR = 'No se pudo generar la descarga.';
 
 function PredictionActivityItem({ item }) {
   return (
@@ -55,13 +58,12 @@ export default function DashboardNotifications({
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [saving, setSaving] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [exportAllOpen, setExportAllOpen] = useState(false);
   const [selectedMatchId, setSelectedMatchId] = useState('');
+  const [exportNotice, setExportNotice] = useState(null);
+  const [exportBusy, setExportBusy] = useState(false);
   const captureRef = useRef(null);
   const captureAllRef = useRef(null);
-  const exportWrapRef = useRef(null);
-  const exportAllWrapRef = useRef(null);
+  const noticeTimerRef = useRef(null);
 
   const profiles = Array.isArray(communityPickProfiles) ? communityPickProfiles : [];
   const activityLog = Array.isArray(predictionActivityLog) ? predictionActivityLog : [];
@@ -71,28 +73,41 @@ export default function DashboardNotifications({
     [matches, now]
   );
 
-  const defaultExportMatch = useMemo(
-    () => pickDefaultExportMatch(matches, now),
+  const exportContext = useMemo(
+    () => resolvePredictionExportContext(matches, now),
     [matches, now]
   );
 
   useEffect(() => {
-    const nextId = defaultExportMatch?.id != null ? String(defaultExportMatch.id) : '';
+    const preferredId =
+      exportContext.exportMatch?.id ?? exportContext.displayMatch?.id ?? '';
+    const nextId = preferredId != null ? String(preferredId) : '';
     setSelectedMatchId((prev) => {
       if (prev && exportableMatches.some((m) => String(m.id) === prev)) return prev;
       return nextId;
     });
-  }, [defaultExportMatch?.id, exportableMatches]);
+  }, [exportContext.exportMatch?.id, exportContext.displayMatch?.id, exportableMatches]);
 
-  const selectedMatch = useMemo(() => {
-    if (!selectedMatchId) return null;
-    return exportableMatches.find((m) => String(m.id) === selectedMatchId) ?? defaultExportMatch;
-  }, [selectedMatchId, exportableMatches, defaultExportMatch]);
+  const exportTargetMatch = useMemo(() => {
+    if (selectedMatchId) {
+      const picked = exportableMatches.find((m) => String(m.id) === selectedMatchId);
+      if (picked) return picked;
+    }
+    return exportContext.exportMatch;
+  }, [selectedMatchId, exportableMatches, exportContext.exportMatch]);
+
+  const displayMatch = useMemo(() => {
+    if (selectedMatchId) {
+      const fromList = (matches ?? []).find((m) => String(m.id) === selectedMatchId);
+      if (fromList) return fromList;
+    }
+    return exportContext.displayMatch;
+  }, [selectedMatchId, matches, exportContext.displayMatch]);
 
   const exportRows = useMemo(() => {
-    if (!selectedMatch?.id || !isMatchPredictionsExportable(selectedMatch, now)) return [];
-    return buildMatchExportRows(profiles, selectedMatch.id, activityLog);
-  }, [selectedMatch, profiles, activityLog, now]);
+    if (!exportTargetMatch?.id || !isMatchPredictionsExportable(exportTargetMatch, now)) return [];
+    return buildMatchExportRows(profiles, exportTargetMatch.id, activityLog);
+  }, [exportTargetMatch, profiles, activityLog, now]);
 
   const allExportGroups = useMemo(
     () => buildAllMatchesExportGroups(profiles, matches, activityLog, now),
@@ -112,31 +127,26 @@ export default function DashboardNotifications({
     [sortedFeed]
   );
 
-  const exportTitle = buildMatchExportTitle(selectedMatch);
-  const exportKickoff = formatExportKickoffLine(selectedMatch);
-  const matchLabel = selectedMatch
-    ? `${selectedMatch?.home_team ?? 'Local'} vs ${selectedMatch?.away_team ?? 'Visitante'}`
-    : '';
-  const canExportMatch = Boolean(selectedMatch?.id && exportRows.length);
+  const exportTitle = buildMatchExportTitle(exportTargetMatch);
+  const matchLabel = formatMatchVersusLabel(displayMatch);
+  const exportButtonLabel = getPredictionExportButtonLabel(displayMatch, matches, now);
+  const canExportMatch = Boolean(
+    exportTargetMatch?.id && isMatchPredictionsExportable(exportTargetMatch, now)
+  );
   const canExportAll = allExportGroups.length > 0;
 
-  useEffect(() => {
-    if (!exportOpen) return;
-    function onDoc(ev) {
-      if (!exportWrapRef.current?.contains(ev.target)) setExportOpen(false);
-    }
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [exportOpen]);
+  useEffect(
+    () => () => {
+      if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+    },
+    []
+  );
 
-  useEffect(() => {
-    if (!exportAllOpen) return;
-    function onDoc(ev) {
-      if (!exportAllWrapRef.current?.contains(ev.target)) setExportAllOpen(false);
-    }
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [exportAllOpen]);
+  function showExportResult(ok) {
+    setExportNotice(ok ? 'ok' : 'err');
+    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => setExportNotice(null), 5000);
+  }
 
   const revealedCommunityMatches = useMemo(() => {
     const list = (matches ?? []).filter((m) => areCommunityTrendsRevealed(m, now));
@@ -169,54 +179,62 @@ export default function DashboardNotifications({
     }
   }
 
-  function alertExportBlocked() {
-    window.alert(
-      'Las predicciones con marcador se pueden descargar cuando el partido ya cerró (kickoff o en vivo). En pantalla nunca se muestran marcadores ajenos.'
-    );
-  }
-
   async function runExport(kind) {
-    setExportOpen(false);
-    if (!canExportMatch) {
-      alertExportBlocked();
+    if (exportBusy) return;
+    if (!canExportMatch || !exportTargetMatch) {
+      showExportResult(false);
       return;
     }
-    if (kind === 'csv') {
-      downloadTextFile(`pulponi-predicciones-${Date.now()}.csv`, predictionsToCsvRows(exportRows, matchLabel));
-      return;
-    }
-    if (kind === 'pdf') {
-      downloadMatchPredictionsPdf(selectedMatch, exportRows);
-      return;
-    }
-    if (kind === 'png' || kind === 'jpeg') {
-      const el = captureRef.current;
-      if (!el) return;
-      await downloadPredictionsRaster(el, kind);
+    setExportBusy(true);
+    try {
+      let ok = false;
+      const label = formatMatchVersusLabel(exportTargetMatch);
+      if (kind === 'csv') {
+        ok = downloadTextFile(
+          `pulponi-predicciones-${Date.now()}.csv`,
+          predictionsToCsvRows(exportRows, label)
+        );
+      } else if (kind === 'pdf') {
+        ok = downloadMatchPredictionsPdf(exportTargetMatch, exportRows);
+      } else if (kind === 'png' || kind === 'jpeg') {
+        await new Promise((r) => requestAnimationFrame(r));
+        const el = captureRef.current;
+        ok = await downloadPredictionsRaster(el, kind);
+      }
+      showExportResult(Boolean(ok));
+    } catch {
+      showExportResult(false);
+    } finally {
+      setExportBusy(false);
     }
   }
 
   async function runExportAll(kind) {
-    setExportAllOpen(false);
+    if (exportBusy) return;
     if (!canExportAll) {
-      alertExportBlocked();
+      showExportResult(false);
       return;
     }
-    if (kind === 'csv') {
-      downloadTextFile(
-        `pulponi-todas-predicciones-${Date.now()}.csv`,
-        predictionsAllMatchesToCsv(allExportGroups)
-      );
-      return;
-    }
-    if (kind === 'pdf') {
-      downloadAllPredictionsPdf(allExportGroups);
-      return;
-    }
-    if (kind === 'png' || kind === 'jpeg') {
-      const el = captureAllRef.current;
-      if (!el) return;
-      await downloadPredictionsRaster(el, kind);
+    setExportBusy(true);
+    try {
+      let ok = false;
+      if (kind === 'csv') {
+        ok = downloadTextFile(
+          `pulponi-todas-predicciones-${Date.now()}.csv`,
+          predictionsAllMatchesToCsv(allExportGroups)
+        );
+      } else if (kind === 'pdf') {
+        ok = downloadAllPredictionsPdf(allExportGroups);
+      } else if (kind === 'png' || kind === 'jpeg') {
+        await new Promise((r) => requestAnimationFrame(r));
+        const el = captureAllRef.current;
+        ok = await downloadPredictionsRaster(el, kind);
+      }
+      showExportResult(Boolean(ok));
+    } catch {
+      showExportResult(false);
+    } finally {
+      setExportBusy(false);
     }
   }
 
@@ -304,9 +322,17 @@ export default function DashboardNotifications({
         </div>
 
         <div className="dash-notifications__export-panel">
+          {displayMatch ? (
+            <p className="dash-notifications__export-match-name">{matchLabel}</p>
+          ) : (
+            <p className="dash-notifications__empty dash-notifications__export-wait">
+              La descarga estará disponible cuando cierre el primer partido con predicciones.
+            </p>
+          )}
+
           {exportableMatches.length > 1 ? (
             <label className="dash-notifications__export-select-label">
-              Partido
+              Otro partido cerrado
               <select
                 className="dash-notifications__export-select"
                 value={selectedMatchId}
@@ -314,77 +340,81 @@ export default function DashboardNotifications({
               >
                 {exportableMatches.map((m) => (
                   <option key={m.id} value={String(m.id)}>
-                    {m.home_team ?? 'Local'} vs {m.away_team ?? 'Visitante'}
+                    {formatMatchVersusLabel(m)}
                   </option>
                 ))}
               </select>
             </label>
-          ) : selectedMatch ? (
-            <p className="dash-notifications__export-match">
-              Partido: <strong>{matchLabel}</strong>
-              {exportKickoff ? <span className="dash-notifications__muted"> · {exportKickoff}</span> : null}
-            </p>
-          ) : (
-            <p className="dash-notifications__empty dash-notifications__export-wait">
-              La descarga estará disponible cuando cierre el primer partido con predicciones.
-            </p>
-          )}
+          ) : null}
 
-          <div className="dash-notifications__export-actions">
-            <div className="dash-notifications__export-wrap" ref={exportWrapRef}>
+          <div className="dash-notifications__export-block">
+            <button
+              type="button"
+              className="dash-notifications__export-toggle"
+              onClick={() => runExport('pdf')}
+              disabled={!canExportMatch || exportBusy}
+            >
+              {exportBusy ? 'Generando…' : exportButtonLabel}
+            </button>
+            <div className="dash-notifications__export-formats">
               <button
                 type="button"
-                className="dash-notifications__export-toggle"
-                onClick={() => setExportOpen((o) => !o)}
-                disabled={!canExportMatch}
+                className="dash-notifications__export-format"
+                onClick={() => runExport('pdf')}
+                disabled={!canExportMatch || exportBusy}
               >
-                Descargar predicciones
+                PDF
               </button>
-              {exportOpen ? (
-                <div className="dash-notifications__export-menu" role="menu">
-                  <button type="button" onClick={() => runExport('pdf')}>
-                    PDF
-                  </button>
-                  <button type="button" onClick={() => runExport('png')}>
-                    PNG
-                  </button>
-                  <button type="button" onClick={() => runExport('jpeg')}>
-                    JPEG
-                  </button>
-                  <button type="button" onClick={() => runExport('csv')}>
-                    CSV
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="dash-notifications__export-wrap" ref={exportAllWrapRef}>
               <button
                 type="button"
-                className="dash-notifications__export-toggle dash-notifications__export-toggle--secondary"
-                onClick={() => setExportAllOpen((o) => !o)}
-                disabled={!canExportAll}
+                className="dash-notifications__export-format"
+                onClick={() => runExport('png')}
+                disabled={!canExportMatch || exportBusy}
               >
-                Descargar todas las predicciones
+                PNG
               </button>
-              {exportAllOpen ? (
-                <div className="dash-notifications__export-menu" role="menu">
-                  <button type="button" onClick={() => runExportAll('pdf')}>
-                    PDF
-                  </button>
-                  <button type="button" onClick={() => runExportAll('png')}>
-                    PNG
-                  </button>
-                  <button type="button" onClick={() => runExportAll('jpeg')}>
-                    JPEG
-                  </button>
-                  <button type="button" onClick={() => runExportAll('csv')}>
-                    CSV
-                  </button>
-                </div>
-              ) : null}
             </div>
           </div>
+
+          <div className="dash-notifications__export-block">
+            <button
+              type="button"
+              className="dash-notifications__export-toggle dash-notifications__export-toggle--secondary"
+              onClick={() => runExportAll('pdf')}
+              disabled={!canExportAll || exportBusy}
+            >
+              Descargar todas las predicciones
+            </button>
+            <div className="dash-notifications__export-formats">
+              <button
+                type="button"
+                className="dash-notifications__export-format"
+                onClick={() => runExportAll('pdf')}
+                disabled={!canExportAll || exportBusy}
+              >
+                PDF
+              </button>
+              <button
+                type="button"
+                className="dash-notifications__export-format"
+                onClick={() => runExportAll('png')}
+                disabled={!canExportAll || exportBusy}
+              >
+                PNG
+              </button>
+            </div>
+          </div>
+
+          {exportNotice === 'ok' ? (
+            <p className="dash-notifications__export-feedback dash-notifications__export-feedback--ok" role="status">
+              {EXPORT_MSG_OK}
+            </p>
+          ) : null}
+          {exportNotice === 'err' ? (
+            <p className="dash-notifications__export-feedback dash-notifications__export-feedback--err" role="alert">
+              {EXPORT_MSG_ERR}
+            </p>
+          ) : null}
         </div>
 
         {!sortedFeed.length ? (
@@ -414,20 +444,22 @@ export default function DashboardNotifications({
         <div ref={captureRef} className="prediction-export-capture__inner">
           <p className="prediction-export-capture__brand">Pulponi Cup</p>
           <p className="prediction-export-capture__title">{exportTitle}</p>
-          {exportKickoff ? <p className="prediction-export-capture__kickoff">{exportKickoff}</p> : null}
           <ul className="prediction-export-capture__list">
-            {(exportRows ?? []).map((r) => (
-              <li key={r.profile_id}>{formatExportLine(r)}</li>
-            ))}
+            {(exportRows.length ? exportRows : [{ profile_id: 'empty', displayName: '—', scoreLabel: '—', actionLabel: '—', at: null }]).map(
+              (r) => (
+                <li key={r.profile_id}>{formatExportLine(r)}</li>
+              )
+            )}
           </ul>
         </div>
-        <div ref={captureAllRef} className="prediction-export-capture__inner prediction-export-capture__inner--all">
+      </div>
+      <div className="prediction-export-capture prediction-export-capture--all" aria-hidden="true">
+        <div ref={captureAllRef} className="prediction-export-capture__inner">
           <p className="prediction-export-capture__brand">Pulponi Cup</p>
           <p className="prediction-export-capture__title">Todas las predicciones</p>
           {allExportGroups.map((g) => (
             <section key={g.match?.id} className="prediction-export-capture__section">
               <h4 className="prediction-export-capture__section-title">{formatMatchSectionHeading(g.match)}</h4>
-              {g.kickoffLine ? <p className="prediction-export-capture__kickoff">{g.kickoffLine}</p> : null}
               <ul className="prediction-export-capture__list">
                 {(g.rows ?? []).map((r) => (
                   <li key={`${g.match?.id}-${r.profile_id}`}>{formatExportLine(r)}</li>
