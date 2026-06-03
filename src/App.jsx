@@ -48,6 +48,7 @@ import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
 import RankingMovement from './components/RankingMovement';
 import ProfileRankingSummary from './components/ProfileRankingSummary';
+import RankingLeaderboard from './components/RankingLeaderboard';
 import PulpoIndexCard from './components/PulpoIndexCard';
 import { CommunityTrendsLockedHint } from './components/CommunityMatchInsights';
 import { useKickoffClock } from './hooks/useKickoffClock';
@@ -1050,37 +1051,11 @@ export default function App() {
               </button>
             </div>
           </div>
-          <div className="ranking-table">
-            <div className="rank-head">
-              <span>#</span>
-              <span>Usuario</span>
-              <span>Puntos</span>
-              <span>Exactos</span>
-              <span>Racha</span>
-            </div>
-            {(data.ranking ?? []).length === 0 ? (
-              <div className="empty-state">Aún no hay jugadores en el ranking</div>
-            ) : (
-              (data.ranking ?? []).map((r, i) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  className="rank-row rank-row--avatar rank-row--link"
-                  onClick={() => openUserProfile(r.id)}
-                  aria-label={`Ver perfil de @${r.username ?? r.name ?? 'jugador'}`}
-                >
-                  <span>{i + 1}</span>
-                  <div className="rank-user-cell">
-                    <UserAvatar photoUrl={r.photo_url} className="avatar-frame--sm" alt="" />
-                    <b>@{r.username ?? r.name}</b>
-                  </div>
-                  <span>{Number(r.points ?? 0)}</span>
-                  <span>{r.exacts ?? 0}</span>
-                  <span>{r.streak ?? 0}</span>
-                </button>
-              ))
-            )}
-          </div>
+          <RankingLeaderboard
+            rows={data.ranking ?? []}
+            currentUserId={session?.user?.id}
+            onSelectUser={openUserProfile}
+          />
         </section>
 
         <section id="logros" className="panel">

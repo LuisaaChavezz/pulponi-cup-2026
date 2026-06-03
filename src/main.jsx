@@ -5,6 +5,7 @@ import './index.css';
 import './layout-dashboard.css';
 import './avatars-global.css';
 import './pulponi-player-card.css';
+import './ranking-leaderboard.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
