@@ -4,6 +4,7 @@ import App from './App.jsx';
 import './index.css';
 import './layout-dashboard.css';
 import './avatars-global.css';
+import './pulponi-player-card.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -1,0 +1,320 @@
+/**
+ * Tarjeta de jugador — carga al final para ganar a index.css legacy.
+ * Avatar fijo 160px móvil / 220px desktop. Sin foto gigante.
+ */
+
+#perfil .profile-photo,
+#perfil .profile-card,
+#usuario .profile-photo,
+.profile-page .profile-photo,
+.dash-perfil .profile-photo {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  max-width: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  pointer-events: none !important;
+}
+
+#perfil img:not(.pulponi-player-card__photo):not(.avatar-option-frame img),
+#usuario img:not(.pulponi-player-card__photo):not(.avatar-option-frame img) {
+  max-width: 160px !important;
+  max-height: 160px !important;
+}
+
+.pulponi-player-card {
+  --ppc-avatar: 160px;
+  position: relative;
+  width: 100%;
+  max-height: 350px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 30, 39, 0.55);
+  background: #08080c;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 14px 36px rgba(0, 0, 0, 0.55),
+    inset 0 0 60px rgba(255, 30, 39, 0.06);
+  flex-shrink: 0;
+  isolation: isolate;
+}
+
+/* Fondo: foto desenfocada (10–20%) + overlay negro — no domina la UI */
+.pulponi-player-card__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(56px) saturate(1.05);
+  opacity: 0.15;
+  pointer-events: none;
+  transform: scale(1.06);
+}
+
+.pulponi-player-card__bg-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.82);
+  pointer-events: none;
+}
+
+.pulponi-player-card__shade {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 30, 39, 0.12) 0%,
+    rgba(0, 0, 0, 0.92) 42%,
+    rgba(5, 5, 8, 0.98) 100%
+  );
+  pointer-events: none;
+}
+
+/* Halo blur: solo detrás del avatar, no toda la tarjeta */
+.pulponi-player-card__photo--logo {
+  object-fit: contain !important;
+  padding: 14px !important;
+  box-sizing: border-box !important;
+}
+
+.pulponi-player-card__halo {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 2;
+  width: calc(var(--ppc-avatar) + 48px);
+  height: calc(var(--ppc-avatar) + 48px);
+  margin-left: calc((var(--ppc-avatar) + 48px) / -2);
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(42px);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.pulponi-player-card__body {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 12px 10px;
+  max-height: 350px;
+  box-sizing: border-box;
+}
+
+.pulponi-player-card__top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.pulponi-player-card__avatar-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  width: var(--ppc-avatar);
+  max-width: var(--ppc-avatar);
+  cursor: default;
+}
+
+.pulponi-player-card__avatar-slot--upload {
+  cursor: pointer;
+}
+
+.pulponi-player-card__ring {
+  width: var(--ppc-avatar);
+  height: var(--ppc-avatar);
+  min-width: var(--ppc-avatar);
+  min-height: var(--ppc-avatar);
+  max-width: var(--ppc-avatar);
+  max-height: var(--ppc-avatar);
+  padding: 3px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ff1e27, #7f0d12);
+  box-shadow: 0 0 28px rgba(255, 30, 39, 0.45);
+  box-sizing: border-box;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Foto de perfil: tamaño fijo en px — no escala con imagen subida */
+.pulponi-player-card__photo,
+#perfil .pulponi-player-card__photo,
+#usuario .pulponi-player-card__photo,
+.profile-page .pulponi-player-card__photo,
+.profile-photo .pulponi-player-card__photo,
+label .pulponi-player-card__photo {
+  width: 160px !important;
+  height: 160px !important;
+  min-width: 160px !important;
+  min-height: 160px !important;
+  max-width: 160px !important;
+  max-height: 160px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+  display: block !important;
+  flex: 0 0 160px !important;
+}
+
+.pulponi-player-card__upload {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fca5a5;
+}
+
+.pulponi-player-card__identity {
+  min-width: 0;
+}
+
+.pulponi-player-card__handle {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #f87171;
+}
+
+.pulponi-player-card__name {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  font-weight: 950;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.pulponi-player-card__badge-verified {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #4ade80;
+}
+
+.pulponi-player-card__stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+}
+
+.pulponi-player-card__stat {
+  padding: 5px 3px;
+  border-radius: 8px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 30, 39, 0.28);
+}
+
+.pulponi-player-card__stat b {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 950;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.pulponi-player-card__stat span {
+  display: block;
+  margin-top: 2px;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+  line-height: 1.15;
+}
+
+.pulponi-player-card__stat--accent {
+  border-color: rgba(255, 30, 39, 0.5);
+  background: rgba(255, 30, 39, 0.12);
+}
+
+.pulponi-player-card__stat--accent b {
+  color: #fecaca;
+}
+
+/* Desktop: avatar 220px, layout horizontal compacto ≤350px */
+@media (min-width: 768px) {
+  .pulponi-player-card {
+    --ppc-avatar: 220px;
+  }
+
+  .pulponi-player-card__halo {
+    top: 50%;
+    left: 24px;
+    margin-left: 0;
+    margin-top: calc((var(--ppc-avatar) + 48px) / -2);
+    transform: none;
+  }
+
+  .pulponi-player-card__top {
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    gap: 14px;
+  }
+
+  .pulponi-player-card__identity {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pulponi-player-card__photo,
+  #perfil .pulponi-player-card__photo,
+  #usuario .pulponi-player-card__photo {
+    width: 220px !important;
+    height: 220px !important;
+    min-width: 220px !important;
+    min-height: 220px !important;
+    max-width: 220px !important;
+    max-height: 220px !important;
+    flex: 0 0 220px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .pulponi-player-card__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pulponi-player-card__stat:nth-child(4),
+  .pulponi-player-card__stat:nth-child(5) {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 380px) {
+  .pulponi-player-card__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pulponi-player-card__stat--accent {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Ocultar header legacy si quedó en DOM */
+.player-card-header,
+.profile-page__hero,
+.profile-page__avatar-wrap,
+.profile-page__bg {
+  display: none !important;
+}

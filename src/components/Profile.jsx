@@ -1,8 +1,11 @@
 import { isLogoAvatar, resolveAvatarUrl } from '../lib/avatars';
 
+const AVATAR_MOBILE = 160;
+const AVATAR_DESKTOP = 220;
+
 /**
- * Cabecera de perfil — tarjeta de jugador (FUT / Discord / COD).
- * Avatar fijo 160px móvil / 220px desktop. Foto solo como fondo blur.
+ * Tarjeta de jugador Pulponi (FUT / Discord / COD).
+ * Avatar fijo en px; la foto subida solo alimenta un halo blur pequeño, no pantalla completa.
  */
 export default function Profile({
   avatarUrl,
@@ -26,56 +29,102 @@ export default function Profile({
     { key: 'rank', value: rank != null ? `#${rank}` : '—', label: 'Ranking' },
     { key: 'pts', value: Number(points ?? 0), label: 'Puntos' },
     { key: 'ex', value: Number(exacts ?? 0), label: 'Exactos' },
-    { key: 'pulpo', value: `${Number(pulpoIndex ?? 0)}%`, label: 'Índice Pulpo', highlight: true },
+    { key: 'pulpo', value: `${Number(pulpoIndex ?? 0)}%`, label: 'Índice Pulpo', accent: true },
     { key: 'streak', value: Number(streak ?? 0), label: 'Racha' },
   ];
 
-  const AvatarTag = onUpload ? 'label' : 'div';
+  const avatarStyle = {
+    width: AVATAR_MOBILE,
+    height: AVATAR_MOBILE,
+    minWidth: AVATAR_MOBILE,
+    minHeight: AVATAR_MOBILE,
+    maxWidth: AVATAR_MOBILE,
+    maxHeight: AVATAR_MOBILE,
+    objectFit: logo ? 'contain' : 'cover',
+    objectPosition: 'center',
+    borderRadius: '50%',
+    display: 'block',
+    flexShrink: 0,
+    padding: logo ? 14 : 0,
+    boxSizing: 'border-box',
+    background: '#08080a',
+  };
 
   return (
-    <header className="player-card-header" aria-label="Tarjeta de jugador">
-      <div
-        className="player-card-header__bg"
-        style={src ? { backgroundImage: `url(${src})` } : undefined}
-        aria-hidden
-      />
-      <div className="player-card-header__overlay" aria-hidden />
-
-      <div className="player-card-header__content">
-        <AvatarTag
-          className={`player-card-header__avatar${onUpload ? ' player-card-header__avatar--upload' : ''}`}
-        >
-          <img
-            src={src}
-            alt=""
-            className={`player-card-header__avatar-img${logo ? ' player-card-header__avatar-img--logo' : ''}`}
-            width={160}
-            height={160}
-            loading="lazy"
-            decoding="async"
+    <section className="pulponi-player-card" aria-label="Tarjeta de jugador" data-profile-card>
+      {src ? (
+        <>
+          <div
+            className="pulponi-player-card__bg"
+            style={{ backgroundImage: `url(${src})` }}
+            aria-hidden
           />
-          {uploadLabel ? <span className="player-card-header__upload-hint">{uploadLabel}</span> : null}
-          {onUpload ? <input type="file" accept="image/*" hidden onChange={onUpload} /> : null}
-        </AvatarTag>
+          <div className="pulponi-player-card__bg-overlay" aria-hidden />
+          <div
+            className="pulponi-player-card__halo"
+            style={{ backgroundImage: `url(${src})` }}
+            aria-hidden
+          />
+        </>
+      ) : (
+        <div className="pulponi-player-card__shade" aria-hidden />
+      )}
 
-        <div className="player-card-header__info">
-          <p className="player-card-header__handle">{handle}</p>
-          {displayName ? <h2 className="player-card-header__name">{displayName}</h2> : null}
-          {verified ? <span className="player-card-header__verified">Pulponi Verified ✓</span> : null}
+      <div className="pulponi-player-card__body">
+        <div className="pulponi-player-card__top">
+          <div
+            className={`pulponi-player-card__avatar-slot${onUpload ? ' pulponi-player-card__avatar-slot--upload' : ''}`}
+            role={onUpload ? 'button' : undefined}
+            tabIndex={onUpload ? 0 : undefined}
+            onClick={onUpload ? () => document.getElementById('pulponi-avatar-upload')?.click() : undefined}
+            onKeyDown={
+              onUpload
+                ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      document.getElementById('pulponi-avatar-upload')?.click();
+                    }
+                  }
+                : undefined
+            }
+          >
+            <div className="pulponi-player-card__ring">
+              <img
+                src={src}
+                alt=""
+                className={`pulponi-player-card__photo${logo ? ' pulponi-player-card__photo--logo' : ''}`}
+                width={AVATAR_MOBILE}
+                height={AVATAR_MOBILE}
+                style={avatarStyle}
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+            {uploadLabel ? <span className="pulponi-player-card__upload">{uploadLabel}</span> : null}
+            {onUpload ? (
+              <input id="pulponi-avatar-upload" type="file" accept="image/*" hidden onChange={onUpload} />
+            ) : null}
+          </div>
 
-          <div className="player-card-header__stats" aria-label="Estadísticas principales">
-            {stats.map((s) => (
-              <div
-                key={s.key}
-                className={`player-card-header__stat${s.highlight ? ' player-card-header__stat--pulpo' : ''}`}
-              >
-                <b>{s.value}</b>
-                <span>{s.label}</span>
-              </div>
-            ))}
+          <div className="pulponi-player-card__identity">
+            <p className="pulponi-player-card__handle">{handle}</p>
+            {displayName ? <h2 className="pulponi-player-card__name">{displayName}</h2> : null}
+            {verified ? <span className="pulponi-player-card__badge-verified">Pulponi Verified ✓</span> : null}
           </div>
         </div>
+
+        <div className="pulponi-player-card__stats" aria-label="Estadísticas principales">
+          {stats.map((s) => (
+            <div
+              key={s.key}
+              className={`pulponi-player-card__stat${s.accent ? ' pulponi-player-card__stat--accent' : ''}`}
+            >
+              <b>{s.value}</b>
+              <span>{s.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
-    </header>
+    </section>
   );
 }

@@ -65,8 +65,8 @@
   border-radius: 9999px;
 }
 
-/* Foto principal en perfil: anula border-radius:0 heredado; mantiene anillo exterior */
-.profile-photo .avatar-frame > img {
+/* Foto principal en perfil (legacy): solo si NO usa profile-page */
+.profile-photo:not(.profile-page__avatar-wrap) .avatar-frame > img {
   border-radius: 9999px !important;
   object-fit: cover;
   object-position: center;
@@ -74,7 +74,8 @@
   height: 100%;
 }
 
-.profile-photo .avatar-frame.avatar-frame--logo-profile > img {
+.profile-photo:not(.profile-page__avatar-wrap).avatar-frame--logo-profile > img,
+.profile-photo:not(.profile-page__avatar-wrap) .avatar-frame.avatar-frame--logo-profile > img {
   object-fit: contain;
 }
 
