@@ -15,8 +15,8 @@ import {
   pickExportMatch,
 } from '../lib/predictionActivity';
 
-/** Máximo de filas mostradas en «Últimas predicciones enviadas» (solo UI). */
-const PREDICTION_ACTIVITY_FEED_LIMIT = 5;
+/** Máximo de filas cargadas desde activity_log (recientes + historial en UI). */
+const PREDICTION_ACTIVITY_QUERY_LIMIT = 500;
 import { isAllowedChatReactionEmoji } from '../constants/chatReactions';
 import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 import {
@@ -484,7 +484,7 @@ export function useAppData(session) {
           'prediction_changed',
         ])
         .order('created_at', { ascending: false })
-        .limit(PREDICTION_ACTIVITY_FEED_LIMIT);
+        .limit(PREDICTION_ACTIVITY_QUERY_LIMIT);
 
       if (error) {
         console.warn('[loadPredictionFeeds]', error?.message ?? error);
@@ -511,8 +511,7 @@ export function useAppData(session) {
             at: at && !Number.isNaN(at.getTime()) ? at : null,
           };
         })
-        .sort((a, b) => (b.at?.getTime?.() ?? 0) - (a.at?.getTime?.() ?? 0))
-        .slice(0, PREDICTION_ACTIVITY_FEED_LIMIT);
+        .sort((a, b) => (b.at?.getTime?.() ?? 0) - (a.at?.getTime?.() ?? 0));
 
       setPredictionActivityFeed(feed);
       setPredictionActivityLog(rows);

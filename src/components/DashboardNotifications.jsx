@@ -17,6 +17,22 @@ import {
   predictionsToCsvRows,
 } from '../lib/exportPredictions';
 
+const PREDICTION_FEED_RECENT_COUNT = 5;
+
+function PredictionActivityItem({ item }) {
+  return (
+    <li className="dash-notifications__pred-item">
+      <UserAvatar avatarUrl={item.avatarUrl} className="avatar-frame--xs" alt="" />
+      <div className="dash-notifications__pred-copy">
+        <p>{item?.text ?? 'Sin información todavía'}</p>
+        {item.at ? (
+          <time dateTime={item.at.toISOString()}>{formatExportTime(item.at)}</time>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
 export default function DashboardNotifications({
   importantAlerts = [],
   predictionActivityFeed = [],
@@ -41,12 +57,18 @@ export default function DashboardNotifications({
       : { match: null, rows: [] };
   const exportMatch = safeBundle.match ?? null;
   const exportRows = Array.isArray(safeBundle.rows) ? safeBundle.rows : [];
-  const safeFeed = useMemo(() => {
+  const sortedFeed = useMemo(() => {
     const list = Array.isArray(predictionActivityFeed) ? predictionActivityFeed : [];
-    return [...list]
-      .sort((a, b) => (b.at?.getTime?.() ?? 0) - (a.at?.getTime?.() ?? 0))
-      .slice(0, 5);
+    return [...list].sort((a, b) => (b.at?.getTime?.() ?? 0) - (a.at?.getTime?.() ?? 0));
   }, [predictionActivityFeed]);
+  const recentFeed = useMemo(
+    () => sortedFeed.slice(0, PREDICTION_FEED_RECENT_COUNT),
+    [sortedFeed]
+  );
+  const historyFeed = useMemo(
+    () => sortedFeed.slice(PREDICTION_FEED_RECENT_COUNT),
+    [sortedFeed]
+  );
   const exportTitle = buildMatchExportTitle(exportMatch);
   const exportKickoff = formatExportKickoffLine(exportMatch);
   const matchLabel = exportMatch
@@ -193,8 +215,9 @@ export default function DashboardNotifications({
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle">Últimas predicciones enviadas</h3>
           <p className="dash-notifications__hint">
-            Últimas 5 actualizaciones sin revelar marcadores. La descarga incluye todas las predicciones
-            del partido activo con marcadores solo en el archivo exportado.
+            Las 5 más recientes arriba; el historial anterior va en un bloque con scroll (máx. 350px).
+            Sin marcadores en pantalla. La descarga incluye todas las predicciones del partido activo
+            con marcadores solo en el archivo exportado.
           </p>
           {exportMatch ? (
             <p className="dash-notifications__export-match">
@@ -233,22 +256,26 @@ export default function DashboardNotifications({
           </div>
         </div>
 
-        {!safeFeed.length ? (
+        {!sortedFeed.length ? (
           <p className="dash-notifications__empty">Aún no hay predicciones recientes.</p>
         ) : (
-          <ul className="dash-notifications__pred-feed">
-            {safeFeed.map((item) => (
-              <li key={item.id} className="dash-notifications__pred-item">
-                <UserAvatar avatarUrl={item.avatarUrl} className="avatar-frame--xs" alt="" />
-                <div className="dash-notifications__pred-copy">
-                  <p>{item?.text ?? 'Sin información todavía'}</p>
-                  {item.at ? (
-                    <time dateTime={item.at.toISOString()}>{formatExportTime(item.at)}</time>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="dash-notifications__pred-feed dash-notifications__pred-feed--recent">
+              {recentFeed.map((item) => (
+                <PredictionActivityItem key={item.id} item={item} />
+              ))}
+            </ul>
+            {historyFeed.length > 0 ? (
+              <div className="dash-notifications__pred-history">
+                <h4 className="dash-notifications__pred-history-title">Historial anterior</h4>
+                <ul className="dash-notifications__pred-feed dash-notifications__pred-history-scroll">
+                  {historyFeed.map((item) => (
+                    <PredictionActivityItem key={item.id} item={item} />
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
 
