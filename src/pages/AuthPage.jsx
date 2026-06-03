@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
+const SIGNUP_SUCCESS_MSG =
+  'Te enviamos un correo de verificación. Revisa tu bandeja de entrada.';
+
 export default function AuthPage() {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
@@ -8,11 +11,19 @@ export default function AuthPage() {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  function switchMode(next) {
+    setMode(next);
+    setError('');
+    setSuccess('');
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
@@ -30,6 +41,7 @@ export default function AuthPage() {
           });
           if (profileErr) throw profileErr;
         }
+        setSuccess(SIGNUP_SUCCESS_MSG);
       }
     } catch (err) {
       setError(err.message ?? 'Error de autenticación');
@@ -44,10 +56,10 @@ export default function AuthPage() {
         <span className="eyebrow">🐙 Pulponi Cup 2026</span>
         <h2>{mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}</h2>
         <div className="auth-tabs">
-          <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>
+          <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => switchMode('login')}>
             Login
           </button>
-          <button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => setMode('signup')}>
+          <button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => switchMode('signup')}>
             Registro
           </button>
         </div>
@@ -83,6 +95,7 @@ export default function AuthPage() {
             {loading ? 'Cargando…' : mode === 'login' ? 'Entrar' : 'Registrarse'}
           </button>
         </form>
+        {success && <p className="auth-success">{success}</p>}
       </div>
     </div>
   );

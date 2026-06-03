@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { resolveAvatarUrl } from '../lib/avatars';
-import { DEMO_ACTIVITY, DEMO_CHAT, DEMO_MATCHES } from '../data/demoData';
+import { runScoringAndPulpoPipeline } from '../lib/pulpoSync';
+import { isMatchFinished } from '../lib/matchUtils';
 import { isFootballApiConfigured, syncWorldCupFixtures } from '../lib/footballApi';
 import { normalizeMatchRow, normalizeMatches } from '../lib/normalizeMatch';
 import { formatActivityLogMessage } from '../lib/activityMessages';
@@ -15,15 +16,19 @@ export function useAppData(session) {
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchSyncNotice, setMatchSyncNotice] = useState(null);
   const syncInFlightRef = useRef(false);
+  const scoringInFlightRef = useRef(false);
+  const runScoringPipelineRef = useRef(null);
   const [picks, setPicks] = useState({});
-  const [chatData, setChatData] = useState(DEMO_CHAT);
-  const [activity, setActivity] = useState(DEMO_ACTIVITY);
+  const [chatData, setChatData] = useState([]);
+  const [activity, setActivity] = useState([]);
   const [ranking, setRanking] = useState([]);
   const [badges, setBadges] = useState([]);
   const [events, setEvents] = useState([]);
   const [latestPredictions, setLatestPredictions] = useState([]);
   const matchesRef = useRef([]);
   const [reactionRowsByMessage, setReactionRowsByMessage] = useState({});
+  /** Perfiles con picks para Termómetro / comunidad (Supabase real). */
+  const [communityPickProfiles, setCommunityPickProfiles] = useState([]);
 
   const loadProfile = useCallback(async () => {
     if (!userId) return;
@@ -46,10 +51,6 @@ export function useAppData(session) {
       const normalized = normalizeMatches(data);
       setMatches(normalized);
       count = normalized.length;
-    } else if (!isFootballApiConfigured()) {
-      const demo = normalizeMatches(DEMO_MATCHES);
-      setMatches(demo);
-      count = demo.length;
     } else {
       setMatches([]);
     }
@@ -93,6 +94,7 @@ export function useAppData(session) {
       try {
         const n = await reloadMatches();
         if (n > 0) setMatchSyncNotice(null);
+        if (n > 0) await runScoringPipelineRef.current?.();
       } catch (e) {
         console.warn('[reloadMatches]', e?.message ?? e);
       }
@@ -112,11 +114,15 @@ export function useAppData(session) {
       const idx = prev.findIndex((m) => m.id === normalized.id);
       const next = idx >= 0 ? [...prev] : [...prev, normalized];
       if (idx >= 0) next[idx] = { ...next[idx], ...normalized };
-      return next.sort((a, b) => {
+      const sorted = next.sort((a, b) => {
         const ta = a.kickoff ? new Date(a.kickoff).getTime() : 0;
         const tb = b.kickoff ? new Date(b.kickoff).getTime() : 0;
         return ta - tb;
       });
+      if (isMatchFinished(normalized)) {
+        void runScoringPipelineRef.current?.(sorted);
+      }
+      return sorted;
     });
   }, []);
 
@@ -127,6 +133,17 @@ export function useAppData(session) {
       .order('points', { ascending: false })
       .limit(20);
     setRanking(data ?? []);
+  }, []);
+
+  const loadCommunityPicks = useCallback(async () => {
+    const { data, error } = await supabase.from('profiles').select('id, picks');
+    if (error) {
+      console.warn('[communityPicks]', error?.message ?? error);
+      return [];
+    }
+    const rows = (data ?? []).filter((r) => r.picks && typeof r.picks === 'object' && Object.keys(r.picks).length > 0);
+    setCommunityPickProfiles(rows);
+    return rows;
   }, []);
 
   const loadActivity = useCallback(async () => {
@@ -145,8 +162,51 @@ export function useAppData(session) {
           avatarUrl: resolveAvatarUrl(row.profiles?.photo_url),
         }))
       );
+    } else {
+      setActivity([]);
     }
   }, [matches]);
+
+  const runScoringPipeline = useCallback(
+    async (matchList) => {
+      if (!userId || scoringInFlightRef.current) return;
+      const list = matchList ?? matchesRef.current;
+      if (!list.some((m) => isMatchFinished(m))) return;
+
+      scoringInFlightRef.current = true;
+      try {
+        const result = await runScoringAndPulpoPipeline(supabase, {
+          matches: list,
+          captureRanking: true,
+        });
+
+        if (result?.profiles?.length) {
+          setCommunityPickProfiles(
+            result.profiles.filter(
+              (r) => r.picks && typeof r.picks === 'object' && Object.keys(r.picks).length > 0
+            )
+          );
+        }
+
+        const me = result?.profiles?.find((p) => p.id === userId);
+        if (me) {
+          setProfile((prev) => ({ ...prev, ...me }));
+        } else {
+          await loadProfile();
+        }
+
+        await loadRanking();
+        loadActivity();
+      } catch (e) {
+        console.warn('[scoringPipeline]', e?.message ?? e);
+      } finally {
+        scoringInFlightRef.current = false;
+      }
+    },
+    [userId, loadProfile, loadRanking, loadActivity]
+  );
+
+  runScoringPipelineRef.current = runScoringPipeline;
 
   async function logActivityEvent(type, payload = {}) {
     if (!userId) return;
@@ -341,6 +401,7 @@ export function useAppData(session) {
     loadBadges();
     loadEvents();
     loadLatestPredictions();
+    loadCommunityPicks();
   }, [
     loadProfile,
     syncWorldCupAndReload,
@@ -350,6 +411,7 @@ export function useAppData(session) {
     loadBadges,
     loadEvents,
     loadLatestPredictions,
+    loadCommunityPicks,
   ]);
 
   const loginBootstrapGenRef = useRef(0);
@@ -389,12 +451,33 @@ export function useAppData(session) {
       loadBadgesRef.current();
       loadEventsRef.current();
       loadLatestPredictionsRef.current();
+      loadCommunityPicks();
+      void runScoringPipelineRef.current?.();
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, loadCommunityPicks]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const picksChannel = supabase
+      .channel('profiles-picks-community')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        () => {
+          void loadCommunityPicks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(picksChannel);
+    };
+  }, [userId, loadCommunityPicks]);
 
   useEffect(() => {
     if (!userId) return;
@@ -486,6 +569,7 @@ export function useAppData(session) {
       ...entry,
     });
     void loadLatestPredictionsRef.current();
+    void loadCommunityPicks();
   }
 
   async function sendComment(body, matchId) {
@@ -600,6 +684,8 @@ export function useAppData(session) {
     events,
     latestPredictions,
     loadLatestPredictions,
+    communityPickProfiles,
+    loadCommunityPicks,
     savePick,
     sendComment,
     toggleReaction,

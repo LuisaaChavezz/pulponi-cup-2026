@@ -33,6 +33,11 @@ import AvatarSelector from './components/AvatarSelector';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
 import RankingMovement from './components/RankingMovement';
+import ProfileRankingSummary from './components/ProfileRankingSummary';
+import PulpoIndexCard from './components/PulpoIndexCard';
+import MatchCommunityPrediction from './components/MatchCommunityPrediction';
+import PulponiThermometer from './components/PulponiThermometer';
+import { collectMatchPickScores, collectThermometerScores } from './lib/communityPicks';
 import { normalizeStoredHighlightList } from './lib/highlightsMapper';
 import { pullAndPersistHighlightEvents } from './lib/matchHighlightSync';
 
@@ -726,6 +731,14 @@ export default function App() {
                 </>
               )}
               <span className="verified">Pulponi Verified ✓</span>
+              <ProfileRankingSummary userId={session?.user?.id} />
+              <PulpoIndexCard
+                profile={profile}
+                picks={data.picks}
+                matches={worldCupMatches}
+                communityPickProfiles={data.communityPickProfiles}
+                userId={session?.user?.id}
+              />
               <div className="profile-stats">
                 <div>
                   <b>{Number(profile?.points ?? 0)}</b>
@@ -792,6 +805,16 @@ export default function App() {
               const draft = pickDrafts[m.id] ?? {};
               const status = displayMatchStatus(m);
               const finalLabel = finalScoreLabel(m);
+              const communityScores = collectMatchPickScores(data.communityPickProfiles, m.id);
+              const thermoHome = draft.home ?? pick?.home_pick ?? '';
+              const thermoAway = draft.away ?? pick?.away_pick ?? '';
+              const thermometerScores = collectThermometerScores(
+                data.communityPickProfiles,
+                m.id,
+                session?.user?.id,
+                thermoHome,
+                thermoAway
+              );
               return (
                 <article key={m.id} className="match-card">
                   <header>
@@ -833,6 +856,7 @@ export default function App() {
                       ) : null}
                     </div>
                   </div>
+                  <MatchCommunityPrediction scores={communityScores} match={m} />
                   <div className="pick-inputs">
                     <input
                       type="number"
@@ -861,6 +885,7 @@ export default function App() {
                       }
                     />
                   </div>
+                  <PulponiThermometer scores={thermometerScores} homePick={thermoHome} awayPick={thermoAway} />
                   {m.is_knockout && (
                     <select
                       disabled={locked}

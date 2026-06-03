@@ -7,7 +7,13 @@ Requisitos: Node.js 18+ y npm
    VITE_SUPABASE_ANON_KEY
    (opcional API-Football: VITE_FOOTBALL_API_KEY, VITE_FOOTBALL_LEAGUE_ID, VITE_FOOTBALL_SEASON)
 
-2. En Supabase SQL Editor (ALTER, sin crear tablas):
+2. En Supabase SQL Editor, ejecuta en orden:
+   - README: ALTER básicos (picks, pulponi_verified, activity_log payload)
+   - supabase/profiles_community_picks.sql (lectura de picks para Termómetro)
+   - supabase/pulpo_scoring.sql (puntuación, pick_scores, Índice Pulpo, RPC)
+   - supabase/ranking_history.sql (movimiento de ranking, opcional)
+
+   ALTER mínimos:
    alter table profiles add column if not exists picks jsonb default '{}'::jsonb;
    alter table profiles add column if not exists pulponi_verified boolean default true;
    alter table activity_log add column if not exists payload jsonb;

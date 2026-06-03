@@ -1740,3 +1740,461 @@
   background: rgba(255, 30, 39, 0.12);
   color: #fafafa;
 }
+
+/* ——— Fase 1 social: Termómetro Pulponi + predicción comunidad ——— */
+.pulponi-social {
+  margin-top: 10px;
+  padding: 10px 11px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 30, 39, 0.28);
+  background: linear-gradient(145deg, rgba(255, 30, 39, 0.08), rgba(8, 8, 12, 0.92));
+  box-shadow: 0 0 18px rgba(255, 30, 39, 0.1);
+}
+
+.pulponi-social__title {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fca5a5;
+}
+
+.pulponi-social__empty {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted, #a1a1aa);
+  font-weight: 700;
+}
+
+.pulponi-social__bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pulponi-social__bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  grid-template-rows: auto auto;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.pulponi-social__bar-label {
+  grid-column: 1;
+  font-size: 11px;
+  font-weight: 800;
+  color: #e4e4e7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pulponi-social__bar-track {
+  grid-column: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pulponi-social__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  min-width: 2px;
+  transition: width 0.35s ease;
+}
+
+.pulponi-social__bar-fill--home {
+  background: linear-gradient(90deg, rgba(255, 30, 39, 0.35), #ff1e27);
+  box-shadow: 0 0 10px rgba(255, 30, 39, 0.45);
+}
+
+.pulponi-social__bar-fill--draw {
+  background: linear-gradient(90deg, rgba(161, 161, 170, 0.4), #a1a1aa);
+}
+
+.pulponi-social__bar-fill--away {
+  background: linear-gradient(90deg, rgba(255, 30, 39, 0.2), rgba(255, 100, 80, 0.85));
+  box-shadow: 0 0 8px rgba(255, 30, 39, 0.25);
+}
+
+.pulponi-social__bar-pct {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-size: 12px;
+  font-weight: 950;
+  color: #fff;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pulponi-social__thermo-line {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #f4f4f5;
+}
+
+.pulponi-social__thermo-emoji {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.pulponi-social__thermo-line strong {
+  color: #fff;
+  font-weight: 950;
+}
+
+.pulponi-social__thermo-detail {
+  color: var(--muted, #a1a1aa);
+  font-weight: 700;
+}
+
+.pulponi-social--thermo-popular {
+  border-color: rgba(255, 30, 39, 0.55);
+  box-shadow: 0 0 22px rgba(255, 30, 39, 0.22);
+}
+
+.pulponi-social--thermo-uncommon {
+  border-color: rgba(168, 85, 247, 0.35);
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.12);
+}
+
+.pulponi-social--thermo-risky {
+  border-color: rgba(251, 113, 133, 0.45);
+  box-shadow: 0 0 20px rgba(255, 30, 39, 0.28);
+}
+
+.pulponi-social--thermo-risky .pulponi-social__thermo-line strong {
+  color: #fecdd3;
+}
+
+.match-card .pulponi-social--community {
+  margin-top: 8px;
+}
+
+.match-card .pulponi-social--thermo {
+  margin-top: 8px;
+}
+
+/* ——— Ranking: movimiento por jornada (↑ ↓) ——— */
+.rm-jornada-ref {
+  margin: 0 10px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted, #a1a1aa);
+  text-align: center;
+  letter-spacing: 0.06em;
+}
+
+.rm-setup-hint {
+  margin: 0 12px 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 30, 39, 0.35);
+  font-size: 11px;
+  line-height: 1.45;
+  color: #d4d4d8;
+}
+
+.rm-setup-hint code {
+  font-size: 10px;
+  color: #fca5a5;
+}
+
+.rm-rank-positions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin-top: 2px;
+}
+
+.rm-rank-now {
+  font-size: 11px;
+  font-weight: 950;
+  color: #fff;
+}
+
+.rm-rank-was {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted, #a1a1aa);
+}
+
+.rm-movement {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+}
+
+.rm-movement--up {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.2);
+}
+
+.rm-movement--down {
+  color: #fca5a5;
+  background: rgba(255, 30, 39, 0.12);
+  border: 1px solid rgba(255, 30, 39, 0.45);
+  box-shadow: 0 0 10px rgba(255, 30, 39, 0.18);
+}
+
+.rm-movement--same {
+  color: #a1a1aa;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rm-movement--new {
+  color: #fcd34d;
+  background: rgba(250, 204, 21, 0.1);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+}
+
+.rm-movement-line {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: #e4e4e7;
+  line-height: 1.3;
+}
+
+.rm-top-card--up .rm-top-card-inner {
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.rm-top-card--down .rm-top-card-inner {
+  box-shadow: 0 0 0 1px rgba(255, 30, 39, 0.3), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.rm-rest-row--up {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.rm-rest-row--down {
+  border-color: rgba(255, 30, 39, 0.35);
+}
+
+.rm-you-hint {
+  margin: 10px 12px 4px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  color: #e4e4e7;
+  background: rgba(255, 30, 39, 0.08);
+  border: 1px solid rgba(255, 30, 39, 0.22);
+}
+
+.profile-ranking-summary {
+  margin: 10px 0 8px;
+  padding: 12px 12px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 30, 39, 0.35);
+  background: linear-gradient(145deg, rgba(255, 30, 39, 0.1), rgba(6, 6, 10, 0.95));
+  box-shadow: 0 0 20px rgba(255, 30, 39, 0.12);
+}
+
+.profile-ranking-summary__title {
+  margin: 0 0 10px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fca5a5;
+  text-align: center;
+}
+
+.profile-ranking-summary__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.profile-ranking-summary__cell {
+  padding: 8px 6px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: center;
+}
+
+.profile-ranking-summary__cell b {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 950;
+  color: #fff;
+  line-height: 1.1;
+}
+
+.profile-ranking-summary__cell span {
+  display: block;
+  margin-top: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted, #a1a1aa);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.profile-ranking-summary__change--up {
+  color: #4ade80 !important;
+}
+
+.profile-ranking-summary__change--down {
+  color: #ff6b6b !important;
+}
+
+.profile-ranking-summary__change--same {
+  color: #a1a1aa !important;
+}
+
+.profile-ranking-summary__hint,
+.profile-ranking-summary__muted {
+  margin: 8px 0 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--muted, #a1a1aa);
+  text-align: center;
+  font-weight: 700;
+}
+
+/* ——— Índice Pulpo (perfil) ——— */
+.pulpo-index {
+  margin: 10px 0 8px;
+  padding: 14px 14px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 30, 39, 0.45);
+  background: linear-gradient(155deg, rgba(255, 30, 39, 0.14) 0%, rgba(6, 6, 10, 0.96) 55%);
+  box-shadow: 0 0 28px rgba(255, 30, 39, 0.18), inset 0 0 40px rgba(255, 30, 39, 0.04);
+}
+
+.pulpo-index__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pulpo-index__emoji {
+  font-size: 2rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 12px rgba(255, 30, 39, 0.55));
+}
+
+.pulpo-index__titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.pulpo-index__label {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fca5a5;
+}
+
+.pulpo-index__value {
+  margin: 2px 0 0;
+  font-size: 1.75rem;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 0 24px rgba(255, 30, 39, 0.45);
+}
+
+.pulpo-index__tier {
+  margin: 8px 0 10px;
+  font-size: 13px;
+  font-weight: 900;
+  color: #e4e4e7;
+  letter-spacing: 0.02em;
+}
+
+.pulpo-index--supremo {
+  border-color: rgba(250, 204, 21, 0.55);
+  box-shadow: 0 0 32px rgba(250, 204, 21, 0.2), 0 0 24px rgba(255, 30, 39, 0.2);
+}
+
+.pulpo-index--supremo .pulpo-index__tier {
+  color: #fde68a;
+}
+
+.pulpo-index--visionario .pulpo-index__tier {
+  color: #fecaca;
+}
+
+.pulpo-index--peligroso .pulpo-index__tier {
+  color: #f97316;
+}
+
+.pulpo-index--entrenamiento .pulpo-index__tier {
+  color: var(--muted, #a1a1aa);
+}
+
+.pulpo-index__meter {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 10px;
+}
+
+.pulpo-index__meter-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b20d16, #ff1e27 45%, #ff6b6b);
+  box-shadow: 0 0 16px rgba(255, 30, 39, 0.55);
+  transition: width 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.pulpo-index--supremo .pulpo-index__meter-fill {
+  background: linear-gradient(90deg, #f59e0b, #ff1e27, #fcd34d);
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.45);
+}
+
+.pulpo-index__breakdown {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pulpo-index__breakdown li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted, #a1a1aa);
+}
+
+.pulpo-index__breakdown li span:last-child {
+  color: #d4d4d8;
+  font-variant-numeric: tabular-nums;
+}
