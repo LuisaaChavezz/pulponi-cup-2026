@@ -1,6 +1,6 @@
 import { parsePickScore, collectMatchPickScores } from './communityPicks';
 import { buildRankedLeaderboard, getProfileRankingSummary } from './rankingHistory';
-import { isMatchFinished } from './matchUtils';
+import { formatKickoff, isMatchFinished, isProfilePickRevealed, uiStatus } from './matchUtils';
 import { formatActivityLogMessage } from './activityMessages';
 import { getAchievementById } from '../data/achievements';
 import { computePulpoDerivedStats } from './pulpoIndex';
@@ -117,40 +117,50 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
 
       const ps = scoreByMatch.get(String(matchId));
       const finished = isMatchFinished(match);
+      const revealed = isProfilePickRevealed(match);
+      const matchStatus = uiStatus(match.status, match.api_status);
 
       let status = 'Pendiente';
       let points = 0;
+      let statusClass = 'pending';
 
       if (finished) {
         if (ps) {
           points = Number(ps.points_awarded ?? 0);
-          if (ps.exact_hit) status = 'Marcador exacto';
-          else if (ps.winner_hit) status = 'Acertó resultado';
-          else status = 'Falló';
+          if (ps.exact_hit) {
+            status = 'Marcador exacto';
+            statusClass = 'exact';
+          } else if (ps.winner_hit) {
+            status = 'Acertó resultado';
+            statusClass = 'winner';
+          } else {
+            status = 'Falló';
+            statusClass = 'miss';
+          }
         } else {
           status = 'Falló';
+          statusClass = 'miss';
         }
+      } else if (revealed) {
+        status = matchStatus;
+        statusClass = 'pending';
       }
 
       rows.push({
         matchId,
         matchLabel: `${match.home_team ?? 'Local'} vs ${match.away_team ?? 'Visitante'}`,
         kickoff: match.kickoff,
-        prediction: `${pick.home}–${pick.away}`,
+        kickoffLabel: formatKickoff(match.kickoff) || '—',
+        matchStatus,
+        pickRevealed: revealed,
+        prediction: revealed ? `${pick.home}–${pick.away}` : null,
         finalResult:
-          finished && match.home_score != null && match.away_score != null
+          revealed && finished && match.home_score != null && match.away_score != null
             ? `${match.home_score}–${match.away_score}`
             : '—',
-        points,
-        status,
-        statusClass:
-          status === 'Marcador exacto'
-            ? 'exact'
-            : status === 'Acertó resultado'
-              ? 'winner'
-              : status === 'Falló'
-                ? 'miss'
-                : 'pending',
+        points: revealed && finished ? points : null,
+        status: revealed ? status : matchStatus,
+        statusClass: revealed ? statusClass : 'locked',
       });
     }
 

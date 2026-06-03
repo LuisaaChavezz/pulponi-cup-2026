@@ -32,6 +32,11 @@ export function isMatchFinished(match) {
 
 /** Tendencias de comunidad visibles solo desde el kickoff (sin cambiar guardado de picks). */
 export function areCommunityTrendsRevealed(match, now = new Date()) {
+  return isProfilePickRevealed(match, now);
+}
+
+/** Perfiles: revelar pick solo cuando currentTime >= kickoff. */
+export function isProfilePickRevealed(match, now = new Date()) {
   const kickoff = match?.kickoff;
   if (!kickoff) return false;
   const kickoffMs = new Date(kickoff).getTime();

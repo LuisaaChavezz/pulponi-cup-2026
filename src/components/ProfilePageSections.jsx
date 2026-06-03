@@ -1,5 +1,13 @@
 /** Oculto en UI; activity_log y carga en hooks siguen activos. Cambiar a true para reactivar. */
+import { useKickoffClock } from '../hooks/useKickoffClock';
+import { isProfilePickRevealed } from '../lib/matchUtils';
+
 export const SHOW_PROFILE_ACTIVITY = false;
+
+function isHistoryRowRevealed(row, now) {
+  if (!row?.kickoff) return false;
+  return isProfilePickRevealed({ kickoff: row.kickoff }, now);
+}
 
 function ProfilePageCard({ title, meta, children, className = '' }) {
   return (
@@ -109,6 +117,7 @@ export function ProfileActivityList({ items, emptyText = 'Sin actividad reciente
 }
 
 export function ProfilePickHistory({ rows, emptyText = 'Todavía no hay predicciones registradas.' }) {
+  const now = useKickoffClock();
   const list = Array.isArray(rows) ? rows : [];
   if (!list.length) {
     return <p className="profile-page__muted">{emptyText}</p>;
@@ -128,20 +137,40 @@ export function ProfilePickHistory({ rows, emptyText = 'Todavía no hay predicci
           <span>Pts</span>
           <span>Estado</span>
         </div>
-        {list.map((row) => (
-          <div
-            key={row.matchId}
-            className={`profile-page-history__row profile-page-history__row--${row.statusClass}`}
-          >
-            <span className="profile-page-history__match">{row.matchLabel}</span>
-            <span className="profile-page-history__mono">{row.prediction}</span>
-            <span className="profile-page-history__mono">{row.finalResult}</span>
-            <span className="profile-page-history__pts">{row.status === 'Pendiente' ? '—' : row.points}</span>
-            <span className={`profile-page-history__status profile-page-history__status--${row.statusClass}`}>
-              {row.status}
-            </span>
-          </div>
-        ))}
+        {list.map((row) => {
+          const revealed = isHistoryRowRevealed(row, now);
+          const statusClass = revealed ? row.statusClass : 'locked';
+          return (
+            <div
+              key={row.matchId}
+              className={`profile-page-history__row profile-page-history__row--${statusClass}`}
+            >
+              <span className="profile-page-history__match">
+                <span className="profile-page-history__match-label">{row.matchLabel}</span>
+                {row.kickoffLabel ? (
+                  <span className="profile-page-history__match-date">{row.kickoffLabel}</span>
+                ) : null}
+              </span>
+              {revealed ? (
+                <span className="profile-page-history__mono">{row.prediction}</span>
+              ) : (
+                <span className="profile-page-history__pick-hidden">
+                  <span className="profile-page-history__pick-hidden-title">Predicción enviada</span>
+                  <span className="profile-page-history__pick-hidden-hint">
+                    🔒 Oculta hasta el cierre del partido
+                  </span>
+                </span>
+              )}
+              <span className="profile-page-history__mono">{revealed ? row.finalResult : '—'}</span>
+              <span className="profile-page-history__pts">
+                {revealed && row.points != null && row.status !== 'Pendiente' ? row.points : '—'}
+              </span>
+              <span className={`profile-page-history__status profile-page-history__status--${statusClass}`}>
+                {revealed ? row.status : row.matchStatus ?? 'Próximo'}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -3682,6 +3682,49 @@
   color: #fca5a5;
 }
 
+.profile-page-history__status--locked {
+  background: rgba(255, 255, 255, 0.06);
+  color: #a1a1aa;
+}
+
+.profile-page-history__row--locked {
+  border-color: rgba(255, 30, 39, 0.15);
+}
+
+.profile-page-history__match-label {
+  display: block;
+  font-weight: 800;
+  color: #fafafa;
+}
+
+.profile-page-history__match-date {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted, #a1a1aa);
+}
+
+.profile-page-history__pick-hidden {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.profile-page-history__pick-hidden-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #e4e4e7;
+}
+
+.profile-page-history__pick-hidden-hint {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fecaca;
+  line-height: 1.35;
+}
+
 .profile-page__pulpo-tier {
   text-align: center;
   margin: 0;
