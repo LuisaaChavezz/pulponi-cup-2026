@@ -27,8 +27,10 @@ import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
 import MatchChat from './components/MatchChat';
 import DashboardNotifications from './components/DashboardNotifications';
-import { achievements, isAchievementUnlocked } from './data/achievements';
+import { ACHIEVEMENT_CATALOG, isAchievementUnlockedById, countAchievementsTotal, countAchievementsUnlocked } from './data/achievements';
 import AchievementCard from './components/AchievementCard';
+import AchievementUnlockToast from './components/AchievementUnlockToast';
+import ProfileAchievementsStrip from './components/ProfileAchievementsStrip';
 import { resolveAvatarUrl } from './lib/avatars';
 import AvatarSelector from './components/AvatarSelector';
 import UserAvatar from './components/UserAvatar';
@@ -397,9 +399,18 @@ export default function App() {
       ? Math.min(upcomingSlideIx, upcomingCarouselMatches.length - 1)
       : 0;
 
+  const achievementCatalog = data.achievementCatalog?.length ? data.achievementCatalog : ACHIEVEMENT_CATALOG;
+  const unlockedAchievementIds = data.userAchievementIds ?? [];
+  const unlockedCount = countAchievementsUnlocked(unlockedAchievementIds, achievementCatalog);
+  const achievementsTotal = countAchievementsTotal(achievementCatalog);
+
   return (
     <PulponiErrorBoundary>
       <>
+        <AchievementUnlockToast
+          unlock={data.pendingUnlock}
+          onDismiss={data.dismissPendingUnlock}
+        />
       <div className="bg-glow" />
 
       <header className="topbar topbar--premium">
@@ -715,6 +726,11 @@ export default function App() {
                 <span className="profile-photo-hint">Subir foto propia</span>
                 <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
               </label>
+              <ProfileAchievementsStrip
+                unlockedIds={unlockedAchievementIds}
+                catalog={achievementCatalog}
+                onViewAll={() => scrollToSection('logros')}
+              />
               {profileEdit ? (
                 <>
                   <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nombre" />
@@ -758,27 +774,6 @@ export default function App() {
               </div>
             </div>
             <AvatarSelector currentPhotoUrl={profile?.photo_url} onSelect={handleSelectPreset} />
-            <div className="mini-card">
-              <div className="row">
-                <h3>Logros</h3>
-                <a
-                  href="#logros"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    scrollToSection('logros');
-                  }}
-                >
-                  Ver todos
-                </a>
-              </div>
-              <div className="badges-row">
-                {achievements.slice(0, 4).map((a) => (
-                  <span key={a.id} title={a.name}>
-                    {a.icon}
-                  </span>
-                ))}
-              </div>
-            </div>
           </article>
         </section>
 
@@ -965,16 +960,23 @@ export default function App() {
         <section id="logros" className="panel">
           <div className="section-title">
             <div>
-              <span className="eyebrow">Badges</span>
-              <h2>Logros</h2>
+              <span className="eyebrow">Badges Pulponi</span>
+              <h2>Mis logros</h2>
+              <p className="achievements-summary">
+                Logros desbloqueados:{' '}
+                <strong>
+                  {unlockedCount} / {achievementsTotal}
+                </strong>
+              </p>
             </div>
           </div>
           <div className="achievements-grid">
-            {achievements.map((achievement) => (
+            {achievementCatalog.map((achievement) => (
               <AchievementCard
                 key={achievement.id}
                 achievement={achievement}
-                unlocked={isAchievementUnlocked(data.badges, achievement)}
+                unlocked={isAchievementUnlockedById(unlockedAchievementIds, achievement.id)}
+                personal
               />
             ))}
           </div>
@@ -1005,8 +1007,8 @@ export default function App() {
               <p>1) Más puntos 2) Más exactos 3) Mayor racha.</p>
             </details>
             <details>
-              <summary>Ranking y badges</summary>
-              <p>El ranking se calcula desde Supabase en tiempo real. Los logros muestran si ya fueron desbloqueados; si nadie, verás &quot;Sin ganador todavía&quot;.</p>
+              <summary>Ranking y logros</summary>
+              <p>El ranking se calcula desde Supabase en tiempo real. Los logros se desbloquean automáticamente según tus exactos, racha, ranking e Índice Pulpo.</p>
             </details>
           </div>
         </section>

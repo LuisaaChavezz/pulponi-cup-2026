@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function AchievementCard({ achievement, unlocked }) {
+export default function AchievementCard({ achievement, unlocked, personal = false }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -36,6 +36,8 @@ export default function AchievementCard({ achievement, unlocked }) {
             </span>{' '}
             Desbloqueado
           </>
+        ) : personal ? (
+          achievement.active === false ? 'Próximamente' : 'Aún no desbloqueado'
         ) : (
           'Sin ganador todavía'
         )}

@@ -7,6 +7,12 @@ import { isFootballApiConfigured, syncWorldCupFixtures } from '../lib/footballAp
 import { normalizeMatchRow, normalizeMatches } from '../lib/normalizeMatch';
 import { formatActivityLogMessage } from '../lib/activityMessages';
 import { isAllowedChatReactionEmoji } from '../constants/chatReactions';
+import { ACHIEVEMENT_CATALOG } from '../data/achievements';
+import {
+  loadAchievementCatalog,
+  loadUserAchievementIds,
+  syncAllAchievements,
+} from '../lib/achievementSync';
 
 export function useAppData(session) {
   const userId = session?.user?.id;
@@ -29,6 +35,9 @@ export function useAppData(session) {
   const [reactionRowsByMessage, setReactionRowsByMessage] = useState({});
   /** Perfiles con picks para Termómetro / comunidad (Supabase real). */
   const [communityPickProfiles, setCommunityPickProfiles] = useState([]);
+  const [achievementCatalog, setAchievementCatalog] = useState(ACHIEVEMENT_CATALOG);
+  const [userAchievementIds, setUserAchievementIds] = useState([]);
+  const [pendingUnlock, setPendingUnlock] = useState(null);
 
   const loadProfile = useCallback(async () => {
     if (!userId) return;
@@ -167,6 +176,49 @@ export function useAppData(session) {
     }
   }, [matches]);
 
+  const loadBadges = useCallback(async () => {
+    const catalog = await loadAchievementCatalog(supabase);
+    if (catalog?.length) setAchievementCatalog(catalog);
+
+    const { data } = await supabase.from('badges').select(`
+      id, name, description, icon,
+      user_badges ( earned_at, profiles ( username, name ) )
+    `);
+    if (data?.length) setBadges(data);
+  }, []);
+
+  const refreshUserAchievements = useCallback(async () => {
+    if (!userId) {
+      setUserAchievementIds([]);
+      return;
+    }
+    const ids = await loadUserAchievementIds(supabase, userId);
+    setUserAchievementIds(ids);
+  }, [userId]);
+
+  const syncAchievementsForProfiles = useCallback(
+    async (profiles) => {
+      if (!userId) return null;
+      const previous = new Set(userAchievementIds);
+      const result = await syncAllAchievements(supabase, {
+        profiles,
+        communityProfiles: communityPickProfiles,
+        userId,
+      });
+      await refreshUserAchievements();
+      await loadBadges();
+
+      const fresh = await loadUserAchievementIds(supabase, userId);
+      const newly = fresh.filter((id) => !previous.has(id));
+      if (newly.length) {
+        setPendingUnlock({ badgeId: newly[0] });
+        loadActivity();
+      }
+      return result;
+    },
+    [userId, userAchievementIds, communityPickProfiles, refreshUserAchievements, loadBadges, loadActivity]
+  );
+
   const runScoringPipeline = useCallback(
     async (matchList) => {
       if (!userId || scoringInFlightRef.current) return;
@@ -196,6 +248,7 @@ export function useAppData(session) {
         }
 
         await loadRanking();
+        await syncAchievementsForProfiles(result?.profiles);
         loadActivity();
       } catch (e) {
         console.warn('[scoringPipeline]', e?.message ?? e);
@@ -203,7 +256,7 @@ export function useAppData(session) {
         scoringInFlightRef.current = false;
       }
     },
-    [userId, loadProfile, loadRanking, loadActivity]
+    [userId, loadProfile, loadRanking, loadActivity, syncAchievementsForProfiles]
   );
 
   runScoringPipelineRef.current = runScoringPipeline;
@@ -313,14 +366,6 @@ export function useAppData(session) {
     await reloadReactionsForCommentIds(ids);
   }, [reloadReactionsForCommentIds]);
 
-  const loadBadges = useCallback(async () => {
-    const { data } = await supabase.from('badges').select(`
-      id, name, description, icon,
-      user_badges ( earned_at, profiles ( username, name ) )
-    `);
-    if (data?.length) setBadges(data);
-  }, []);
-
   useEffect(() => {
     matchesRef.current = matches;
   }, [matches]);
@@ -427,6 +472,8 @@ export function useAppData(session) {
   loadCommentsRef.current = loadComments;
   const loadBadgesRef = useRef(loadBadges);
   loadBadgesRef.current = loadBadges;
+  const refreshUserAchievementsRef = useRef(refreshUserAchievements);
+  refreshUserAchievementsRef.current = refreshUserAchievements;
   const loadEventsRef = useRef(loadEvents);
   loadEventsRef.current = loadEvents;
 
@@ -449,6 +496,7 @@ export function useAppData(session) {
       loadActivityRef.current();
       loadCommentsRef.current();
       loadBadgesRef.current();
+      refreshUserAchievementsRef.current();
       loadEventsRef.current();
       loadLatestPredictionsRef.current();
       loadCommunityPicks();
@@ -695,5 +743,10 @@ export function useAppData(session) {
     refreshAll,
     setActivity,
     setPicks,
+    achievementCatalog,
+    userAchievementIds,
+    pendingUnlock,
+    dismissPendingUnlock: () => setPendingUnlock(null),
+    refreshUserAchievements,
   };
 }

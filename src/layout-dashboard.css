@@ -2012,6 +2012,156 @@
   padding-right: 2px;
 }
 
+/* ——— Logros / badges Pulponi ——— */
+.profile-achievements {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.profile-achievements__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.profile-achievements__counter {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted, #a1a1aa);
+}
+
+.profile-achievements__counter strong {
+  color: #fff;
+  font-weight: 950;
+}
+
+.profile-achievements__link {
+  border: none;
+  background: transparent;
+  color: #fca5a5;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0;
+}
+
+.profile-achievements__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.profile-achievements__badge {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 30, 39, 0.35);
+  background: rgba(255, 30, 39, 0.08);
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: 0 0 14px rgba(255, 30, 39, 0.15);
+}
+
+.profile-achievements__empty {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--muted, #a1a1aa);
+  font-weight: 700;
+}
+
+.achievements-summary {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted, #a1a1aa);
+  font-weight: 700;
+}
+
+.achievements-summary strong {
+  color: #fff;
+}
+
+.achievement-unlock-toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  width: min(92vw, 360px);
+  padding: 14px 16px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  background: linear-gradient(160deg, rgba(250, 204, 21, 0.16), rgba(255, 30, 39, 0.12), rgba(8, 8, 10, 0.96));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 30px rgba(250, 204, 21, 0.18);
+  text-align: center;
+  animation: achievement-toast-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.achievement-unlock-toast__kicker {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  color: #fde68a;
+}
+
+.achievement-unlock-toast__icon {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.achievement-unlock-toast__name {
+  margin: 4px 0 8px;
+  font-size: 16px;
+  font-weight: 950;
+  color: #fff;
+}
+
+.achievement-unlock-toast__close {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e4e4e7;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@keyframes achievement-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 480px) {
+  .achievement-unlock-toast {
+    top: 12px;
+    width: calc(100vw - 20px);
+  }
+
+  .profile-achievements__badge {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+}
+
 @media (max-width: 480px) {
   .dash-notifications__community-list {
     max-height: none;

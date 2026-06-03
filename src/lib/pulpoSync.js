@@ -84,7 +84,7 @@ export async function runScoringAndPulpoPipeline(
   const { data: refreshed } = await client.from('profiles').select(
     'id, username, name, photo_url, points, exacts, streak, picks, pulpo_index, pulpo_stats'
   );
-  const afterScore = refreshed ?? profs;
+  const afterScore = refreshed ?? [];
 
   const pulpoResult = await syncAllPulpoIndexes(client, {
     matches,

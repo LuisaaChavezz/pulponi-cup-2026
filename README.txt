@@ -11,6 +11,7 @@ Requisitos: Node.js 18+ y npm
    - README: ALTER básicos (picks, pulponi_verified, activity_log payload)
    - supabase/profiles_community_picks.sql (lectura de picks para Termómetro)
    - supabase/pulpo_scoring.sql (puntuación, pick_scores, Índice Pulpo, RPC)
+   - supabase/achievements.sql (logros y user_badges)
    - supabase/ranking_history.sql (movimiento de ranking, opcional)
 
    ALTER mínimos:
