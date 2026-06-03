@@ -33,11 +33,15 @@ export function formatActivityLogMessage(row, matchById) {
     case 'profile_updated':
       return `${usuario} actualizó su perfil`;
 
-    /* PREDICCIONES */
+    /* PREDICCIONES (sin revelar marcador) */
+    case 'prediction_created':
+      return trimStr(p.public_message) || `${usuario} envió una predicción para ${home} vs ${away}`;
+    case 'prediction_updated':
+      return trimStr(p.public_message) || `${usuario} actualizó su predicción para ${home} vs ${away}`;
     case 'prediction_made':
-      return `${usuario} hizo una predicción`;
+      return trimStr(p.public_message) || `${usuario} envió una predicción para ${home} vs ${away}`;
     case 'prediction_changed':
-      return `${usuario} cambió su predicción`;
+      return trimStr(p.public_message) || `${usuario} cambió su predicción para ${home} vs ${away}`;
     case 'prediction_exact_score':
       return `${usuario} acertó el marcador`;
     case 'prediction_correct_winner':

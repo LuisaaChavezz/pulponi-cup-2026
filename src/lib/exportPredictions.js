@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { buildMatchExportTitle, formatExportKickoffLine, formatExportLine } from './predictionActivity';
 
 function escapeCsvCell(v) {
   const s = v == null ? '' : String(v);
@@ -7,17 +8,17 @@ function escapeCsvCell(v) {
   return s;
 }
 
-export function predictionsToCsvRows(rows) {
-  const header = ['username', 'partido', 'marcador', 'avanza', 'fecha'];
+export function predictionsToCsvRows(rows, matchLabel = '') {
+  const header = ['usuario', 'marcador', 'accion', 'fecha', 'partido'];
   const lines = [header.join(',')];
   for (const r of rows) {
     lines.push(
       [
-        escapeCsvCell(r.username ? `@${r.username}` : ''),
-        escapeCsvCell(r.matchLabel),
+        escapeCsvCell(r.displayName || r.username || ''),
         escapeCsvCell(r.scoreLabel),
-        escapeCsvCell(r.advances_team ?? ''),
+        escapeCsvCell(r.actionLabel),
         escapeCsvCell(r.at instanceof Date ? r.at.toISOString() : r.at),
+        escapeCsvCell(matchLabel),
       ].join(',')
     );
   }
@@ -34,42 +35,52 @@ export function downloadTextFile(filename, text, mime = 'text/csv;charset=utf-8'
   URL.revokeObjectURL(url);
 }
 
-export function downloadPredictionsPdf(rows, title = 'Últimas predicciones') {
+/**
+ * @param {object[]} rows - filas con scoreLabel, actionLabel, at, displayName
+ * @param {string} title
+ * @param {string} [kickoffLine]
+ */
+export function downloadPredictionsPdf(rows, title = 'Últimas predicciones', kickoffLine = null) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const margin = 40;
   let y = margin;
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(180, 20, 28);
-  doc.setFontSize(16);
-  doc.text(title, margin, y);
-  y += 28;
+  doc.setFontSize(15);
+  doc.text(title, margin, y, { maxWidth: 520 });
+  y += 22;
+  if (kickoffLine) {
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(90, 90, 98);
+    doc.setFontSize(10);
+    doc.text(kickoffLine, margin, y);
+    y += 18;
+  }
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(35, 35, 38);
   doc.setFontSize(9);
   if (!rows.length) {
-    doc.text('No hay predicciones registradas.', margin, y);
+    doc.text('No hay predicciones para este partido.', margin, y);
     doc.save(`pulponi-predicciones-${Date.now()}.pdf`);
     return;
   }
   for (const r of rows) {
-    const line1 = `${r.username ? `@${r.username}` : '—'} · ${r.matchLabel}`;
-    const line2 = `Marcador: ${r.scoreLabel}${r.advances_team ? ` · Avanza: ${r.advances_team}` : ''}`;
-    const line3 = r.at instanceof Date ? r.at.toLocaleString('es-MX') : String(r.at ?? '');
+    const line = formatExportLine(r);
     if (y > 760) {
       doc.addPage();
       y = margin;
     }
     doc.setTextColor(22, 22, 26);
-    doc.text(line1, margin, y, { maxWidth: 520 });
-    y += 14;
-    doc.setTextColor(55, 55, 62);
-    doc.text(line2, margin, y, { maxWidth: 520 });
-    y += 14;
-    doc.setTextColor(110, 110, 120);
-    doc.text(line3, margin, y, { maxWidth: 520 });
-    y += 22;
+    doc.text(line, margin, y, { maxWidth: 520 });
+    y += 18;
   }
   doc.save(`pulponi-predicciones-${Date.now()}.pdf`);
+}
+
+export function downloadMatchPredictionsPdf(match, rows) {
+  const title = buildMatchExportTitle(match);
+  const kickoffLine = formatExportKickoffLine(match);
+  downloadPredictionsPdf(rows, title, kickoffLine);
 }
 
 export async function downloadPredictionsRaster(element, format) {

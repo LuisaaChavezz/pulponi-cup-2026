@@ -6,6 +6,14 @@ import { isMatchFinished } from '../lib/matchUtils';
 import { isFootballApiConfigured, syncWorldCupFixtures } from '../lib/footballApi';
 import { normalizeMatchRow, normalizeMatches } from '../lib/normalizeMatch';
 import { formatActivityLogMessage } from '../lib/activityMessages';
+import {
+  buildMatchExportRows,
+  buildPredictionPublicMessage,
+  formatActivityDisplayName,
+  formatPredictionActivityMessage,
+  isPredictionActivityAction,
+  pickExportMatch,
+} from '../lib/predictionActivity';
 import { isAllowedChatReactionEmoji } from '../constants/chatReactions';
 import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 import {
@@ -30,7 +38,9 @@ export function useAppData(session) {
   const [ranking, setRanking] = useState([]);
   const [badges, setBadges] = useState([]);
   const [events, setEvents] = useState([]);
-  const [latestPredictions, setLatestPredictions] = useState([]);
+  const [predictionActivityFeed, setPredictionActivityFeed] = useState([]);
+  const [matchExportBundle, setMatchExportBundle] = useState({ match: null, rows: [] });
+  const [predictionActivityLog, setPredictionActivityLog] = useState([]);
   const matchesRef = useRef([]);
   const [reactionRowsByMessage, setReactionRowsByMessage] = useState({});
   /** Perfiles con picks para Termómetro / comunidad (Supabase real). */
@@ -155,7 +165,7 @@ export function useAppData(session) {
   }, []);
 
   const loadCommunityPicks = useCallback(async () => {
-    const { data, error } = await supabase.from('profiles').select('id, picks');
+    const { data, error } = await supabase.from('profiles').select('id, username, name, photo_url, picks');
     if (error) {
       console.warn('[communityPicks]', error?.message ?? error);
       return [];
@@ -409,62 +419,71 @@ export function useAppData(session) {
     setEvents(data ?? []);
   }, []);
 
-  const loadLatestPredictions = useCallback(async () => {
+  const refreshMatchExportBundle = useCallback((activityRows, profileRows) => {
+    const match = pickExportMatch(matchesRef.current);
+    if (!match) {
+      setMatchExportBundle({ match: null, rows: [] });
+      return;
+    }
+    const mid = String(match.id);
+    const relevantLog = (activityRows ?? []).filter((row) => {
+      const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
+      return p.match_id != null && String(p.match_id) === mid;
+    });
+    const rows = buildMatchExportRows(profileRows ?? communityPickProfiles, mid, relevantLog);
+    setMatchExportBundle({ match, rows });
+  }, [communityPickProfiles]);
+
+  const loadPredictionFeeds = useCallback(async () => {
     if (!userId) {
-      setLatestPredictions([]);
+      setPredictionActivityFeed([]);
+      setPredictionActivityLog([]);
+      setMatchExportBundle({ match: null, rows: [] });
       return;
     }
     const { data, error } = await supabase
       .from('activity_log')
-      .select('profile_id, action, payload, created_at, profiles ( username, name, photo_url )')
-      .in('action', ['prediction_made', 'prediction_changed'])
+      .select('id, profile_id, action, payload, created_at, profiles ( username, name, photo_url )')
+      .in('action', [
+        'prediction_created',
+        'prediction_updated',
+        'prediction_made',
+        'prediction_changed',
+      ])
       .order('created_at', { ascending: false })
-      .limit(500);
+      .limit(80);
+
     if (error) {
-      console.warn('[loadLatestPredictions]', error?.message ?? error);
-      setLatestPredictions([]);
+      console.warn('[loadPredictionFeeds]', error?.message ?? error);
+      setPredictionActivityFeed([]);
+      setPredictionActivityLog([]);
+      setMatchExportBundle({ match: null, rows: [] });
       return;
     }
+
+    const rows = data ?? [];
+    setPredictionActivityLog(rows);
     const matchById = new Map(matchesRef.current.map((m) => [String(m.id), m]));
-    const seen = new Set();
-    const out = [];
-    for (const row of data || []) {
-      const pid = row.profile_id;
-      if (!pid || seen.has(pid)) continue;
-      seen.add(pid);
+
+    const feed = rows.map((row) => {
       let prof = row.profiles;
       if (Array.isArray(prof)) prof = prof[0];
-      const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
-      const mid = p.match_id != null ? String(p.match_id) : null;
-      const m = mid ? matchById.get(mid) : null;
-      const home = p.home_team ?? m?.home_team ?? 'Local';
-      const away = p.away_team ?? m?.away_team ?? 'Visitante';
-      const hp = p.home_pick;
-      const ap = p.away_pick;
-      const adv = p.advances_team;
-      const whenRaw = p.updated_at || row.created_at;
-      const at = whenRaw ? new Date(whenRaw) : new Date(row.created_at);
-      out.push({
-        profile_id: pid,
-        username: prof?.username ?? null,
-        name: prof?.name ?? null,
-        photoUrl: prof?.photo_url ?? null,
+      const at = row.created_at ? new Date(row.created_at) : null;
+      return {
+        id: row.id ?? `${row.profile_id}-${row.created_at}`,
+        profile_id: row.profile_id,
+        text: formatPredictionActivityMessage(row, matchById),
         avatarUrl: resolveAvatarUrl(prof?.photo_url),
-        matchId: mid,
-        matchLabel: `${home} vs ${away}`,
-        home_pick: hp,
-        away_pick: ap,
-        scoreLabel: hp != null && ap != null ? `${hp}–${ap}` : '—',
-        advances_team: adv != null && String(adv).trim() ? String(adv).trim() : null,
-        at,
-      });
-    }
-    out.sort((a, b) => (a.username || '').localeCompare(b.username || '', 'es', { sensitivity: 'base' }));
-    setLatestPredictions(out);
-  }, [userId]);
+        at: at && !Number.isNaN(at.getTime()) ? at : null,
+      };
+    });
 
-  const loadLatestPredictionsRef = useRef(loadLatestPredictions);
-  loadLatestPredictionsRef.current = loadLatestPredictions;
+    setPredictionActivityFeed(feed);
+    refreshMatchExportBundle(rows, communityPickProfiles);
+  }, [userId, communityPickProfiles, refreshMatchExportBundle]);
+
+  const loadPredictionFeedsRef = useRef(loadPredictionFeeds);
+  loadPredictionFeedsRef.current = loadPredictionFeeds;
 
   const refreshAll = useCallback(async () => {
     await loadProfile();
@@ -474,8 +493,8 @@ export function useAppData(session) {
     loadComments();
     loadBadges();
     loadEvents();
-    loadLatestPredictions();
-    loadCommunityPicks();
+    await loadCommunityPicks();
+    loadPredictionFeeds();
   }, [
     loadProfile,
     syncWorldCupAndReload,
@@ -484,7 +503,7 @@ export function useAppData(session) {
     loadComments,
     loadBadges,
     loadEvents,
-    loadLatestPredictions,
+    loadPredictionFeeds,
     loadCommunityPicks,
   ]);
 
@@ -527,8 +546,8 @@ export function useAppData(session) {
       loadBadgesRef.current();
       refreshUserAchievementsRef.current();
       loadEventsRef.current();
-      loadLatestPredictionsRef.current();
-      loadCommunityPicks();
+      await loadCommunityPicks();
+      loadPredictionFeedsRef.current();
       void runScoringPipelineRef.current?.();
     })();
 
@@ -545,16 +564,38 @@ export function useAppData(session) {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles' },
-        () => {
-          void loadCommunityPicks();
+        async () => {
+          const rows = await loadCommunityPicks();
+          refreshMatchExportBundle(predictionActivityLog, rows ?? communityPickProfiles);
+          void loadPredictionFeedsRef.current();
+        }
+      )
+      .subscribe();
+
+    const activityPredChannel = supabase
+      .channel('activity-log-predictions')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'activity_log' },
+        (payload) => {
+          const action = payload.new?.action;
+          if (isPredictionActivityAction(action)) {
+            void loadPredictionFeedsRef.current();
+          }
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(picksChannel);
+      supabase.removeChannel(activityPredChannel);
     };
-  }, [userId, loadCommunityPicks]);
+  }, [userId, loadCommunityPicks, communityPickProfiles, predictionActivityLog, refreshMatchExportBundle]);
+
+  useEffect(() => {
+    if (!userId) return;
+    refreshMatchExportBundle(predictionActivityLog, communityPickProfiles);
+  }, [userId, matches, communityPickProfiles, predictionActivityLog, refreshMatchExportBundle]);
 
   useEffect(() => {
     if (!userId) return;
@@ -639,13 +680,25 @@ export function useAppData(session) {
 
     const m = matches.find((x) => x.id === matchId);
     const hadPick = picks[matchId] != null;
-    await logActivityEvent(hadPick ? 'prediction_changed' : 'prediction_made', {
+    const pickAction = hadPick ? 'updated' : 'created';
+    const actionType = hadPick ? 'prediction_updated' : 'prediction_created';
+    const displayName = formatActivityDisplayName(profile);
+    const public_message = buildPredictionPublicMessage(
+      displayName,
+      pickAction,
+      m?.home_team,
+      m?.away_team
+    );
+
+    await logActivityEvent(actionType, {
       match_id: matchId,
       home_team: m?.home_team ?? null,
       away_team: m?.away_team ?? null,
-      ...entry,
+      pick_action: pickAction,
+      public_message,
+      updated_at: entry.updated_at,
     });
-    void loadLatestPredictionsRef.current();
+    void loadPredictionFeedsRef.current();
     void loadCommunityPicks();
   }
 
@@ -759,8 +812,9 @@ export function useAppData(session) {
     ranking,
     badges,
     events,
-    latestPredictions,
-    loadLatestPredictions,
+    predictionActivityFeed,
+    matchExportBundle,
+    loadPredictionFeeds,
     communityPickProfiles,
     loadCommunityPicks,
     savePick,

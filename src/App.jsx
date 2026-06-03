@@ -764,7 +764,8 @@ export default function App() {
               <div className="chat-list chat-list--notifications">
                 <DashboardNotifications
                   importantAlerts={data.events}
-                  latestPredictions={data.latestPredictions}
+                  predictionActivityFeed={data.predictionActivityFeed}
+                  matchExportBundle={data.matchExportBundle}
                   matches={worldCupMatches}
                   communityPickProfiles={data.communityPickProfiles}
                   isAdmin={Boolean(data.profile?.is_admin)}
