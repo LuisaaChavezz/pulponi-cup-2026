@@ -1048,6 +1048,12 @@
     max-height: none;
   }
 
+  .dashboard-shell--premium .dash-chat .chat-list--notifications {
+    min-height: 0;
+    max-height: 100%;
+    overflow-y: auto;
+  }
+
   .dash-perfil,
   .dash-profile {
     grid-column: 1 / -1;
@@ -1432,7 +1438,12 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  flex: 1 1 auto;
   min-height: 0;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .dash-notifications {
@@ -1440,6 +1451,8 @@
   flex-direction: column;
   gap: 14px;
   min-width: 0;
+  min-height: 0;
+  flex: 0 0 auto;
 }
 
 .dash-notifications__hub {
@@ -1461,6 +1474,7 @@
 .dash-notifications__section--predictions {
   border-bottom: none;
   padding-bottom: 0;
+  flex-shrink: 0;
 }
 
 .dash-notifications__head {
@@ -1624,10 +1638,12 @@
 .dash-notifications__pred-feed {
   list-style: none;
   margin: 0;
-  padding: 0 0 110px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow: visible;
+  max-height: none;
 }
 
 .dash-notifications__pred-item {

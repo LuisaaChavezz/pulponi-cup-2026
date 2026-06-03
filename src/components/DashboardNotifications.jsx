@@ -41,7 +41,12 @@ export default function DashboardNotifications({
       : { match: null, rows: [] };
   const exportMatch = safeBundle.match ?? null;
   const exportRows = Array.isArray(safeBundle.rows) ? safeBundle.rows : [];
-  const safeFeed = Array.isArray(predictionActivityFeed) ? predictionActivityFeed : [];
+  const safeFeed = useMemo(() => {
+    const list = Array.isArray(predictionActivityFeed) ? predictionActivityFeed : [];
+    return [...list]
+      .sort((a, b) => (b.at?.getTime?.() ?? 0) - (a.at?.getTime?.() ?? 0))
+      .slice(0, 5);
+  }, [predictionActivityFeed]);
   const exportTitle = buildMatchExportTitle(exportMatch);
   const exportKickoff = formatExportKickoffLine(exportMatch);
   const matchLabel = exportMatch
@@ -188,8 +193,8 @@ export default function DashboardNotifications({
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle">Últimas predicciones enviadas</h3>
           <p className="dash-notifications__hint">
-            Actividad reciente sin revelar marcadores. La descarga agrupa todas las predicciones del
-            partido en vivo o más reciente e incluye marcadores solo en el archivo exportado.
+            Últimas 5 actualizaciones sin revelar marcadores. La descarga incluye todas las predicciones
+            del partido activo con marcadores solo en el archivo exportado.
           </p>
           {exportMatch ? (
             <p className="dash-notifications__export-match">
@@ -229,7 +234,7 @@ export default function DashboardNotifications({
         </div>
 
         {!safeFeed.length ? (
-          <p className="dash-notifications__empty">No hay predicciones registradas todavía.</p>
+          <p className="dash-notifications__empty">Aún no hay predicciones recientes.</p>
         ) : (
           <ul className="dash-notifications__pred-feed">
             {safeFeed.map((item) => (

@@ -14,6 +14,9 @@ import {
   isPredictionActivityAction,
   pickExportMatch,
 } from '../lib/predictionActivity';
+
+/** Máximo de filas mostradas en «Últimas predicciones enviadas» (solo UI). */
+const PREDICTION_ACTIVITY_FEED_LIMIT = 5;
 import { isAllowedChatReactionEmoji } from '../constants/chatReactions';
 import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 import {
@@ -481,7 +484,7 @@ export function useAppData(session) {
           'prediction_changed',
         ])
         .order('created_at', { ascending: false })
-        .limit(80);
+        .limit(PREDICTION_ACTIVITY_FEED_LIMIT);
 
       if (error) {
         console.warn('[loadPredictionFeeds]', error?.message ?? error);
@@ -492,24 +495,27 @@ export function useAppData(session) {
       }
 
       const rows = Array.isArray(data) ? data : [];
-      setPredictionActivityLog(rows);
       const matchList = Array.isArray(matchesRef.current) ? matchesRef.current : [];
       const matchById = new Map(matchList.map((m) => [String(m.id), m]));
 
-      const feed = rows.map((row, index) => {
-        let prof = row?.profiles;
-        if (Array.isArray(prof)) prof = prof[0];
-        const at = row?.created_at ? new Date(row.created_at) : null;
-        return {
-          id: `${row?.profile_id ?? 'u'}-${row?.created_at ?? index}`,
-          profile_id: row?.profile_id ?? null,
-          text: formatPredictionActivityMessage(row, matchById) || 'Actividad de predicción',
-          avatarUrl: resolveAvatarUrl(prof?.photo_url),
-          at: at && !Number.isNaN(at.getTime()) ? at : null,
-        };
-      });
+      const feed = rows
+        .map((row, index) => {
+          let prof = row?.profiles;
+          if (Array.isArray(prof)) prof = prof[0];
+          const at = row?.created_at ? new Date(row.created_at) : null;
+          return {
+            id: `${row?.profile_id ?? 'u'}-${row?.created_at ?? index}`,
+            profile_id: row?.profile_id ?? null,
+            text: formatPredictionActivityMessage(row, matchById) || 'Actividad de predicción',
+            avatarUrl: resolveAvatarUrl(prof?.photo_url),
+            at: at && !Number.isNaN(at.getTime()) ? at : null,
+          };
+        })
+        .sort((a, b) => (b.at?.getTime?.() ?? 0) - (a.at?.getTime?.() ?? 0))
+        .slice(0, PREDICTION_ACTIVITY_FEED_LIMIT);
 
       setPredictionActivityFeed(feed);
+      setPredictionActivityLog(rows);
       refreshMatchExportBundle(rows, communityPickProfilesRef.current);
     } catch (e) {
       console.warn('[loadPredictionFeeds]', e?.message ?? e);
