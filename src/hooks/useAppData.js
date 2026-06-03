@@ -7,12 +7,10 @@ import { isFootballApiConfigured, syncWorldCupFixtures } from '../lib/footballAp
 import { normalizeMatchRow, normalizeMatches } from '../lib/normalizeMatch';
 import { formatActivityLogMessage } from '../lib/activityMessages';
 import {
-  buildMatchExportRows,
   buildPredictionPublicMessage,
   formatActivityDisplayName,
   formatPredictionActivityMessage,
   isPredictionActivityAction,
-  pickExportMatch,
 } from '../lib/predictionActivity';
 
 /** Máximo de filas cargadas desde activity_log (recientes + historial en UI). */
@@ -42,7 +40,6 @@ export function useAppData(session) {
   const [badges, setBadges] = useState([]);
   const [events, setEvents] = useState([]);
   const [predictionActivityFeed, setPredictionActivityFeed] = useState([]);
-  const [matchExportBundle, setMatchExportBundle] = useState({ match: null, rows: [] });
   const [predictionActivityLog, setPredictionActivityLog] = useState([]);
   const matchesRef = useRef([]);
   const predictionActivityLogRef = useRef([]);
@@ -443,34 +440,10 @@ export function useAppData(session) {
     communityPickProfilesRef.current = communityPickProfiles;
   }, [communityPickProfiles]);
 
-  const refreshMatchExportBundle = useCallback((activityRows, profileRows) => {
-    try {
-      const matchList = Array.isArray(matchesRef.current) ? matchesRef.current : [];
-      const match = pickExportMatch(matchList);
-      if (!match?.id) {
-        setMatchExportBundle({ match: null, rows: [] });
-        return;
-      }
-      const mid = String(match.id);
-      const relevantLog = (activityRows ?? []).filter((row) => {
-        if (!row || typeof row !== 'object') return false;
-        const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
-        return p.match_id != null && String(p.match_id) === mid;
-      });
-      const profiles = Array.isArray(profileRows) ? profileRows : communityPickProfilesRef.current;
-      const rows = buildMatchExportRows(profiles, mid, relevantLog);
-      setMatchExportBundle({ match, rows: rows ?? [] });
-    } catch (e) {
-      console.warn('[refreshMatchExportBundle]', e?.message ?? e);
-      setMatchExportBundle({ match: null, rows: [] });
-    }
-  }, []);
-
   const loadPredictionFeeds = useCallback(async () => {
     if (!userId) {
       setPredictionActivityFeed([]);
       setPredictionActivityLog([]);
-      setMatchExportBundle({ match: null, rows: [] });
       return;
     }
     try {
@@ -490,7 +463,6 @@ export function useAppData(session) {
         console.warn('[loadPredictionFeeds]', error?.message ?? error);
         setPredictionActivityFeed([]);
         setPredictionActivityLog([]);
-        setMatchExportBundle({ match: null, rows: [] });
         return;
       }
 
@@ -515,14 +487,12 @@ export function useAppData(session) {
 
       setPredictionActivityFeed(feed);
       setPredictionActivityLog(rows);
-      refreshMatchExportBundle(rows, communityPickProfilesRef.current);
     } catch (e) {
       console.warn('[loadPredictionFeeds]', e?.message ?? e);
       setPredictionActivityFeed([]);
       setPredictionActivityLog([]);
-      setMatchExportBundle({ match: null, rows: [] });
     }
-  }, [userId, refreshMatchExportBundle]);
+  }, [userId]);
 
   const loadPredictionFeedsRef = useRef(loadPredictionFeeds);
   loadPredictionFeedsRef.current = loadPredictionFeeds;
@@ -608,8 +578,7 @@ export function useAppData(session) {
         { event: 'UPDATE', schema: 'public', table: 'profiles' },
         async () => {
           try {
-            const rows = await loadCommunityPicks();
-            refreshMatchExportBundle(predictionActivityLogRef.current, rows ?? []);
+            await loadCommunityPicks();
             void loadPredictionFeedsRef.current();
           } catch (e) {
             console.warn('[profiles-picks realtime]', e?.message ?? e);
@@ -636,12 +605,7 @@ export function useAppData(session) {
       supabase.removeChannel(picksChannel);
       supabase.removeChannel(activityPredChannel);
     };
-  }, [userId, loadCommunityPicks, refreshMatchExportBundle]);
-
-  useEffect(() => {
-    if (!userId) return;
-    refreshMatchExportBundle(predictionActivityLogRef.current, communityPickProfilesRef.current);
-  }, [userId, matches, refreshMatchExportBundle]);
+  }, [userId, loadCommunityPicks]);
 
   useEffect(() => {
     if (!userId) return;
@@ -700,11 +664,14 @@ export function useAppData(session) {
 
   async function savePick(matchId, homePick, awayPick, advancesTeam = null) {
     if (!userId) return;
+    const prevPick = picks[matchId];
+    const nowIso = new Date().toISOString();
     const entry = {
       home_pick: homePick,
       away_pick: awayPick,
       advances_team: advancesTeam,
-      updated_at: new Date().toISOString(),
+      created_at: prevPick?.created_at ?? nowIso,
+      updated_at: nowIso,
     };
     const nextPicks = { ...picks, [matchId]: entry };
     const updatePayload = { picks: nextPicks };
@@ -742,6 +709,7 @@ export function useAppData(session) {
       away_team: m?.away_team ?? null,
       pick_action: pickAction,
       public_message,
+      created_at: entry.created_at,
       updated_at: entry.updated_at,
     });
     void loadPredictionFeedsRef.current();
@@ -859,7 +827,7 @@ export function useAppData(session) {
     badges,
     events,
     predictionActivityFeed: predictionActivityFeed ?? [],
-    matchExportBundle: matchExportBundle ?? { match: null, rows: [] },
+    predictionActivityLog: predictionActivityLog ?? [],
     loadPredictionFeeds,
     loadLatestPredictions: loadPredictionFeeds,
     communityPickProfiles,

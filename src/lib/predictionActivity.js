@@ -1,5 +1,5 @@
 import { parsePickScore } from './communityPicks';
-import { pickInicioMatch, formatKickoff } from './matchUtils';
+import { formatKickoff, isMatchLive, isPickLocked } from './matchUtils';
 
 const PREDICTION_ACTIONS = new Set([
   'prediction_created',
@@ -76,10 +76,73 @@ export function formatPredictionActivityMessage(row, matchById) {
   return `${usuario} envió una predicción para ${fixture}`;
 }
 
-/** Partido para exportar: en vivo → próximo → último finalizado. */
-export function pickExportMatch(matches) {
-  const list = Array.isArray(matches) ? matches : [];
-  return pickInicioMatch(list)?.match ?? null;
+function kickoffMs(match) {
+  const k = match?.kickoff;
+  if (!k) return 0;
+  const t = new Date(k).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function sortMatchesByKickoffDesc(matches) {
+  return [...(matches ?? [])].sort((a, b) => kickoffMs(b) - kickoffMs(a));
+}
+
+/** Tras cierre de predicciones (kickoff / en vivo / final): se puede exportar con marcadores. */
+export function isMatchPredictionsExportable(match, _now = new Date()) {
+  return isPickLocked(match);
+}
+
+/** Partido por defecto para exportar: en vivo → último partido ya cerrado. */
+export function pickDefaultExportMatch(matches, now = new Date()) {
+  const exportable = (matches ?? []).filter((m) => isMatchPredictionsExportable(m, now));
+  if (!exportable.length) return null;
+  const live = exportable.find((m) => isMatchLive(m));
+  if (live) return live;
+  return sortMatchesByKickoffDesc(exportable)[0] ?? null;
+}
+
+/** @deprecated Usar pickDefaultExportMatch */
+export function pickExportMatch(matches, now = new Date()) {
+  return pickDefaultExportMatch(matches, now);
+}
+
+export function listExportableMatches(matches, now = new Date()) {
+  return sortMatchesByKickoffDesc((matches ?? []).filter((m) => isMatchPredictionsExportable(m, now)));
+}
+
+function isUpdateActivityAction(action, payload) {
+  const p = payload && typeof payload === 'object' ? payload : {};
+  const act = String(action || '').trim();
+  return (
+    p.pick_action === 'updated' ||
+    act === 'prediction_updated' ||
+    act === 'prediction_changed'
+  );
+}
+
+function profileMatchActivityTimes(activityRows, matchId, profileId) {
+  const mid = String(matchId);
+  const events = [];
+  for (const row of activityRows ?? []) {
+    if (!row || row.profile_id !== profileId) continue;
+    const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
+    if (p.match_id == null || String(p.match_id) !== mid) continue;
+    if (!isPredictionActivityAction(row.action)) continue;
+    const at = row.created_at ? new Date(row.created_at) : null;
+    if (!at || Number.isNaN(at.getTime())) continue;
+    events.push({ at, isUpdate: isUpdateActivityAction(row.action, p) });
+  }
+  events.sort((a, b) => a.at.getTime() - b.at.getTime());
+
+  let sentAt = null;
+  let updatedAt = null;
+  for (const ev of events) {
+    if (ev.isUpdate) updatedAt = ev.at;
+    else if (!sentAt) sentAt = ev.at;
+  }
+  const actionLabel = updatedAt ? 'actualizado' : 'enviado';
+  const displayAt = updatedAt ?? sentAt;
+  return { sentAt, updatedAt, actionLabel, displayAt };
 }
 
 /**
@@ -89,32 +152,27 @@ export function pickExportMatch(matches) {
  */
 export function buildMatchExportRows(profileRows, matchId, activityRows = []) {
   const mid = String(matchId);
-  const actionByProfile = new Map();
-
-  for (const row of activityRows) {
-    const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
-    if (p.match_id == null || String(p.match_id) !== mid) continue;
-    const pid = row.profile_id;
-    if (!pid) continue;
-    const action = String(row.action || '').trim();
-    const isUpdate =
-      p.pick_action === 'updated' ||
-      action === 'prediction_updated' ||
-      action === 'prediction_changed';
-    if (!actionByProfile.has(pid)) {
-      actionByProfile.set(pid, isUpdate ? 'updated' : 'created');
-    }
-  }
-
   const rows = [];
   for (const prof of profileRows ?? []) {
     const pick = prof.picks?.[mid] ?? prof.picks?.[matchId];
     const parsed = parsePickScore(pick);
     if (!parsed) continue;
 
-    const whenRaw = pick?.updated_at || pick?.created_at;
-    const at = whenRaw ? new Date(whenRaw) : null;
-    const pickAction = actionByProfile.get(prof.id) ?? 'created';
+    const times = profileMatchActivityTimes(activityRows, mid, prof.id);
+    const pickCreated = pick?.created_at ? new Date(pick.created_at) : null;
+    const pickUpdated = pick?.updated_at ? new Date(pick.updated_at) : null;
+    const sentAt =
+      times.sentAt ??
+      (pickCreated && !Number.isNaN(pickCreated.getTime()) ? pickCreated : null);
+    const updatedAt =
+      times.updatedAt ??
+      (pickUpdated && !Number.isNaN(pickUpdated.getTime()) ? pickUpdated : null);
+    const actionLabel = times.actionLabel;
+    const displayAt =
+      times.displayAt ??
+      updatedAt ??
+      sentAt ??
+      (pickUpdated && !Number.isNaN(pickUpdated.getTime()) ? pickUpdated : null);
 
     rows.push({
       profile_id: prof.id,
@@ -122,8 +180,10 @@ export function buildMatchExportRows(profileRows, matchId, activityRows = []) {
       name: prof.name ?? null,
       displayName: formatActivityDisplayName(prof),
       scoreLabel: `${parsed.home}-${parsed.away}`,
-      actionLabel: pickAction === 'updated' ? 'actualizado' : 'enviado',
-      at: at && !Number.isNaN(at.getTime()) ? at : null,
+      actionLabel,
+      sentAt: sentAt && !Number.isNaN(sentAt.getTime()) ? sentAt : null,
+      updatedAt: updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt : null,
+      at: displayAt && !Number.isNaN(displayAt.getTime()) ? displayAt : null,
     });
   }
 
@@ -135,6 +195,18 @@ export function buildMatchExportRows(profileRows, matchId, activityRows = []) {
   });
 
   return rows;
+}
+
+/** Grupos por partido cerrado para «Descargar todas las predicciones». */
+export function buildAllMatchesExportGroups(profileRows, matches, activityRows = [], now = new Date()) {
+  return listExportableMatches(matches, now)
+    .map((match) => ({
+      match,
+      title: buildMatchExportTitle(match),
+      kickoffLine: formatExportKickoffLine(match),
+      rows: buildMatchExportRows(profileRows, match.id, activityRows),
+    }))
+    .filter((g) => g.rows.length > 0);
 }
 
 export function buildMatchExportTitle(match) {
@@ -159,11 +231,23 @@ export function formatExportTime(at) {
   });
 }
 
+export function formatExportTimeShort(at) {
+  if (!(at instanceof Date) || Number.isNaN(at.getTime())) return '—';
+  return at.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+}
+
 export function formatExportLine(row) {
   if (!row || typeof row !== 'object') return '—';
   const who = row.displayName || row.username || '—';
-  const time = formatExportTime(row.at);
+  const time = formatExportTimeShort(row.at);
   const score = row.scoreLabel ?? '—';
   const action = row.actionLabel ?? 'enviado';
   return `${who} — ${score} — ${action} ${time}`;
+}
+
+export function formatMatchSectionHeading(match) {
+  if (!match) return 'Partido';
+  const home = trimStr(match.home_team) || 'Local';
+  const away = trimStr(match.away_team) || 'Visitante';
+  return `Partido: ${home} vs ${away}`;
 }

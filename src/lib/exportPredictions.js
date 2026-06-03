@@ -1,6 +1,11 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { buildMatchExportTitle, formatExportKickoffLine, formatExportLine } from './predictionActivity';
+import {
+  buildMatchExportTitle,
+  formatExportKickoffLine,
+  formatExportLine,
+  formatMatchSectionHeading,
+} from './predictionActivity';
 
 function escapeCsvCell(v) {
   const s = v == null ? '' : String(v);
@@ -81,6 +86,82 @@ export function downloadMatchPredictionsPdf(match, rows) {
   const title = buildMatchExportTitle(match);
   const kickoffLine = formatExportKickoffLine(match);
   downloadPredictionsPdf(rows, title, kickoffLine);
+}
+
+export function predictionsAllMatchesToCsv(groups) {
+  const lines = ['partido,usuario,marcador,accion,fecha'];
+  for (const g of groups ?? []) {
+    const label = g.match
+      ? `${g.match.home_team ?? 'Local'} vs ${g.match.away_team ?? 'Visitante'}`
+      : '';
+    for (const r of g.rows ?? []) {
+      lines.push(
+        [
+          escapeCsvCell(label),
+          escapeCsvCell(r.displayName || r.username || ''),
+          escapeCsvCell(r.scoreLabel),
+          escapeCsvCell(r.actionLabel),
+          escapeCsvCell(r.at instanceof Date ? r.at.toISOString() : r.at),
+        ].join(',')
+      );
+    }
+  }
+  return lines.join('\n');
+}
+
+/**
+ * @param {{ match: object, title: string, kickoffLine: string|null, rows: object[] }[]} groups
+ */
+export function downloadAllPredictionsPdf(groups, docTitle = 'Todas las predicciones — Pulponi Cup') {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const margin = 40;
+  let y = margin;
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(180, 20, 28);
+  doc.setFontSize(15);
+  doc.text(docTitle, margin, y, { maxWidth: 520 });
+  y += 26;
+
+  if (!groups?.length) {
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(35, 35, 38);
+    doc.setFontSize(10);
+    doc.text('No hay predicciones exportables todavía.', margin, y);
+    doc.save(`pulponi-todas-predicciones-${Date.now()}.pdf`);
+    return;
+  }
+
+  for (const g of groups) {
+    if (y > 700) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(35, 35, 38);
+    doc.setFontSize(11);
+    doc.text(formatMatchSectionHeading(g.match), margin, y, { maxWidth: 520 });
+    y += 16;
+    if (g.kickoffLine) {
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(90, 90, 98);
+      doc.setFontSize(9);
+      doc.text(g.kickoffLine, margin, y);
+      y += 14;
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    for (const r of g.rows ?? []) {
+      if (y > 760) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.setTextColor(22, 22, 26);
+      doc.text(`• ${formatExportLine(r)}`, margin + 8, y, { maxWidth: 500 });
+      y += 16;
+    }
+    y += 10;
+  }
+  doc.save(`pulponi-todas-predicciones-${Date.now()}.pdf`);
 }
 
 export async function downloadPredictionsRaster(element, format) {

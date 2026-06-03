@@ -775,7 +775,7 @@ export default function App() {
                 <DashboardNotifications
                   importantAlerts={data.events ?? []}
                   predictionActivityFeed={data.predictionActivityFeed ?? []}
-                  matchExportBundle={data.matchExportBundle ?? { match: null, rows: [] }}
+                  predictionActivityLog={data.predictionActivityLog ?? []}
                   matches={worldCupMatches ?? []}
                   communityPickProfiles={data.communityPickProfiles ?? []}
                   isAdmin={Boolean(data.profile?.is_admin)}
