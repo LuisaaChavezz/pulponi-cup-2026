@@ -99,7 +99,10 @@ export default function UserPublicProfile({
           <ProfileStatsGrid stats={safeStats} />
         </ProfilePageCard>
 
-        <ProfilePageCard title="Historial de predicciones">
+        <ProfilePageCard
+          title="Historial de predicciones"
+          className="profile-page-card--predictions-history"
+        >
           <ProfilePickHistory rows={pickHistory} />
         </ProfilePageCard>
 

@@ -843,7 +843,10 @@ export default function App() {
                   <ProfileStatsGrid stats={myProfileExtras.stats} />
                 </ProfilePageCard>
 
-                <ProfilePageCard title="Historial de predicciones">
+                <ProfilePageCard
+                  title="Historial de predicciones"
+                  className="profile-page-card--predictions-history"
+                >
                   <ProfilePickHistory rows={myProfileExtras.pickHistory} />
                 </ProfilePageCard>
 

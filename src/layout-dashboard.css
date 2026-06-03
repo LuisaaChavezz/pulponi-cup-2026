@@ -3169,6 +3169,7 @@
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  min-height: 0;
 }
 
 /* Tarjeta de jugador: src/pulponi-player-card.css */
@@ -3194,6 +3195,11 @@
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  min-height: 0;
+}
+
+.profile-page__cards > .profile-page-card {
+  min-height: 0;
 }
 
 .profile-page__cards--public,
@@ -3209,6 +3215,34 @@
 
 .profile-page-card {
   padding: 16px !important;
+  min-height: 0;
+}
+
+/* Historial: el card no crece; solo scrollea la lista interna */
+.profile-page-card--predictions-history {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  max-height: 460px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.profile-page-card--predictions-history .profile-page-card__head {
+  flex-shrink: 0;
+}
+
+.profile-page-card__body {
+  min-height: 0;
+}
+
+.profile-page-card--predictions-history .profile-page-card__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .profile-page-card__head {
@@ -3338,10 +3372,13 @@
 }
 
 /* Historial de predicciones: scroll interno (perfil propio y público) */
-.profile-page-history-scroll {
-  max-height: 360px;
-  overflow-x: hidden;
+.predictions-history-scroll {
+  max-height: 340px;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  flex: 1 1 auto;
+  width: 100%;
   border-radius: 14px;
   background: rgba(8, 8, 12, 0.94);
   border: 1px solid rgba(255, 30, 39, 0.32);
@@ -3352,29 +3389,30 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 30, 39, 0.8) rgba(10, 10, 14, 0.98);
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
-.profile-page-history-scroll::-webkit-scrollbar {
+.predictions-history-scroll::-webkit-scrollbar {
   width: 6px;
 }
 
-.profile-page-history-scroll::-webkit-scrollbar-track {
+.predictions-history-scroll::-webkit-scrollbar-track {
   margin: 6px 0;
   background: rgba(10, 10, 14, 0.98);
   border-radius: 999px;
 }
 
-.profile-page-history-scroll::-webkit-scrollbar-thumb {
+.predictions-history-scroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(255, 30, 39, 0.95), rgba(178, 13, 22, 0.9));
   box-shadow: 0 0 10px rgba(255, 30, 39, 0.45);
 }
 
-.profile-page-history-scroll::-webkit-scrollbar-thumb:hover {
+.predictions-history-scroll::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #ff3b43, #ff1e27);
 }
 
-.profile-page-history-scroll .profile-page-history__head {
+.predictions-history-scroll .profile-page-history__head {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -3384,7 +3422,8 @@
   border-bottom: 1px solid rgba(255, 30, 39, 0.18);
 }
 
-.profile-page-history {
+.profile-page-history,
+.predictions-history-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -3458,6 +3497,18 @@
 .dash-perfil.profile-page {
   padding: 8px 12px 14px;
   overflow: visible;
+  min-height: 0;
+}
+
+.dash-perfil.profile-page .profile-page__body,
+.dash-perfil.profile-page .profile-page__cards,
+.profile-page .profile-page__cards {
+  min-height: 0;
+}
+
+.profile-page.social-profile .profile-page__cards,
+.social-profile .profile-page__cards {
+  min-height: 0;
 }
 
 .dash-perfil.profile-page .profile-page__cards .pulpo-index {
@@ -3473,9 +3524,13 @@
 }
 
 @media (max-width: 767px) {
-  .profile-page-history-scroll {
+  .predictions-history-scroll {
     max-height: 300px;
     padding: 6px 2px 6px 6px;
+  }
+
+  .profile-page-card--predictions-history {
+    max-height: 400px;
   }
 }
 
@@ -3484,7 +3539,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .profile-page-history-scroll .profile-page-history__head {
+  .predictions-history-scroll .profile-page-history__head {
     display: none;
   }
 

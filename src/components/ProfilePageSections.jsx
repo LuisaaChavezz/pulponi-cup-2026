@@ -115,12 +115,12 @@ export function ProfilePickHistory({ rows, emptyText = 'Todavía no hay predicci
   }
   return (
     <div
-      className="profile-page-history-scroll"
+      className="predictions-history-scroll"
       role="region"
       aria-label="Historial de predicciones"
       tabIndex={0}
     >
-      <div className="profile-page-history">
+      <div className="profile-page-history predictions-history-list">
         <div className="profile-page-history__head" aria-hidden>
           <span>Partido</span>
           <span>Pick</span>
