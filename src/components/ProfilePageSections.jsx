@@ -1,3 +1,6 @@
+/** Oculto en UI; activity_log y carga en hooks siguen activos. Cambiar a true para reactivar. */
+export const SHOW_PROFILE_ACTIVITY = false;
+
 function ProfilePageCard({ title, meta, children, className = '' }) {
   return (
     <section className={`profile-page-card pulponi-card ${className}`.trim()}>

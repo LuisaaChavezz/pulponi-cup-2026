@@ -3115,7 +3115,8 @@
   min-width: 0;
 }
 
-.profile-page__cards--public {
+.profile-page__cards--public,
+.profile-page__cards--own {
   gap: 10px;
   margin-top: 8px;
 }

@@ -8,10 +8,8 @@ import {
   ProfileBadgesList,
   ProfileActivityList,
   ProfilePickHistory,
+  SHOW_PROFILE_ACTIVITY,
 } from './ProfilePageSections';
-
-/** Oculto en UI; activity_log y loadPublicProfile siguen activos para reactivar después. */
-const SHOW_PUBLIC_PROFILE_ACTIVITY = false;
 
 export default function UserPublicProfile({
   data,
@@ -109,7 +107,7 @@ export default function UserPublicProfile({
           <ProfileBadgesList badges={badges} />
         </ProfilePageCard>
 
-        {SHOW_PUBLIC_PROFILE_ACTIVITY ? (
+        {SHOW_PROFILE_ACTIVITY ? (
           <ProfilePageCard title="Actividad reciente">
             <ProfileActivityList items={data.activity ?? []} />
           </ProfilePageCard>

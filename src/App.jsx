@@ -39,6 +39,7 @@ import {
   ProfileBadgesList,
   ProfileActivityList,
   ProfilePickHistory,
+  SHOW_PROFILE_ACTIVITY,
 } from './components/ProfilePageSections';
 import { usePublicProfile } from './hooks/usePublicProfile';
 import { resolveAvatarUrl } from './lib/avatars';
@@ -811,7 +812,7 @@ export default function App() {
                 </ProfilePageCard>
               ) : null}
 
-              <div className="profile-page__cards">
+              <div className="profile-page__cards profile-page__cards--own">
                 <ProfilePageCard title="Índice Pulpo">
                   <PulpoIndexCard
                     profile={profile}
@@ -830,6 +831,10 @@ export default function App() {
                   <ProfileStatsGrid stats={myProfileExtras.stats} />
                 </ProfilePageCard>
 
+                <ProfilePageCard title="Historial de predicciones">
+                  <ProfilePickHistory rows={myProfileExtras.pickHistory} />
+                </ProfilePageCard>
+
                 <ProfilePageCard
                   title="Badges"
                   meta={`${unlockedCount} / ${achievementsTotal}`}
@@ -842,23 +847,21 @@ export default function App() {
                   <ProfileBadgesList badges={myBadges} />
                 </ProfilePageCard>
 
-                <ProfilePageCard title="Actividad reciente">
-                  <ProfileActivityList
-                    items={
-                      myProfileExtras.activity?.length
-                        ? myProfileExtras.activity
-                        : (data.activity ?? []).map((row, i) => ({
-                            id: `feed-${i}`,
-                            text: row.text,
-                            at: null,
-                          }))
-                    }
-                  />
-                </ProfilePageCard>
-
-                <ProfilePageCard title="Historial de predicciones">
-                  <ProfilePickHistory rows={myProfileExtras.pickHistory} />
-                </ProfilePageCard>
+                {SHOW_PROFILE_ACTIVITY ? (
+                  <ProfilePageCard title="Actividad reciente">
+                    <ProfileActivityList
+                      items={
+                        myProfileExtras.activity?.length
+                          ? myProfileExtras.activity
+                          : (data.activity ?? []).map((row, i) => ({
+                              id: `feed-${i}`,
+                              text: row.text,
+                              at: null,
+                            }))
+                      }
+                    />
+                  </ProfilePageCard>
+                ) : null}
 
                 <ProfilePageCard title="Elegir avatar" className="profile-page-card--avatars">
                   <AvatarSelector currentPhotoUrl={profile?.photo_url} onSelect={handleSelectPreset} />
