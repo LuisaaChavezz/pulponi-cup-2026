@@ -13,6 +13,7 @@ Requisitos: Node.js 18+ y npm
    - supabase/pulpo_scoring.sql (puntuación, pick_scores, Índice Pulpo, RPC)
    - supabase/achievements.sql (logros y user_badges)
    - supabase/ranking_history.sql (movimiento de ranking, opcional)
+   - supabase/user_profiles_public.sql (RLS lectura perfiles públicos: activity_log, pick_scores, user_badges)
 
    ALTER mínimos:
    alter table profiles add column if not exists picks jsonb default '{}'::jsonb;

@@ -31,6 +31,8 @@ import { ACHIEVEMENT_CATALOG, isAchievementUnlockedById, countAchievementsTotal,
 import AchievementCard from './components/AchievementCard';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
 import ProfileAchievementsStrip from './components/ProfileAchievementsStrip';
+import UserPublicProfile from './components/UserPublicProfile';
+import { usePublicProfile } from './hooks/usePublicProfile';
 import { resolveAvatarUrl } from './lib/avatars';
 import AvatarSelector from './components/AvatarSelector';
 import UserAvatar from './components/UserAvatar';
@@ -100,6 +102,7 @@ export default function App() {
   const [hlState, setHlState] = useState({ open: false, match: null, upcoming: false });
   const [highlightsRows, setHighlightsRows] = useState([]);
   const [highlightsLoading, setHighlightsLoading] = useState(false);
+  const [viewProfileId, setViewProfileId] = useState(null);
 
   const exportCardRef = useRef(null);
   const matchesRef = useRef([]);
@@ -403,6 +406,26 @@ export default function App() {
   const unlockedAchievementIds = data.userAchievementIds ?? [];
   const unlockedCount = countAchievementsUnlocked(unlockedAchievementIds, achievementCatalog);
   const achievementsTotal = countAchievementsTotal(achievementCatalog);
+
+  const publicProfile = usePublicProfile(viewProfileId, {
+    matches: worldCupMatches,
+    communityPickProfiles: data.communityPickProfiles,
+    achievementCatalog,
+  });
+
+  function openUserProfile(profileId) {
+    if (!profileId) return;
+    setViewProfileId(profileId);
+    setActiveNav('usuario');
+    window.setTimeout(() => {
+      document.getElementById('usuario')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }
+
+  function closeUserProfile() {
+    setViewProfileId(null);
+    setActiveNav('ranking');
+  }
 
   return (
     <PulponiErrorBoundary>
@@ -729,7 +752,7 @@ export default function App() {
               <ProfileAchievementsStrip
                 unlockedIds={unlockedAchievementIds}
                 catalog={achievementCatalog}
-                onViewAll={() => scrollToSection('logros')}
+                onViewAll={() => openUserProfile(session.user.id)}
               />
               {profileEdit ? (
                 <>
@@ -912,6 +935,32 @@ export default function App() {
           </div>
         </section>
 
+        <section id="usuario" className="panel panel--social-profile">
+          <div className="section-title">
+            <div>
+              <span className="eyebrow">Comunidad</span>
+              <h2>Perfil de jugador</h2>
+            </div>
+          </div>
+          {viewProfileId ? (
+            <UserPublicProfile
+              data={publicProfile.data}
+              loading={publicProfile.loading}
+              error={publicProfile.error}
+              isOwnProfile={viewProfileId === session.user.id}
+              onEditProfile={() => scrollToSection('perfil')}
+              onBack={closeUserProfile}
+              achievementsTotal={achievementsTotal}
+            />
+          ) : (
+            <div className="social-profile social-profile--empty pulponi-card">
+              <p className="social-profile__muted">
+                Toca un usuario en el ranking para ver su perfil público, stats, historial y badges.
+              </p>
+            </div>
+          )}
+        </section>
+
         <section id="ranking" className="panel">
           <div className="section-title">
             <div>
@@ -942,7 +991,13 @@ export default function App() {
               <div className="empty-state">Aún no hay jugadores en el ranking</div>
             ) : (
               (data.ranking ?? []).map((r, i) => (
-                <div key={r.id} className="rank-row rank-row--avatar">
+                <button
+                  key={r.id}
+                  type="button"
+                  className="rank-row rank-row--avatar rank-row--link"
+                  onClick={() => openUserProfile(r.id)}
+                  aria-label={`Ver perfil de @${r.username ?? r.name ?? 'jugador'}`}
+                >
                   <span>{i + 1}</span>
                   <div className="rank-user-cell">
                     <UserAvatar photoUrl={r.photo_url} className="avatar-frame--sm" alt="" />
@@ -951,7 +1006,7 @@ export default function App() {
                   <span>{Number(r.points ?? 0)}</span>
                   <span>{r.exacts ?? 0}</span>
                   <span>{r.streak ?? 0}</span>
-                </div>
+                </button>
               ))
             )}
           </div>

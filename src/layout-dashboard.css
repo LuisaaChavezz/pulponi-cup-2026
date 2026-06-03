@@ -2668,3 +2668,420 @@
   color: #d4d4d8;
   font-variant-numeric: tabular-nums;
 }
+
+/* —— Perfil público (red social) —— */
+.rank-row--link {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rank-row--link:hover,
+.rank-row--link:focus-visible {
+  background: rgba(255, 30, 39, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 30, 39, 0.35);
+  outline: none;
+}
+
+.panel--social-profile {
+  grid-column: 1 / -1;
+}
+
+.social-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.social-profile--loading,
+.social-profile--empty {
+  padding: 24px;
+  text-align: center;
+}
+
+.social-profile__muted {
+  margin: 0;
+  color: var(--muted, #a1a1aa);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.social-profile__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.social-profile__back,
+.social-profile__edit {
+  border: 1px solid rgba(255, 30, 39, 0.45);
+  background: rgba(255, 30, 39, 0.08);
+  color: #fecaca;
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.social-profile__back:hover,
+.social-profile__edit:hover,
+.social-profile__back:focus-visible,
+.social-profile__edit:focus-visible {
+  background: rgba(255, 30, 39, 0.18);
+  border-color: rgba(255, 30, 39, 0.75);
+  outline: none;
+}
+
+.social-profile__hero {
+  padding: 20px;
+  border: 1px solid rgba(255, 30, 39, 0.35);
+  background: linear-gradient(155deg, rgba(255, 30, 39, 0.12) 0%, rgba(8, 8, 12, 0.98) 52%);
+  box-shadow: 0 0 32px rgba(255, 30, 39, 0.12);
+}
+
+.social-profile__hero-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.social-profile__avatar {
+  flex-shrink: 0;
+}
+
+.social-profile__identity {
+  min-width: 0;
+}
+
+.social-profile__username {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fca5a5;
+}
+
+.social-profile__name {
+  margin: 4px 0 0;
+  font-size: clamp(1.35rem, 4vw, 1.85rem);
+  font-weight: 950;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.social-profile__rank-line {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #d4d4d8;
+}
+
+.social-profile__rank-line strong {
+  color: #fff;
+}
+
+.social-profile__hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.social-profile__hero-stats > div {
+  text-align: center;
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.social-profile__hero-stats b {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 950;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.social-profile__hero-stats span {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, #a1a1aa);
+}
+
+.social-profile__badge-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.social-profile__badge-chip {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 30, 39, 0.12);
+  border: 1px solid rgba(255, 30, 39, 0.35);
+  font-size: 18px;
+  box-shadow: 0 0 12px rgba(255, 30, 39, 0.15);
+}
+
+.social-profile__section {
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.social-profile__section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.social-profile__section-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+
+.social-profile__section-meta {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fca5a5;
+}
+
+.social-profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.social-profile-stat {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: 72px;
+}
+
+.social-profile-stat b {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 950;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.social-profile-stat span {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--muted, #a1a1aa);
+}
+
+.social-profile-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.social-profile-history__head,
+.social-profile-history__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 0.7fr 0.7fr 0.45fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.social-profile-history__head {
+  padding: 0 10px 6px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, #a1a1aa);
+}
+
+.social-profile-history__row {
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+}
+
+.social-profile-history__match {
+  font-weight: 700;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.social-profile-history__mono {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: #e4e4e7;
+}
+
+.social-profile-history__pts {
+  font-weight: 900;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.social-profile-history__status {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 999px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.social-profile-history__status--pending {
+  background: rgba(255, 255, 255, 0.08);
+  color: #d4d4d8;
+}
+
+.social-profile-history__status--exact {
+  background: rgba(250, 204, 21, 0.15);
+  color: #fde68a;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+}
+
+.social-profile-history__status--winner {
+  background: rgba(74, 222, 128, 0.12);
+  color: #86efac;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.social-profile-history__status--miss {
+  background: rgba(255, 30, 39, 0.12);
+  color: #fca5a5;
+  border: 1px solid rgba(255, 30, 39, 0.3);
+}
+
+.social-profile-badges-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.social-profile-badge-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 30, 39, 0.06);
+  border: 1px solid rgba(255, 30, 39, 0.22);
+}
+
+.social-profile-badge-item__icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.social-profile-badge-item__body strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.social-profile-badge-item__body p {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #d4d4d8;
+  line-height: 1.45;
+}
+
+.social-profile-badge-item__body time {
+  font-size: 11px;
+  color: var(--muted, #a1a1aa);
+}
+
+.social-profile-activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.social-profile-activity li {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid rgba(255, 30, 39, 0.65);
+}
+
+.social-profile-activity li p {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.social-profile-activity li time {
+  font-size: 11px;
+  color: var(--muted, #a1a1aa);
+}
+
+.social-profile__pulpo-tier {
+  text-align: center;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .social-profile-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .social-profile__hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .social-profile-history__head {
+    display: none;
+  }
+
+  .social-profile-history__row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .social-profile-history__status {
+    justify-self: start;
+  }
+}
