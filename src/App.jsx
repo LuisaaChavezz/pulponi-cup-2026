@@ -663,7 +663,7 @@ export default function App() {
 
           <article className="phone phone--chat-wide dash-chat pulponi-card" id="chat">
             <div className="phone-header">
-              <span>{chatTab === 'avisos' ? 'NOTIFICACIONES' : 'CHAT DEL PARTIDO'}</span>
+              <span>{chatTab === 'avisos' ? 'MENSAJES IMPORTANTES' : 'CHAT DEL PARTIDO'}</span>
               <small>{(data.ranking ?? []).length} miembros</small>
             </div>
             <div className="tabs">
@@ -675,7 +675,7 @@ export default function App() {
                 className={chatTab === 'avisos' ? 'active' : ''}
                 onClick={() => setChatTab('avisos')}
               >
-                Notificaciones importantes
+                Mensajes importantes
               </button>
             </div>
             {chatTab === 'chat' ? (

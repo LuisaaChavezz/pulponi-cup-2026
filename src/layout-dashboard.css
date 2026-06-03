@@ -1472,7 +1472,7 @@
   }
 }
 
-/* ——— Notificaciones importantes + últimas predicciones (tab Avisos) ——— */
+/* ——— Mensajes importantes (tab Avisos): hub comunidad + predicciones ——— */
 .dash-chat .chat-list--notifications {
   padding: 8px 10px 12px;
   display: flex;
@@ -1486,6 +1486,14 @@
   flex-direction: column;
   gap: 14px;
   min-width: 0;
+}
+
+.dash-notifications__hub {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .dash-notifications__section {
@@ -1988,6 +1996,10 @@
 }
 
 .dash-notifications__section--community {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.dash-notifications__section--announcements {
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 

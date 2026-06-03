@@ -88,11 +88,42 @@ export default function DashboardNotifications({
 
   return (
     <div className="dash-notifications">
-      <div className="dash-notifications__section">
+      <div className="dash-notifications__hub">
+        <h3 className="dash-notifications__title">Mensajes importantes</h3>
+        <p className="dash-notifications__hint">
+          Centro de información de la comunidad: tendencias al cierre de partidos, predicciones
+          colectivas, anuncios de Pulponi Cup y avisos del sistema.
+        </p>
+      </div>
+
+      <div className="dash-notifications__section dash-notifications__section--community">
         <div className="dash-notifications__head">
-          <h3 className="dash-notifications__title">Notificaciones importantes</h3>
+          <h3 className="dash-notifications__subtitle">Tendencias de la comunidad</h3>
           <p className="dash-notifications__hint">
-            Avisos oficiales (cierre de predicciones, calendario, premios…). Solo administración.
+            Tras el kickoff: predicción de la comunidad, marcador más elegido y pick más arriesgado.
+          </p>
+        </div>
+
+        {!revealedCommunityMatches.length ? (
+          <p className="dash-notifications__empty">
+            Las tendencias aparecerán aquí cuando cierre cada partido.
+          </p>
+        ) : (
+          <div className="dash-notifications__community-list">
+            {revealedCommunityMatches.map((m) => {
+              const scores = collectMatchPickScores(communityPickProfiles, m.id);
+              return <CommunityMatchInsights key={m.id} match={m} scores={scores} compact />;
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="dash-notifications__section dash-notifications__section--announcements">
+        <div className="dash-notifications__head">
+          <h3 className="dash-notifications__subtitle">Anuncios Pulponi Cup y mensajes del sistema</h3>
+          <p className="dash-notifications__hint">
+            Avisos oficiales: calendario, premios, cierres de predicciones y novedades del torneo.
+            {isAdmin ? ' Solo administración puede publicar.' : ''}
           </p>
         </div>
 
@@ -101,20 +132,20 @@ export default function DashboardNotifications({
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Título del aviso"
+              placeholder="Título del anuncio"
               required
             />
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalle" rows={2} />
             <input type="datetime-local" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
             <button type="submit" className="primary" disabled={saving}>
-              {saving ? 'Publicando…' : 'Publicar aviso'}
+              {saving ? 'Publicando…' : 'Publicar mensaje'}
             </button>
           </form>
         ) : null}
 
         <div className="dash-notifications__alerts">
           {!importantAlerts?.length ? (
-            <p className="dash-notifications__empty">No hay notificaciones importantes por ahora.</p>
+            <p className="dash-notifications__empty">No hay anuncios ni mensajes del sistema por ahora.</p>
           ) : (
             importantAlerts.map((ev) => (
               <article key={ev.id} className="dash-notifications__card">
@@ -127,28 +158,6 @@ export default function DashboardNotifications({
             ))
           )}
         </div>
-      </div>
-
-      <div className="dash-notifications__section dash-notifications__section--community">
-        <div className="dash-notifications__head">
-          <h3 className="dash-notifications__subtitle">Tendencias de la comunidad</h3>
-          <p className="dash-notifications__hint">
-            Porcentajes y picks más elegidos, visibles cuando cierra cada partido (kickoff).
-          </p>
-        </div>
-
-        {!revealedCommunityMatches.length ? (
-          <p className="dash-notifications__empty">
-            Las tendencias aparecerán aquí cuando empiece cada partido.
-          </p>
-        ) : (
-          <div className="dash-notifications__community-list">
-            {revealedCommunityMatches.map((m) => {
-              const scores = collectMatchPickScores(communityPickProfiles, m.id);
-              return <CommunityMatchInsights key={m.id} match={m} scores={scores} compact />;
-            })}
-          </div>
-        )}
       </div>
 
       <div className="dash-notifications__section dash-notifications__section--predictions">
