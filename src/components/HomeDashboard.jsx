@@ -3,6 +3,7 @@ import TeamLogo from './TeamLogo';
 import UserAvatar from './UserAvatar';
 import MatchSchedule from './MatchSchedule';
 import RankingMovement from './RankingMovement';
+import MatchChat from './MatchChat';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   displayTeamName,
@@ -66,6 +67,13 @@ export default function HomeDashboard({
   communityPickProfiles = [],
   matchesLoading = false,
   matchSyncNotice = null,
+  chatMessages = [],
+  chatInput = '',
+  setChatInput,
+  onSendMessage,
+  reactionRowsByMessage = {},
+  onToggleReaction,
+  memberCount = 0,
   onMakePrediction,
   onViewRanking,
   onViewCommunity,
@@ -104,22 +112,11 @@ export default function HomeDashboard({
   }, [predictionActivityFeed]);
 
   const topFive = (ranking ?? []).slice(0, 5);
+  const communityProfiles = ranking ?? [];
   const venueLine = [formatVenue(heroMatch), formatVenueCity(heroMatch)].filter(Boolean).join(' · ');
 
-  return (
-    <div className="home-dash">
-      {matchesLoading ? (
-        <span className="sr-only" aria-live="polite">
-          Sincronizando partidos…
-        </span>
-      ) : null}
-      {!matchesLoading && matchSyncNotice ? (
-        <p className="home-dash-sync muted" role="status">
-          {matchSyncNotice}
-        </p>
-      ) : null}
-
-      <article className="home-dash-hero">
+  const heroBlock = (
+    <article className="home-dash-hero">
         <div className="home-dash-hero__glow" aria-hidden />
         <header className="home-dash-hero__head">
           <span className="home-dash-kicker">PRÓXIMO PARTIDO</span>
@@ -187,15 +184,95 @@ export default function HomeDashboard({
           </>
         )}
       </article>
+  );
 
-      <RankingMovement
-        session={session}
-        compact
-        maxRest={5}
-        showYouHint={false}
-        className="home-dash-ranking-movement pulponi-card"
-        onViewFull={onViewRanking}
-      />
+  const rankingBlock = (
+    <RankingMovement
+      session={session}
+      compact
+      maxRest={5}
+      showYouHint={false}
+      className="home-dash-ranking-movement pulponi-card"
+      onViewFull={onViewRanking}
+    />
+  );
+
+  const profilesBlock = (
+    <aside className="home-dash-sidebar home-dash-sidebar--profiles">
+      <article className="home-dash-sidebar-card home-dash-sidebar-card--profiles pulponi-card">
+        <header className="home-dash-sidebar-card__head">
+          <h3 className="home-dash-sidebar-card__title">Perfiles de la comunidad</h3>
+        </header>
+        {communityProfiles.length === 0 ? (
+          <p className="home-dash-empty home-dash-sidebar-card__empty">Sin datos todavía</p>
+        ) : (
+          <ul className="home-dash-profiles-scroll">
+            {communityProfiles.map((row, i) => (
+              <li key={row.id ?? i}>
+                <button
+                  type="button"
+                  className="home-dash-profile-row"
+                  onClick={() => onSelectUser?.(row.id)}
+                  aria-label={`Ver perfil de ${formatUsername(row)}, puesto ${i + 1}`}
+                >
+                  <span className="home-dash-profile-row__pos">#{i + 1}</span>
+                  <UserAvatar photoUrl={row.photo_url} className="home-dash-profile-row__avatar" alt="" />
+                  <span className="home-dash-profile-row__name">{formatUsername(row)}</span>
+                  <span className="home-dash-profile-row__pts">{Number(row.points ?? 0)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </article>
+    </aside>
+  );
+
+  const chatBlock = (
+    <aside className="home-dash-sidebar home-dash-sidebar--chat">
+      <article className="home-dash-sidebar-card home-dash-sidebar-card--chat pulponi-card">
+        <header className="home-dash-sidebar-card__head">
+          <h3 className="home-dash-sidebar-card__title">Chat</h3>
+          {memberCount > 0 ? (
+            <small className="home-dash-sidebar-card__meta">{memberCount} miembros</small>
+          ) : null}
+        </header>
+        <div className="home-dash-chat-body">
+          <MatchChat
+            messages={chatMessages}
+            chatInput={chatInput}
+            setChatInput={setChatInput}
+            onSend={onSendMessage}
+            currentUserId={session?.user?.id ?? null}
+            reactionRowsByMessage={reactionRowsByMessage}
+            onToggleReaction={onToggleReaction}
+          />
+        </div>
+      </article>
+    </aside>
+  );
+
+  return (
+    <div className="home-dash">
+      {matchesLoading ? (
+        <span className="sr-only" aria-live="polite">
+          Sincronizando partidos…
+        </span>
+      ) : null}
+      {!matchesLoading && matchSyncNotice ? (
+        <p className="home-dash-sync muted" role="status">
+          {matchSyncNotice}
+        </p>
+      ) : null}
+
+      <div className="home-dash-layout">
+        {profilesBlock}
+        <div className="home-dash-center">
+          {heroBlock}
+          {rankingBlock}
+        </div>
+        {chatBlock}
+      </div>
 
       <div className="home-dash-summary">
         <article className="home-dash-card home-dash-card--rank">

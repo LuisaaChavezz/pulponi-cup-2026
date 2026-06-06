@@ -561,6 +561,13 @@ export default function App() {
             communityPickProfiles={data.communityPickProfiles ?? []}
             matchesLoading={data.matchesLoading}
             matchSyncNotice={data.matchSyncNotice}
+            chatMessages={data.chatData ?? []}
+            chatInput={chatInput}
+            setChatInput={setChatInput}
+            onSendMessage={handleSendMessage}
+            reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
+            onToggleReaction={data.toggleReaction}
+            memberCount={(data.ranking ?? []).length}
             onMakePrediction={() => navigateToSection('partidos')}
             onViewRanking={() => navigateToSection('ranking')}
             onViewCommunity={() => navigateToSection('comunidad')}
