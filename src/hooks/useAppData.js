@@ -152,8 +152,7 @@ export function useAppData(session) {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, username, name, photo_url, points, exacts, streak')
-        .order('points', { ascending: false })
-        .limit(20);
+        .order('points', { ascending: false });
       if (error) {
         console.warn('[loadRanking]', error.message);
         setRanking([]);

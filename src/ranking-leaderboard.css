@@ -202,6 +202,11 @@
 }
 
 @media (min-width: 768px) {
+  #ranking.panel .ranking-section-movement,
+  #ranking.panel .ranking-section-pulpo {
+    display: none !important;
+  }
+
   .ranking-leaderboard .rank-row__avatar.avatar-frame {
     width: 36px;
     height: 36px;

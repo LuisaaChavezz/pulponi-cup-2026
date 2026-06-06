@@ -19,7 +19,16 @@ export function buildRankedLeaderboard(profiles) {
     const ea = Number(a.exacts ?? 0);
     const eb = Number(b.exacts ?? 0);
     if (eb !== ea) return eb - ea;
-    return String(a.username ?? '').localeCompare(String(b.username ?? ''), 'es');
+    const sa = Number(a.streak ?? 0);
+    const sb = Number(b.streak ?? 0);
+    if (sb !== sa) return sb - sa;
+    const ua = String(a.username ?? a.name ?? '')
+      .replace(/^@+/, '')
+      .trim();
+    const ub = String(b.username ?? b.name ?? '')
+      .replace(/^@+/, '')
+      .trim();
+    return ua.localeCompare(ub, 'es', { sensitivity: 'base' });
   });
 
   return sorted.map((row, index) => ({

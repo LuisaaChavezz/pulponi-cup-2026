@@ -1,8 +1,6 @@
 import { Component, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Settings } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import { supabase } from './lib/supabase';
 import AuthPage from './pages/AuthPage';
 import { useAppData } from './hooks/useAppData';
@@ -48,7 +46,8 @@ import PulpoIndexCard from './components/PulpoIndexCard';
 import MatchCommunityPrediction from './components/MatchCommunityPrediction';
 import { collectMatchPickScores } from './lib/communityPicks';
 import { normalizeStoredHighlightList } from './lib/highlightsMapper';
-import { pullAndPersistHighlightEvents } from './lib/matchHighlightSync';
+import { buildRankedLeaderboard } from './lib/rankingHistory';
+import { exportRankingPdf } from './lib/exportRankingPdf';
 
 const NAV = [
   { id: 'inicio', icon: '⌂', label: 'Inicio' },
@@ -108,13 +107,17 @@ export default function App() {
   const [highlightsLoading, setHighlightsLoading] = useState(false);
   const [viewProfileId, setViewProfileId] = useState(null);
 
-  const exportCardRef = useRef(null);
   const matchesRef = useRef([]);
   const pickFeedbackTimersRef = useRef({});
 
   const [pickSaveFeedback, setPickSaveFeedback] = useState({});
 
   const data = useAppData(session);
+
+  const sortedRanking = useMemo(
+    () => buildRankedLeaderboard(data.ranking ?? []),
+    [data.ranking]
+  );
 
   useEffect(() => {
     if ((activeNav === 'comunidad' || activeNav === 'inicio') && session?.user?.id) {
@@ -423,23 +426,6 @@ export default function App() {
     );
   }
 
-  async function exportResults(format) {
-    const el = exportCardRef.current;
-    if (!el) return;
-    const canvas = await html2canvas(el, { backgroundColor: '#050505', scale: 2 });
-    if (format === 'pdf') {
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [canvas.width, canvas.height] });
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
-      pdf.save('pulponi-resultados.pdf');
-    } else {
-      const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-      const link = document.createElement('a');
-      link.href = canvas.toDataURL(mime, 0.92);
-      link.download = `pulponi.${format}`;
-      link.click();
-    }
-  }
-
   if (authLoading) {
     return (
       <div className="loader-screen loader-screen--pulponi">
@@ -459,7 +445,7 @@ export default function App() {
   const unlockedCount = countAchievementsUnlocked(unlockedAchievementIds, achievementCatalog);
   const achievementsTotal = countAchievementsTotal(achievementCatalog);
 
-  const myRankIndex = (data.ranking ?? []).findIndex((r) => r.id === session?.user?.id);
+  const myRankIndex = sortedRanking.findIndex((r) => r.id === session?.user?.id);
   const myCurrentRank =
     myRankIndex >= 0 ? myRankIndex + 1 : myProfileView.data?.rankingSummary?.currentRank ?? null;
   const myPulpoIndex =
@@ -749,20 +735,14 @@ export default function App() {
                     Toca un jugador para abrir su perfil público. Exactos, rachas e Índice Pulpo incluidos.
                   </p>
                 </div>
-                <div className="export-actions">
-                  <button type="button" onClick={() => exportResults('png')}>
-                    Exportar PNG
-                  </button>
-                  <button type="button" onClick={() => exportResults('jpeg')}>
-                    Exportar JPEG
-                  </button>
-                  <button type="button" onClick={() => exportResults('pdf')}>
-                    Exportar PDF
+                <div className="export-actions ranking-export-actions">
+                  <button type="button" onClick={() => exportRankingPdf(sortedRanking)}>
+                    Exportar ranking
                   </button>
                 </div>
               </div>
               <RankingLeaderboard
-                rows={data.ranking ?? []}
+                rows={sortedRanking}
                 currentUserId={session?.user?.id}
                 onSelectUser={openUserProfile}
               />
@@ -984,17 +964,6 @@ export default function App() {
         </nav>,
         document.body
       )}
-
-      <div ref={exportCardRef} className="export-card-hidden" aria-hidden="true">
-        <span className="eyebrow">Pulponi Cup 2026</span>
-        <h2 style={{ margin: '8px 0', fontStyle: 'italic' }}>Ranking</h2>
-        {(data.ranking ?? []).slice(0, 5).map((r, i) => (
-          <p key={r.id ?? i} style={{ margin: '4px 0' }}>
-            {i + 1}. @{r.username} — {Number(r.points ?? 0)} pts
-          </p>
-        ))}
-        <p style={{ color: '#ff1e27', marginTop: 16, fontSize: 12 }}>pulponi.cup</p>
-      </div>
 
       <HighlightsModal
         open={hlState.open}
