@@ -73,11 +73,7 @@
     display: none;
   }
 
-  /* Override legacy index.css rule: `.bottom-nav a span { display: none }` */
-  .bottom-nav {
-    display: block !important;
-  }
-
+  /* Override legacy index.css: `.bottom-nav a span { display: none }` */
   .bottom-nav a.bottom-nav__item .bottom-nav__icon {
     display: grid !important;
   }
@@ -199,11 +195,28 @@ body {
     width: calc(100vw - 24px);
     max-width: 430px;
     z-index: 9999;
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 4px;
-    padding: 8px;
+    display: block;
+    padding: 0;
     pointer-events: auto;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .bottom-nav__inner {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-around;
+    width: 100%;
+    min-height: 72px;
+    max-height: 86px;
+    gap: 2px;
+    padding: 6px 8px;
+    margin: 0;
     border-radius: 22px;
     border: 1px solid rgba(255, 30, 39, 0.22);
     background: rgba(6, 6, 8, 0.96);
@@ -212,26 +225,22 @@ body {
     box-shadow:
       0 10px 32px rgba(0, 0, 0, 0.45),
       0 0 24px rgba(255, 30, 39, 0.08);
-  }
-
-  .bottom-nav__inner {
-    display: contents;
-    width: auto;
-    max-width: none;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    box-sizing: border-box;
   }
 
   .bottom-nav a.bottom-nav__item {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     min-width: 0;
-    width: 100%;
-    min-height: 52px;
-    padding: 6px 1px;
+    width: auto;
+    max-width: none;
+    min-height: 0;
+    height: auto;
+    padding: 4px 1px;
+    justify-self: auto;
   }
 
   .bottom-nav a.bottom-nav__item .bottom-nav__label {
@@ -239,18 +248,20 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    width: 100%;
+    max-width: 100%;
   }
 
   body {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 120px) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 110px) !important;
   }
 
   .app-shell {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 120px) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 110px) !important;
   }
 
   .home-dash {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 120px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 110px);
   }
 }
 
