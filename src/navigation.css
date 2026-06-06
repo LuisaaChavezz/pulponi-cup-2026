@@ -70,6 +70,19 @@
   .topbar-nav.desktop-nav {
     display: none;
   }
+
+  /* Override legacy index.css rule: `.bottom-nav a span { display: none }` */
+  .bottom-nav {
+    display: block !important;
+  }
+
+  .bottom-nav a.bottom-nav__item .bottom-nav__icon {
+    display: grid !important;
+  }
+
+  .bottom-nav a.bottom-nav__item .bottom-nav__label {
+    display: block !important;
+  }
 }
 
 /* ——— Bottom nav ——— */
@@ -79,6 +92,7 @@
   right: 0;
   bottom: 0;
   z-index: 40;
+  display: block;
   padding: 0 10px calc(10px + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
 }
@@ -194,7 +208,7 @@ body {
     padding: 6px 4px;
   }
 
-  .bottom-nav__label {
+  .bottom-nav a.bottom-nav__item .bottom-nav__label {
     font-size: 0.52rem;
   }
 }
