@@ -752,6 +752,26 @@
 
 /* ——— Responsive ——— */
 @media (max-width: 767px) {
+  .home-dash-stack__section--hero {
+    order: 1;
+  }
+
+  .home-dash-stack__section--ranking {
+    order: 2;
+  }
+
+  .home-dash-stack__section--chat {
+    order: 3;
+  }
+
+  .home-dash-stack__section--profiles {
+    order: 4;
+  }
+
+  .home-dash-stack__section--insights {
+    order: 5;
+  }
+
   .home-dash-hero {
     padding: 14px 14px 16px;
   }
