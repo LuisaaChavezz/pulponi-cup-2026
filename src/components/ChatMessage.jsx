@@ -94,16 +94,6 @@ export default function ChatMessage({ message, reactionRows = [], currentUserId,
     [canReact, message?.id, onToggleReaction]
   );
 
-  const pills = useMemo(() => {
-    const out = [];
-    for (const [emoji, g] of grouped.entries()) {
-      if (g.count < 1) continue;
-      out.push({ emoji, ...g });
-    }
-    out.sort((a, b) => CHAT_REACTION_EMOJIS.indexOf(a.emoji) - CHAT_REACTION_EMOJIS.indexOf(b.emoji));
-    return out;
-  }, [grouped]);
-
   const reactionSummary = useMemo(() => {
     const handles = uniqueReactionHandles(reactionRows);
     if (!handles.length) return null;
@@ -178,9 +168,14 @@ export default function ChatMessage({ message, reactionRows = [], currentUserId,
       {canReact ? (
         <div className="chat-message-reactions" aria-label="Reacciones">
           <div className="chat-reaction-bar">
-            {pills.length > 0 ? (
-              <div className="chat-reaction-pills" role="group">
-                {pills.map(({ emoji, count, me }) => (
+            {CHAT_REACTION_EMOJIS.map((emoji) => {
+              const group = grouped.get(emoji);
+              const count = group?.count ?? 0;
+              const me = group?.me ?? false;
+              const hasCount = count > 0;
+
+              if (hasCount) {
+                return (
                   <div key={emoji} className="chat-reaction-pill-wrap">
                     <button
                       type="button"
@@ -205,31 +200,27 @@ export default function ChatMessage({ message, reactionRows = [], currentUserId,
                       </span>
                     </button>
                   </div>
-                ))}
-              </div>
-            ) : null}
-            <div className="chat-reaction-picker" role="toolbar" aria-label="Añadir o quitar reacción">
-              {CHAT_REACTION_EMOJIS.map((emoji) => {
-                const pickerMe = grouped.get(emoji)?.me;
-                return (
-                  <button
-                    key={emoji}
-                    type="button"
-                    className={[
-                      'chat-reaction-picker__btn',
-                      pickerMe ? 'chat-reaction-picker__btn--mine' : '',
-                      poppingEmoji === emoji ? 'chat-reaction-picker__btn--pop' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => handlePickerEmoji(emoji)}
-                    aria-pressed={pickerMe ? 'true' : 'false'}
-                  >
-                    <span className="chat-reaction-picker__emoji">{emoji}</span>
-                  </button>
                 );
-              })}
-            </div>
+              }
+
+              return (
+                <button
+                  key={emoji}
+                  type="button"
+                  className={[
+                    'chat-reaction-picker__btn',
+                    me ? 'chat-reaction-picker__btn--mine' : '',
+                    poppingEmoji === emoji ? 'chat-reaction-picker__btn--pop' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() => handlePickerEmoji(emoji)}
+                  aria-pressed={me ? 'true' : 'false'}
+                >
+                  <span className="chat-reaction-picker__emoji">{emoji}</span>
+                </button>
+              );
+            })}
           </div>
           {reactionSummary ? <p className="chat-reaction-summary">{reactionSummary}</p> : null}
         </div>
