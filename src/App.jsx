@@ -789,15 +789,17 @@ export default function App() {
                 <span>CHAT DEL PARTIDO</span>
                 <small>{(data.ranking ?? []).length} miembros</small>
               </div>
-              <MatchChat
-                messages={data.chatData}
-                chatInput={chatInput}
-                setChatInput={setChatInput}
-                onSend={handleSendMessage}
-                currentUserId={session?.user?.id ?? null}
-                reactionRowsByMessage={data.reactionRowsByMessage}
-                onToggleReaction={data.toggleReaction}
-              />
+              <div className="comunidad-chat-body">
+                <MatchChat
+                  messages={data.chatData}
+                  chatInput={chatInput}
+                  setChatInput={setChatInput}
+                  onSend={handleSendMessage}
+                  currentUserId={session?.user?.id ?? null}
+                  reactionRowsByMessage={data.reactionRowsByMessage}
+                  onToggleReaction={data.toggleReaction}
+                />
+              </div>
             </article>
           </div>
         </section>
