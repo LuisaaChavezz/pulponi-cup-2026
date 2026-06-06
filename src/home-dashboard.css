@@ -184,19 +184,21 @@
 
 @media (min-width: 1024px) {
   .home-dash {
+    min-height: calc(100vh - 120px);
     padding-bottom: 8px;
   }
 
   .home-dash-stack {
     display: grid;
     grid-template-columns: minmax(260px, 300px) minmax(0, 1fr) minmax(300px, 340px);
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
     grid-template-areas:
       'profiles center chat'
       'insights insights insights';
     gap: 14px;
-    align-items: stretch;
-    height: calc(100vh - 140px);
+    align-items: start;
+    min-height: calc(100vh - 120px);
+    height: auto;
     max-width: 100%;
   }
 
@@ -205,19 +207,29 @@
     flex-direction: column;
     gap: 12px;
     grid-area: center;
-    min-height: 0;
-    overflow-y: auto;
+    height: auto;
+    max-height: none;
+    min-height: auto;
+    overflow: visible;
     padding-right: 2px;
+  }
+
+  .home-dash-stack__section--profiles,
+  .home-dash-stack__section--chat,
+  .home-dash-stack__section--hero,
+  .home-dash-stack__section--ranking {
+    height: auto;
+    max-height: none;
+    min-height: auto;
+    overflow: visible;
   }
 
   .home-dash-stack__section--profiles {
     grid-area: profiles;
-    min-height: 0;
   }
 
   .home-dash-stack__section--chat {
     grid-area: chat;
-    min-height: 0;
   }
 
   .home-dash-stack__section--insights {
@@ -225,30 +237,55 @@
   }
 
   .home-dash-sidebar-card {
-    height: 100%;
+    height: auto;
+    max-height: none;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-height: auto;
+    overflow: visible;
   }
 
   .home-dash-sidebar-card--profiles {
-    min-height: 0;
+    min-height: auto;
   }
 
   .home-dash-profiles-scroll {
-    flex: 1;
-    min-height: 0;
-    max-height: none;
+    flex: none;
+    min-height: auto;
+    max-height: 75vh;
+    overflow-y: auto;
+  }
+
+  .home-dash-sidebar-card--chat {
+    min-height: 650px;
   }
 
   .home-dash-sidebar-card--chat .home-dash-chat-body {
-    flex: 1;
-    min-height: 0;
+    flex: 1 1 auto;
+    min-height: 600px;
+    display: flex;
+    flex-direction: column;
   }
 
   .home-dash-chat-body .chat-list {
+    flex: 1 1 auto;
+    min-height: 480px;
+    max-height: 75vh;
+    height: auto !important;
+    overflow-y: auto;
+  }
+
+  .home-dash-ranking-movement.phone--rank-movement {
+    min-height: auto;
     max-height: none;
-    flex: 1;
+    overflow: visible;
+  }
+
+  .home-dash-ranking-movement .rm-rest,
+  .home-dash-ranking-movement .rm-rest-list,
+  .home-dash-ranking-movement .rm-top5-graph {
+    max-height: none;
+    overflow: visible;
   }
 }
 
