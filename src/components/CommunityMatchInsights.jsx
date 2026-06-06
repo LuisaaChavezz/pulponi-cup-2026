@@ -4,9 +4,6 @@ import {
 } from '../lib/communityPicks';
 import { formatKickoff } from '../lib/matchUtils';
 
-const TREND_DISCLAIMER =
-  'Estos porcentajes muestran la tendencia general, no los marcadores individuales.';
-
 export default function CommunityMatchInsights({ match, scores, compact = false }) {
   const { outcome } = buildCommunityGeneralInsights(scores, match);
   const matchLabel = `${match?.home_team ?? 'Local'} vs ${match?.away_team ?? 'Visitante'}`;
@@ -31,21 +28,20 @@ export default function CommunityMatchInsights({ match, scores, compact = false 
         {kickoffLabel ? <span className="community-insights__meta">{kickoffLabel}</span> : null}
       </header>
 
-      <div className="community-insights__block">
-        <p className="community-insights__label">Tendencia de la comunidad</p>
-        <p className="community-insights__disclaimer">{TREND_DISCLAIMER}</p>
-        <ul className="community-insights__list">
-          <li>
-            {outcome.homeLabel} gana: <span>{outcome.homePct}%</span>
-          </li>
-          <li>
-            Empate: <span>{outcome.drawPct}%</span>
-          </li>
-          <li>
-            {outcome.awayLabel} gana: <span>{outcome.awayPct}%</span>
-          </li>
-        </ul>
-      </div>
+      <ul className="community-insights__list">
+        <li>
+          <span className="community-insights__pct-label">{outcome.homeLabel} gana:</span>
+          <span className="community-insights__pct-value">{outcome.homePct}%</span>
+        </li>
+        <li>
+          <span className="community-insights__pct-label">Empate:</span>
+          <span className="community-insights__pct-value">{outcome.drawPct}%</span>
+        </li>
+        <li>
+          <span className="community-insights__pct-label">{outcome.awayLabel} gana:</span>
+          <span className="community-insights__pct-value">{outcome.awayPct}%</span>
+        </li>
+      </ul>
     </article>
   );
 }

@@ -219,8 +219,7 @@ export default function DashboardNotifications({
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle">Tendencias de la comunidad</h3>
           <p className="dash-notifications__hint">
-            Porcentajes generales (local / empate / visitante). No se muestran marcadores ni picks
-            individuales.
+            Porcentajes generales por partido. No se muestran marcadores ni picks individuales.
           </p>
         </div>
 
