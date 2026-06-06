@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import UserAvatar from './UserAvatar';
 import CommunityMatchInsights from './CommunityMatchInsights';
 import { collectMatchPickScores, listMatchesForCommunityTrends } from '../lib/communityPicks';
+import { resolvePredictionCloseCountdown } from '../lib/matchUtils';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   buildAllMatchesExportGroups,
@@ -42,7 +43,7 @@ export default function DashboardNotifications({
   isAdmin = false,
   onCreateImportantAlert,
 }) {
-  const now = useKickoffClock();
+  const now = useKickoffClock(1000);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState('');
@@ -118,6 +119,11 @@ export default function DashboardNotifications({
       return ta - tb;
     });
   }, [matches, communityPickProfiles]);
+
+  const predictionClose = useMemo(
+    () => resolvePredictionCloseCountdown(matches, now),
+    [matches, now]
+  );
 
   async function handleSubmitAnnouncement(e) {
     e.preventDefault();
@@ -209,18 +215,11 @@ export default function DashboardNotifications({
     <div className="dash-notifications">
       <div className="dash-notifications__hub">
         <h3 className="dash-notifications__title">Mensajes importantes</h3>
-        <p className="dash-notifications__hint">
-          Centro de información de la comunidad: tendencias generales (sin picks individuales),
-          predicciones colectivas, anuncios de Pulponi Cup y avisos del sistema.
-        </p>
       </div>
 
       <div className="dash-notifications__section dash-notifications__section--community">
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle">Tendencias de la comunidad</h3>
-          <p className="dash-notifications__hint">
-            Porcentajes generales por partido. No se muestran marcadores ni picks individuales.
-          </p>
         </div>
 
         {!communityTrendMatches.length ? (
@@ -240,14 +239,33 @@ export default function DashboardNotifications({
       <div className="dash-notifications__section dash-notifications__section--announcements">
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle">Anuncios Pulponi Cup y mensajes del sistema</h3>
-          <p className="dash-notifications__hint">
-            Avisos oficiales: calendario, premios, cierres de predicciones y novedades del torneo.
-            {isAdmin ? ' Solo administración puede publicar.' : ''}
-          </p>
+        </div>
+
+        <div className="dash-notifications__close-countdown" role="status" aria-live="polite">
+          <p className="dash-notifications__close-countdown-label">Próximo cierre de predicciones</p>
+          {predictionClose.status === 'countdown' ? (
+            <>
+              <p className="dash-notifications__close-countdown-match">{predictionClose.matchLabel}</p>
+              <p className="dash-notifications__close-countdown-time">
+                Cierra en: <strong>{predictionClose.countdown}</strong>
+              </p>
+            </>
+          ) : predictionClose.status === 'closed' ? (
+            <>
+              <p className="dash-notifications__close-countdown-match">{predictionClose.matchLabel}</p>
+              <p className="dash-notifications__close-countdown-time dash-notifications__close-countdown-time--closed">
+                Predicciones cerradas para este partido.
+              </p>
+            </>
+          ) : (
+            <p className="dash-notifications__close-countdown-time">No hay cierres próximos.</p>
+          )}
         </div>
 
         {isAdmin ? (
-          <form className="dash-notifications__admin-form" onSubmit={handleSubmitAnnouncement}>
+          <>
+            <p className="dash-notifications__admin-note">Solo administración puede publicar anuncios.</p>
+            <form className="dash-notifications__admin-form" onSubmit={handleSubmitAnnouncement}>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -260,6 +278,7 @@ export default function DashboardNotifications({
               {saving ? 'Publicando…' : 'Publicar mensaje'}
             </button>
           </form>
+          </>
         ) : null}
 
         <div className="dash-notifications__alerts">

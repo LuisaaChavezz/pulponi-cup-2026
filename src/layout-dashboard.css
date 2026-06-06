@@ -1463,6 +1463,56 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
+.dash-notifications__close-countdown {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 30, 39, 0.35);
+  background: linear-gradient(145deg, rgba(255, 30, 39, 0.1), rgba(8, 8, 12, 0.92));
+}
+
+.dash-notifications__close-countdown-label {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fecaca;
+}
+
+.dash-notifications__close-countdown-match {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.25;
+}
+
+.dash-notifications__close-countdown-time {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: #d4d4d8;
+  line-height: 1.35;
+}
+
+.dash-notifications__close-countdown-time strong {
+  color: #ff5a62;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.dash-notifications__close-countdown-time--closed {
+  color: #fca5a5;
+}
+
+.dash-notifications__admin-note {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted, #a1a1aa);
+}
+
 .dash-notifications__section {
   display: flex;
   flex-direction: column;

@@ -254,6 +254,57 @@ function formatEventLabel(ev) {
   return `${icon} ${who}${detail}`.trim();
 }
 
+function formatMatchVersusShort(match) {
+  const home = match?.home_team ?? 'Local';
+  const away = match?.away_team ?? 'Visitante';
+  return `${home} vs ${away}`;
+}
+
+/** Countdown legible hasta kickoff: 02h 14m 35s */
+export function formatCountdownToKickoff(targetMs, now = new Date()) {
+  const diff = Math.max(0, targetMs - now.getTime());
+  const totalSec = Math.floor(diff / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(h)}h ${pad(m)}m ${pad(s)}s`;
+}
+
+/**
+ * Próximo cierre de predicciones (kickoff del partido más próximo no iniciado).
+ * @returns {{ status: 'countdown'|'closed'|'none', matchLabel?: string, countdown?: string, match?: object }}
+ */
+export function resolvePredictionCloseCountdown(matches, now = new Date()) {
+  const nowMs = now.getTime();
+  const withKickoff = (matches ?? [])
+    .filter((m) => m?.kickoff && !isMatchFinished(m))
+    .map((m) => ({ match: m, ms: new Date(m.kickoff).getTime() }))
+    .filter((x) => !Number.isNaN(x.ms))
+    .sort((a, b) => a.ms - b.ms);
+
+  const next = withKickoff.find((x) => x.ms > nowMs);
+  if (next) {
+    return {
+      status: 'countdown',
+      match: next.match,
+      matchLabel: formatMatchVersusShort(next.match),
+      countdown: formatCountdownToKickoff(next.ms, now),
+    };
+  }
+
+  const started = [...withKickoff].reverse().find((x) => x.ms <= nowMs);
+  if (started) {
+    return {
+      status: 'closed',
+      match: started.match,
+      matchLabel: formatMatchVersusShort(started.match),
+    };
+  }
+
+  return { status: 'none' };
+}
+
 // Compatibilidad con imports antiguos
 export function displayApiStatus(match) {
   return displayMatchStatus(match);
