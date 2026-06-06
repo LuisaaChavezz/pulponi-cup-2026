@@ -3950,6 +3950,80 @@
   padding: 12px 16px 16px;
 }
 
+/* ——— Reglas: catálogo de badges ——— */
+.rules-badges {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rules-badges__title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.rules-badges__lead {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted, #a1a1aa);
+  font-weight: 600;
+  max-width: 52ch;
+}
+
+.rules-badges__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.rules-badges__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 14px 12px 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)), #0a0a0d;
+  min-width: 0;
+}
+
+.rules-badges__icon {
+  font-size: 30px;
+  line-height: 1;
+  filter: drop-shadow(0 0 12px rgba(255, 30, 39, 0.35));
+}
+
+.rules-badges__name {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.rules-badges__desc {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #a1a1aa;
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .rules-badges__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ——— Comunidad: dos tarjetas iguales (50% / 50%) ——— */
 .community-content {
   display: flex;

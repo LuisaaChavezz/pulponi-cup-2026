@@ -19,6 +19,7 @@ import { useMatchSync } from './hooks/useMatchSync';
 import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
 import MatchChat from './components/MatchChat';
+import RulesBadgesSection from './components/RulesBadgesSection';
 import DashboardNotifications from './components/DashboardNotifications';
 import HomeDashboard from './components/HomeDashboard';
 import { ACHIEVEMENT_CATALOG, isAchievementUnlockedById, countAchievementsTotal, countAchievementsUnlocked } from './data/achievements';
@@ -940,6 +941,7 @@ export default function App() {
               <p>El ranking se calcula desde Supabase en tiempo real. Los logros se desbloquean automáticamente según tus exactos, racha, ranking e Índice Pulpo.</p>
             </details>
           </div>
+          <RulesBadgesSection />
         </section>
       </main>
 
