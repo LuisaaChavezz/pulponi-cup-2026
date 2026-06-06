@@ -9,10 +9,15 @@ export default function MatchChat({
   currentUserId,
   reactionRowsByMessage,
   onToggleReaction,
+  messagesListClassName = '',
+  inputAreaClassName = '',
 }) {
+  const listClassName = ['chat-list', messagesListClassName].filter(Boolean).join(' ');
+  const inputClassName = ['message-box', inputAreaClassName].filter(Boolean).join(' ');
+
   return (
     <>
-      <div className="chat-list">
+      <div className={listClassName}>
         {messages.map((m, i) => (
           <ChatMessage
             key={m.id ?? `demo-${i}`}
@@ -23,7 +28,7 @@ export default function MatchChat({
           />
         ))}
       </div>
-      <div className="message-box">
+      <div className={inputClassName}>
         <input
           placeholder="Escribe un mensaje..."
           value={chatInput}

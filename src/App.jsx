@@ -770,9 +770,9 @@ export default function App() {
               <h2>Comunidad Pulponi</h2>
             </div>
           </div>
-          <div className="comunidad-shell">
-            <article className="phone pulponi-card phone--notifications comunidad-notifications">
-              <div className="chat-list chat-list--notifications">
+          <div className="community-content">
+            <article className="important-messages-panel pulponi-card">
+              <div className="important-messages-panel__scroll chat-list chat-list--notifications">
                 <DashboardNotifications
                   importantAlerts={data.events ?? []}
                   predictionActivityFeed={data.predictionActivityFeed ?? []}
@@ -784,22 +784,22 @@ export default function App() {
                 />
               </div>
             </article>
-            <article className="phone phone--chat-wide dash-chat pulponi-card comunidad-chat">
-              <div className="phone-header">
+            <article className="chat-panel pulponi-card">
+              <header className="phone-header chat-panel__header">
                 <span>CHAT DEL PARTIDO</span>
                 <small>{(data.ranking ?? []).length} miembros</small>
-              </div>
-              <div className="comunidad-chat-body">
-                <MatchChat
-                  messages={data.chatData}
-                  chatInput={chatInput}
-                  setChatInput={setChatInput}
-                  onSend={handleSendMessage}
-                  currentUserId={session?.user?.id ?? null}
-                  reactionRowsByMessage={data.reactionRowsByMessage}
-                  onToggleReaction={data.toggleReaction}
-                />
-              </div>
+              </header>
+              <MatchChat
+                messages={data.chatData}
+                chatInput={chatInput}
+                setChatInput={setChatInput}
+                onSend={handleSendMessage}
+                currentUserId={session?.user?.id ?? null}
+                reactionRowsByMessage={data.reactionRowsByMessage}
+                onToggleReaction={data.toggleReaction}
+                messagesListClassName="chat-messages-list"
+                inputAreaClassName="chat-input-area"
+              />
             </article>
           </div>
         </section>
