@@ -3,13 +3,14 @@
 /* ——— Desktop top nav ——— */
 .topbar-nav.desktop-nav {
   display: flex;
+  flex-wrap: nowrap;
   align-items: stretch;
   justify-content: center;
-  gap: 4px;
-  width: min(100%, 760px);
-  max-width: 760px;
+  gap: 3px;
+  width: max-content;
+  max-width: min(100%, 980px);
   margin-inline: auto;
-  padding: 6px;
+  padding: 5px;
   border-radius: 22px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(12, 12, 14, 0.92);
@@ -18,12 +19,12 @@
 }
 
 .topbar-nav.desktop-nav a.desktop-nav__item {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 6px;
+  min-width: 4.75rem;
+  padding: 8px 10px;
   border-radius: 14px;
   border: 1px solid transparent;
   box-sizing: border-box;
@@ -37,15 +38,16 @@
 
 .topbar-nav.desktop-nav a.desktop-nav__item .desktop-nav__label {
   display: block;
-  width: 100%;
+  width: auto;
+  max-width: none;
   text-align: center;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   line-height: 1.15;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .topbar-nav.desktop-nav a.desktop-nav__item:hover {
