@@ -21,7 +21,7 @@ import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
 import MatchChat from './components/MatchChat';
 import DashboardNotifications from './components/DashboardNotifications';
-import PredictionCloseCountdown from './components/PredictionCloseCountdown';
+import HomeDashboard from './components/HomeDashboard';
 import { ACHIEVEMENT_CATALOG, isAchievementUnlockedById, countAchievementsTotal, countAchievementsUnlocked } from './data/achievements';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
 import ProfileAchievementsStrip from './components/ProfileAchievementsStrip';
@@ -116,7 +116,7 @@ export default function App() {
   const data = useAppData(session);
 
   useEffect(() => {
-    if (activeNav === 'comunidad' && session?.user?.id) {
+    if ((activeNav === 'comunidad' || activeNav === 'inicio') && session?.user?.id) {
       void data.loadCommunityPicks?.();
       void data.loadPredictionFeeds?.();
     }
@@ -453,13 +453,6 @@ export default function App() {
   const displayUser = profile?.username ? `@${profile.username}` : '@tú';
   const displayName = profile?.name ?? 'Jugador';
   const avatarUrl = resolveAvatarUrl(profile?.photo_url);
-  const inicioPick = homeInicioPick;
-  const featured = featuredForHome;
-  const inicioMode = inicioPick?.mode ?? null;
-  const homeMatchIsLive = Boolean(featured && isMatchLive(featured));
-  const featuredMinute = formatMatchMinute(featured);
-  const inicioScoreCenter =
-    !featured ? 'VS' : inicioMode === 'upcoming' ? 'VS' : formatScoreLine(featured);
 
   const unlockedAchievementIds = data.userAchievementIds ?? [];
   const unlockedCount = countAchievementsUnlocked(unlockedAchievementIds, achievementCatalog);
@@ -558,145 +551,21 @@ export default function App() {
 
       <main className="app-shell">
         <section id="inicio" className={sectionClass('inicio', 'layout layout--dashboard')}>
-          {data.matchesLoading ? (
-            <span className="sr-only" aria-live="polite">
-              Sincronizando partidos…
-            </span>
-          ) : null}
-          {!data.matchesLoading && data.matchSyncNotice ? (
-            <p className="sync-footnote muted" role="status">
-              {data.matchSyncNotice}
-            </p>
-          ) : null}
-
-          <div className="inicio-grid">
-            <article className="phone main-phone dash-inicio pulponi-card inicio-grid__match">
-              <div className="phone-header phone-header--center">
-                <span>PRÓXIMO PARTIDO</span>
-              </div>
-              {!featured ? (
-                <div className="live-card live-card--empty inicio-empty">
-                  <span className="inicio-empty-icon" aria-hidden>
-                    ⚽
-                  </span>
-                  <p className="inicio-empty-title">Sin partidos por ahora</p>
-                  <p className="muted inicio-empty-hint">
-                    Cuando haya un partido en vivo o el próximo del calendario, aparecerá aquí.
-                  </p>
-                </div>
-              ) : (
-                <div className="live-card">
-                  <div className="row inicio-match-badges">
-                    {inicioMode === 'live' ? (
-                      <span className="live-pill">PARTIDO EN VIVO</span>
-                    ) : null}
-                    {inicioMode === 'upcoming' ? <span className="tag">PRÓXIMO PARTIDO</span> : null}
-                  </div>
-                  <div className="scoreboard">
-                    <div>
-                      <TeamLogo
-                        logo={featured.home_logo}
-                        flag={featured.home_flag}
-                        alt={featured.home_team ?? ''}
-                        size="sm"
-                      />
-                      {displayTeamName(featured.home_team) ? (
-                        <b>{displayTeamName(featured.home_team).toUpperCase()}</b>
-                      ) : null}
-                    </div>
-                    <div className="score">
-                      <strong>{inicioScoreCenter}</strong>
-                      {homeMatchIsLive && featuredMinute ? <span>{featuredMinute}</span> : null}
-                      {homeMatchIsLive || inicioMode === 'finished_fallback' ? (
-                        <span className="match-status-code">{displayMatchStatus(featured)}</span>
-                      ) : null}
-                    </div>
-                    <div>
-                      <TeamLogo
-                        logo={featured.away_logo}
-                        flag={featured.away_flag}
-                        alt={featured.away_team ?? ''}
-                        size="sm"
-                      />
-                      {displayTeamName(featured.away_team) ? (
-                        <b>{displayTeamName(featured.away_team).toUpperCase()}</b>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="match-meta center">
-                    <MatchSchedule match={featured} showGroup={false} />
-                  </div>
-                  <button type="button" className="primary full" onClick={openHighlightsModal}>
-                    Highlights
-                  </button>
-                </div>
-              )}
-            </article>
-
-            <article className="phone pulponi-card inicio-grid__countdown">
-              <div className="phone-header phone-header--center">
-                <span>CIERRE DE PREDICCIONES</span>
-              </div>
-              <PredictionCloseCountdown matches={worldCupMatches} className="inicio-countdown" />
-            </article>
-
-            <article className="phone pulponi-card inicio-grid__rank">
-              <div className="phone-header phone-header--center">
-                <span>MI POSICIÓN</span>
-              </div>
-              <div className="inicio-my-rank">
-                <p className="inicio-my-rank__pos">#{myCurrentRank ?? '—'}</p>
-                <p className="inicio-my-rank__meta">
-                  {Number(profile?.points ?? 0)} PTS · {Number(profile?.exacts ?? 0)} exactos · Racha{' '}
-                  {Number(profile?.streak ?? 0)}
-                </p>
-                <button type="button" className="inicio-my-rank__link" onClick={() => navigateToSection('ranking')}>
-                  Ver ranking completo
-                </button>
-              </div>
-            </article>
-
-            <article className="phone pulponi-card inicio-grid__top">
-              <div className="phone-header phone-header--center">
-                <span>TOP 5</span>
-              </div>
-              <RankingLeaderboard
-                rows={data.ranking ?? []}
-                currentUserId={session?.user?.id}
-                onSelectUser={openUserProfile}
-                maxRows={5}
-                compact
-              />
-            </article>
-
-            <article
-              className="phone phone--activity-feed dash-activity-feed pulponi-card inicio-grid__wide"
-              id="actividad-reciente"
-              aria-label="Actividad reciente"
-            >
-              <div className="phone-header phone-header--center phone-header--activity-feed">
-                <span>Actividad reciente</span>
-              </div>
-              <div className="activity-list activity-list--feed">
-                {data.activity.length === 0 ? (
-                  <p className="empty-state activity-empty-compact">Sin actividad reciente</p>
-                ) : (
-                  data.activity.slice(0, 5).map((item, i) => {
-                    const row = typeof item === 'string' ? { text: item, avatarUrl: resolveAvatarUrl(null) } : item;
-                    return (
-                      <div key={i} className="activity-row activity-row--feed">
-                        <UserAvatar avatarUrl={row.avatarUrl} className="avatar-frame--xs" alt="" />
-                        <span>
-                          🔥{row.text}
-                          <small>Hace {i + 1} min</small>
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </article>
-          </div>
+          <HomeDashboard
+            session={session}
+            matches={worldCupMatches}
+            ranking={data.ranking ?? []}
+            profile={profile}
+            myCurrentRank={myCurrentRank}
+            predictionActivityFeed={data.predictionActivityFeed ?? []}
+            communityPickProfiles={data.communityPickProfiles ?? []}
+            matchesLoading={data.matchesLoading}
+            matchSyncNotice={data.matchSyncNotice}
+            onMakePrediction={() => navigateToSection('partidos')}
+            onViewRanking={() => navigateToSection('ranking')}
+            onViewCommunity={() => navigateToSection('comunidad')}
+            onSelectUser={openUserProfile}
+          />
         </section>
 
         <section id="partidos" className={sectionClass('partidos', 'panel')}>
