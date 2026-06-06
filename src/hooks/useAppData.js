@@ -663,8 +663,9 @@ export function useAppData(session) {
   }, [userId, applyMatchRow]);
 
   async function savePick(matchId, homePick, awayPick, advancesTeam = null) {
-    if (!userId) return;
+    if (!userId) return { ok: false, error: 'Sin sesión' };
     const prevPick = picks[matchId];
+    const hadPick = prevPick != null;
     const nowIso = new Date().toISOString();
     const entry = {
       home_pick: homePick,
@@ -684,15 +685,13 @@ export function useAppData(session) {
         saved = true;
       }
       console.warn('picks column may need ALTER TABLE:', error.message);
+      if (!saved) return { ok: false, error: error.message ?? 'No se pudo guardar' };
     } else {
       setPicks(nextPicks);
       saved = true;
     }
 
-    if (!saved) return;
-
     const m = matches.find((x) => x.id === matchId);
-    const hadPick = picks[matchId] != null;
     const pickAction = hadPick ? 'updated' : 'created';
     const actionType = hadPick ? 'prediction_updated' : 'prediction_created';
     const displayName = formatActivityDisplayName(profile);
@@ -714,6 +713,7 @@ export function useAppData(session) {
     });
     void loadPredictionFeedsRef.current();
     void loadCommunityPicks();
+    return { ok: true, isUpdate: hadPick };
   }
 
   async function sendComment(body, matchId) {

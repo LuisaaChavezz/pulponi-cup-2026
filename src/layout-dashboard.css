@@ -2120,6 +2120,40 @@
   margin-top: 8px;
 }
 
+.pick-submit-wrap {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pick-submit-btn:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.pick-save-feedback {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.pick-save-feedback--success {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.pick-save-feedback--error {
+  color: #fecaca;
+  background: rgba(255, 30, 39, 0.1);
+  border: 1px solid rgba(255, 30, 39, 0.45);
+}
+
 .match-card .pulponi-social--thermo {
   margin-top: 8px;
 }

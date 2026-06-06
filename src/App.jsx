@@ -116,6 +116,9 @@ export default function App() {
 
   const exportCardRef = useRef(null);
   const matchesRef = useRef([]);
+  const pickFeedbackTimersRef = useRef({});
+
+  const [pickSaveFeedback, setPickSaveFeedback] = useState({});
 
   const data = useAppData(session);
   const kickoffNow = useKickoffClock();
@@ -158,6 +161,36 @@ export default function App() {
   useEffect(() => {
     matchesRef.current = worldCupMatches;
   }, [worldCupMatches]);
+
+  useEffect(
+    () => () => {
+      Object.values(pickFeedbackTimersRef.current).forEach((id) => window.clearTimeout(id));
+    },
+    []
+  );
+
+  function clearPickFeedbackTimer(matchId) {
+    const timerId = pickFeedbackTimersRef.current[matchId];
+    if (timerId) {
+      window.clearTimeout(timerId);
+      delete pickFeedbackTimersRef.current[matchId];
+    }
+  }
+
+  function setPickFeedback(matchId, feedback) {
+    clearPickFeedbackTimer(matchId);
+    setPickSaveFeedback((prev) => ({ ...prev, [matchId]: feedback }));
+    if (feedback?.type === 'success' || feedback?.type === 'error') {
+      pickFeedbackTimersRef.current[matchId] = window.setTimeout(() => {
+        setPickSaveFeedback((prev) => {
+          const next = { ...prev };
+          delete next[matchId];
+          return next;
+        });
+        delete pickFeedbackTimersRef.current[matchId];
+      }, 3000);
+    }
+  }
 
   useEffect(() => {
     supabase.auth
@@ -299,10 +332,36 @@ export default function App() {
   }
 
   async function submitPick(match) {
-    const draft = pickDrafts[match.id] ?? {};
-    const home = Number(draft.home ?? data.picks[match.id]?.home_pick ?? 0);
-    const away = Number(draft.away ?? data.picks[match.id]?.away_pick ?? 0);
-    await data.savePick(match.id, home, away, draft.advances ?? data.picks[match.id]?.advances_team);
+    const matchId = match.id;
+    const hadPick = data.picks[matchId] != null;
+    setPickFeedback(matchId, { type: 'saving' });
+    try {
+      const draft = pickDrafts[matchId] ?? {};
+      const home = Number(draft.home ?? data.picks[matchId]?.home_pick ?? 0);
+      const away = Number(draft.away ?? data.picks[matchId]?.away_pick ?? 0);
+      const result = await data.savePick(
+        matchId,
+        home,
+        away,
+        draft.advances ?? data.picks[matchId]?.advances_team
+      );
+      if (result?.ok) {
+        setPickFeedback(matchId, {
+          type: 'success',
+          message: result.isUpdate || hadPick ? 'Predicción actualizada ✅' : 'Predicción registrada ✅',
+        });
+      } else {
+        setPickFeedback(matchId, {
+          type: 'error',
+          message: 'No se pudo guardar la predicción. Intenta de nuevo.',
+        });
+      }
+    } catch {
+      setPickFeedback(matchId, {
+        type: 'error',
+        message: 'No se pudo guardar la predicción. Intenta de nuevo.',
+      });
+    }
   }
 
   function fillDemo() {
@@ -914,6 +973,9 @@ export default function App() {
               const status = displayMatchStatus(m);
               const finalLabel = finalScoreLabel(m);
               const communityScores = collectMatchPickScores(data.communityPickProfiles, m.id);
+              const pickFeedback = pickSaveFeedback[m.id];
+              const pickSaving = pickFeedback?.type === 'saving';
+              const hasSavedPick = pick != null;
               return (
                 <article key={m.id} className="match-card">
                   <header>
@@ -1007,14 +1069,28 @@ export default function App() {
                       {status === 'Final' ? 'Predicción cerrada · Resultado final' : 'Predicción cerrada'}
                     </p>
                   ) : (
-                    <button
-                      type="button"
-                      className="primary full"
-                      style={{ marginTop: 10 }}
-                      onClick={() => submitPick(m)}
-                    >
-                      Enviar resultado
-                    </button>
+                    <div className="pick-submit-wrap">
+                      <button
+                        type="button"
+                        className="primary full pick-submit-btn"
+                        disabled={pickSaving}
+                        onClick={() => submitPick(m)}
+                      >
+                        {pickSaving
+                          ? 'Guardando...'
+                          : hasSavedPick
+                            ? 'Actualizar predicción'
+                            : 'Enviar predicción'}
+                      </button>
+                      {pickFeedback?.message ? (
+                        <p
+                          className={`pick-save-feedback pick-save-feedback--${pickFeedback.type}`}
+                          role={pickFeedback.type === 'error' ? 'alert' : 'status'}
+                        >
+                          {pickFeedback.message}
+                        </p>
+                      ) : null}
+                    </div>
                   )}
                 </article>
               );
