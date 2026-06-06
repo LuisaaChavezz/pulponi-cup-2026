@@ -5,11 +5,26 @@ function formatUsername(row) {
   return String(raw).replace(/^@+/, '').trim() || 'jugador';
 }
 
-export default function RankingLeaderboard({ rows = [], currentUserId, onSelectUser }) {
+export default function RankingLeaderboard({
+  rows = [],
+  currentUserId,
+  onSelectUser,
+  maxRows = null,
+  compact = false,
+}) {
   const list = rows ?? [];
+  const visible = maxRows != null && maxRows > 0 ? list.slice(0, maxRows) : list;
 
   return (
-    <div className="ranking-leaderboard ranking-table">
+    <div
+      className={[
+        'ranking-leaderboard',
+        'ranking-table',
+        compact ? 'ranking-leaderboard--compact' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <div className="ranking-leaderboard__head rank-head">
         <span>#</span>
         <span>Usuario</span>
@@ -19,10 +34,10 @@ export default function RankingLeaderboard({ rows = [], currentUserId, onSelectU
       </div>
 
       <div className="ranking-leaderboard__list">
-        {list.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="empty-state ranking-leaderboard__empty">Aún no hay jugadores en el ranking</div>
         ) : (
-          list.map((r, i) => {
+          visible.map((r, i) => {
             const username = formatUsername(r);
             const points = Number(r.points ?? 0);
             const exacts = Number(r.exacts ?? 0);

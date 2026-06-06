@@ -9,15 +9,10 @@ import {
   displayMatchStatus,
   displayTeamName,
   finalScoreLabel,
-  formatMatchDate,
   formatMatchMinute,
-  formatMatchTime,
   formatScoreLine,
-  formatVenue,
-  formatVenueCity,
   isMatchLive,
   isPickLocked,
-  listCarouselUpcomingMatches,
   pickInicioMatch,
 } from './lib/matchUtils';
 import { filterWorldCupMatches } from './lib/worldCupScope';
@@ -26,8 +21,8 @@ import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
 import MatchChat from './components/MatchChat';
 import DashboardNotifications from './components/DashboardNotifications';
+import PredictionCloseCountdown from './components/PredictionCloseCountdown';
 import { ACHIEVEMENT_CATALOG, isAchievementUnlockedById, countAchievementsTotal, countAchievementsUnlocked } from './data/achievements';
-import AchievementCard from './components/AchievementCard';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
 import ProfileAchievementsStrip from './components/ProfileAchievementsStrip';
 import UserPublicProfile from './components/UserPublicProfile';
@@ -51,7 +46,6 @@ import RankingLeaderboard from './components/RankingLeaderboard';
 import PulpoIndexCard from './components/PulpoIndexCard';
 import MatchCommunityPrediction from './components/MatchCommunityPrediction';
 import { collectMatchPickScores } from './lib/communityPicks';
-import { useKickoffClock } from './hooks/useKickoffClock';
 import { normalizeStoredHighlightList } from './lib/highlightsMapper';
 import { pullAndPersistHighlightEvents } from './lib/matchHighlightSync';
 
@@ -59,7 +53,7 @@ const NAV = [
   { id: 'inicio', icon: '⌂', label: 'Inicio' },
   { id: 'partidos', icon: '⚽', label: 'Partidos' },
   { id: 'ranking', icon: '🏆', label: 'Ranking' },
-  { id: 'chat', icon: '💬', label: 'Chat' },
+  { id: 'comunidad', icon: '💬', label: 'Comunidad' },
   { id: 'perfil', icon: '●', label: 'Perfil' },
   { id: 'reglas', icon: '📋', label: 'Reglas' },
 ];
@@ -103,7 +97,6 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [activeNav, setActiveNav] = useState('inicio');
   const [chatInput, setChatInput] = useState('');
-  const [chatTab, setChatTab] = useState('chat');
 
   const [pickDrafts, setPickDrafts] = useState({});
   const [profileEdit, setProfileEdit] = useState(false);
@@ -121,14 +114,13 @@ export default function App() {
   const [pickSaveFeedback, setPickSaveFeedback] = useState({});
 
   const data = useAppData(session);
-  const kickoffNow = useKickoffClock();
 
   useEffect(() => {
-    if (chatTab === 'avisos' && session?.user?.id) {
+    if (activeNav === 'comunidad' && session?.user?.id) {
       void data.loadCommunityPicks?.();
       void data.loadPredictionFeeds?.();
     }
-  }, [chatTab, session?.user?.id, data.loadCommunityPicks, data.loadPredictionFeeds]);
+  }, [activeNav, session?.user?.id, data.loadCommunityPicks, data.loadPredictionFeeds]);
 
   const worldCupMatches = useMemo(
     () => filterWorldCupMatches(data.matches ?? []),
@@ -220,27 +212,6 @@ export default function App() {
     }
   }, [data.profile]);
 
-  const upcomingCarouselMatches = useMemo(
-    () => listCarouselUpcomingMatches(worldCupMatches),
-    [worldCupMatches]
-  );
-
-  const [upcomingSlideIx, setUpcomingSlideIx] = useState(0);
-
-  useEffect(() => {
-    const n = upcomingCarouselMatches.length;
-    setUpcomingSlideIx((x) => (n === 0 ? 0 : Math.min(x, n - 1)));
-  }, [upcomingCarouselMatches]);
-
-  useEffect(() => {
-    const n = upcomingCarouselMatches.length;
-    if (n <= 1) return undefined;
-    const id = window.setInterval(() => {
-      setUpcomingSlideIx((i) => (i + 1) % n);
-    }, 5000);
-    return () => window.clearInterval(id);
-  }, [upcomingCarouselMatches]);
-
   const homeInicioPick = useMemo(() => pickInicioMatch(worldCupMatches), [worldCupMatches]);
   const featuredForHome = homeInicioPick?.match ?? null;
 
@@ -312,9 +283,9 @@ export default function App() {
     };
   }, [hlState.open, hlState.match?.id, hlState.upcoming, data.applyMatchRow]);
 
-  function scrollToSection(id) {
+  function navigateToSection(id) {
     setActiveNav(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function copyInvite() {
@@ -490,15 +461,6 @@ export default function App() {
   const inicioScoreCenter =
     !featured ? 'VS' : inicioMode === 'upcoming' ? 'VS' : formatScoreLine(featured);
 
-  const proximosSlideMatch =
-    upcomingCarouselMatches.length > 0
-      ? upcomingCarouselMatches[Math.min(upcomingSlideIx, upcomingCarouselMatches.length - 1)]
-      : null;
-  const proximosActiveIx =
-    upcomingCarouselMatches.length > 0
-      ? Math.min(upcomingSlideIx, upcomingCarouselMatches.length - 1)
-      : 0;
-
   const unlockedAchievementIds = data.userAchievementIds ?? [];
   const unlockedCount = countAchievementsUnlocked(unlockedAchievementIds, achievementCatalog);
   const achievementsTotal = countAchievementsTotal(achievementCatalog);
@@ -524,15 +486,17 @@ export default function App() {
   function openUserProfile(profileId) {
     if (!profileId) return;
     setViewProfileId(profileId);
-    setActiveNav('usuario');
-    window.setTimeout(() => {
-      document.getElementById('usuario')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
+    setActiveNav('ranking');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function closeUserProfile() {
     setViewProfileId(null);
     setActiveNav('ranking');
+  }
+
+  function sectionClass(id, extra = '') {
+    return `app-section${extra ? ` ${extra}` : ''}${activeNav === id ? ' is-active' : ''}`;
   }
 
   return (
@@ -550,7 +514,7 @@ export default function App() {
           className="topbar-brand"
           onClick={(e) => {
             e.preventDefault();
-            scrollToSection('inicio');
+            navigateToSection('inicio');
           }}
         >
           <img src="/avatars/pulponi-neon.png" alt="Pulponi Cup" className="topbar-brand__logo" width={36} height={36} />
@@ -567,7 +531,7 @@ export default function App() {
               className={activeNav === n.id ? 'active' : ''}
               onClick={(e) => {
                 e.preventDefault();
-                scrollToSection(n.id);
+                navigateToSection(n.id);
               }}
             >
               {n.label}
@@ -575,10 +539,16 @@ export default function App() {
           ))}
         </nav>
         <div className="topbar-user">
+          <button type="button" className="topbar-logout-btn" onClick={copyInvite}>
+            Invitar
+          </button>
+          <button type="button" className="topbar-logout-btn" onClick={handleLogout}>
+            Salir
+          </button>
           <button
             type="button"
             className="topbar-avatar-btn"
-            onClick={() => scrollToSection('perfil')}
+            onClick={() => navigateToSection('perfil')}
             aria-label="Ir a perfil"
           >
             <UserAvatar avatarUrl={avatarUrl} className="avatar-frame--sm" alt="" />
@@ -586,57 +556,23 @@ export default function App() {
         </div>
       </header>
 
-      <section className="hero-premium hero-premium--compact dashboard-hero" id="hero-premium">
-        <div className="hero-premium__inner">
-          <div className="hero-premium__head">
-            <div className="hero-premium__copy">
-              <span className="eyebrow">COMPITE • COMENTA • DISFRUTA</span>
-              <h2 className="hero-premium__title">VIVE EL MUNDIAL COMO NUNCA.</h2>
-              <p className="hero-premium__lead">
-                Predicciones visibles, ranking en vivo, chat, logros y modo live match.
-              </p>
-            </div>
-            <div className="hero-premium__logo-wrap">
-              <img
-                src="/avatars/pulponi-neon.png"
-                alt="Pulponi"
-                className="hero-premium__logo"
-                width={440}
-                height={440}
-                decoding="async"
-              />
-            </div>
-          </div>
-          <div className="hero-premium__actions">
-            <button type="button" className="primary" onClick={() => scrollToSection('partidos')}>
-              Enviar tus resultados
-            </button>
-            <button type="button" onClick={copyInvite}>
-              Copiar link privado
-            </button>
-            <button type="button" onClick={handleLogout}>
-              Salir
-            </button>
-          </div>
-        </div>
-      </section>
+      <main className="app-shell">
+        <section id="inicio" className={sectionClass('inicio', 'layout layout--dashboard')}>
+          {data.matchesLoading ? (
+            <span className="sr-only" aria-live="polite">
+              Sincronizando partidos…
+            </span>
+          ) : null}
+          {!data.matchesLoading && data.matchSyncNotice ? (
+            <p className="sync-footnote muted" role="status">
+              {data.matchSyncNotice}
+            </p>
+          ) : null}
 
-      <main id="inicio" className="layout layout--dashboard">
-        {data.matchesLoading ? (
-          <span className="sr-only" aria-live="polite">
-            Sincronizando partidos…
-          </span>
-        ) : null}
-        {!data.matchesLoading && data.matchSyncNotice ? (
-          <p className="sync-footnote muted" role="status">
-            {data.matchSyncNotice}
-          </p>
-        ) : null}
-        <section className="dashboard-shell dashboard-shell--premium">
-          <div className="dashboard-col-left">
-            <article className="phone main-phone dash-inicio pulponi-card">
+          <div className="inicio-grid">
+            <article className="phone main-phone dash-inicio pulponi-card inicio-grid__match">
               <div className="phone-header phone-header--center">
-                <span>INICIO</span>
+                <span>PRÓXIMO PARTIDO</span>
               </div>
               {!featured ? (
                 <div className="live-card live-card--empty inicio-empty">
@@ -697,8 +633,44 @@ export default function App() {
               )}
             </article>
 
+            <article className="phone pulponi-card inicio-grid__countdown">
+              <div className="phone-header phone-header--center">
+                <span>CIERRE DE PREDICCIONES</span>
+              </div>
+              <PredictionCloseCountdown matches={worldCupMatches} className="inicio-countdown" />
+            </article>
+
+            <article className="phone pulponi-card inicio-grid__rank">
+              <div className="phone-header phone-header--center">
+                <span>MI POSICIÓN</span>
+              </div>
+              <div className="inicio-my-rank">
+                <p className="inicio-my-rank__pos">#{myCurrentRank ?? '—'}</p>
+                <p className="inicio-my-rank__meta">
+                  {Number(profile?.points ?? 0)} PTS · {Number(profile?.exacts ?? 0)} exactos · Racha{' '}
+                  {Number(profile?.streak ?? 0)}
+                </p>
+                <button type="button" className="inicio-my-rank__link" onClick={() => navigateToSection('ranking')}>
+                  Ver ranking completo
+                </button>
+              </div>
+            </article>
+
+            <article className="phone pulponi-card inicio-grid__top">
+              <div className="phone-header phone-header--center">
+                <span>TOP 5</span>
+              </div>
+              <RankingLeaderboard
+                rows={data.ranking ?? []}
+                currentUserId={session?.user?.id}
+                onSelectUser={openUserProfile}
+                maxRows={5}
+                compact
+              />
+            </article>
+
             <article
-              className="phone phone--activity-feed dash-activity-feed pulponi-card"
+              className="phone phone--activity-feed dash-activity-feed pulponi-card inicio-grid__wide"
               id="actividad-reciente"
               aria-label="Actividad reciente"
             >
@@ -725,228 +697,9 @@ export default function App() {
               </div>
             </article>
           </div>
-
-          <article
-            id="partidoLive"
-            className="phone phone--proximos phone--proximos-hero dash-proximos pulponi-card"
-          >
-            <div className="phone-header phone-header--center phone-header--proximos">
-              <span>PRÓXIMOS PARTIDOS</span>
-            </div>
-            {upcomingCarouselMatches.length === 0 ? (
-              <div className="upcoming-carousel-empty">
-                <p>No hay próximos partidos todavía.</p>
-              </div>
-            ) : (
-              <div className="upcoming-carousel">
-                <div
-                  key={
-                    proximosSlideMatch?.id != null
-                      ? String(proximosSlideMatch.id)
-                      : `proximos-${upcomingSlideIx}`
-                  }
-                  className="upcoming-carousel-slide"
-                >
-                  <div className="upcoming-carousel-top">
-                    <span className="upcoming-carousel-badge">Próximo</span>
-                  </div>
-                  <div className="match-teams">
-                    <div className="match-team-cell">
-                      <TeamLogo
-                        logo={proximosSlideMatch.home_logo}
-                        flag={proximosSlideMatch.home_flag}
-                        alt={proximosSlideMatch.home_team ?? ''}
-                        size="sm"
-                      />
-                      {displayTeamName(proximosSlideMatch.home_team) ? (
-                        <span className="match-team-name">{proximosSlideMatch.home_team}</span>
-                      ) : null}
-                    </div>
-                    <strong className="match-score-center upcoming-carousel-vs">VS</strong>
-                    <div className="match-team-cell">
-                      <TeamLogo
-                        logo={proximosSlideMatch.away_logo}
-                        flag={proximosSlideMatch.away_flag}
-                        alt={proximosSlideMatch.away_team ?? ''}
-                        size="sm"
-                      />
-                      {displayTeamName(proximosSlideMatch.away_team) ? (
-                        <span className="match-team-name">{proximosSlideMatch.away_team}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="upcoming-carousel-meta">
-                    {formatMatchDate(proximosSlideMatch.kickoff) ? (
-                      <p className="upcoming-carousel-date">{formatMatchDate(proximosSlideMatch.kickoff)}</p>
-                    ) : null}
-                    {formatMatchTime(proximosSlideMatch.kickoff) ? (
-                      <p className="upcoming-carousel-time">{formatMatchTime(proximosSlideMatch.kickoff)}</p>
-                    ) : null}
-                    {formatVenue(proximosSlideMatch) ? (
-                      <p className="upcoming-carousel-venue">{formatVenue(proximosSlideMatch)}</p>
-                    ) : null}
-                    {formatVenueCity(proximosSlideMatch) ? (
-                      <p className="upcoming-carousel-city">{formatVenueCity(proximosSlideMatch)}</p>
-                    ) : null}
-                  </div>
-                </div>
-                {upcomingCarouselMatches.length > 1 ? (
-                  <div className="upcoming-carousel-dots" aria-hidden>
-                    {upcomingCarouselMatches.map((m, i) => (
-                      <span key={String(m.id ?? i)} className={i === proximosActiveIx ? 'is-active' : ''} />
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </article>
-
-          <RankingMovement session={session} className="dash-ranking pulponi-card" />
-
-          <article className="phone phone--chat-wide dash-chat pulponi-card" id="chat">
-            <div className="phone-header">
-              <span>{chatTab === 'avisos' ? 'MENSAJES IMPORTANTES' : 'CHAT DEL PARTIDO'}</span>
-              <small>{(data.ranking ?? []).length} miembros</small>
-            </div>
-            <div className="tabs">
-              <button type="button" className={chatTab === 'chat' ? 'active' : ''} onClick={() => setChatTab('chat')}>
-                Chat
-              </button>
-              <button
-                type="button"
-                className={chatTab === 'avisos' ? 'active' : ''}
-                onClick={() => setChatTab('avisos')}
-              >
-                Mensajes importantes
-              </button>
-            </div>
-            {chatTab === 'chat' ? (
-              <MatchChat
-                messages={data.chatData}
-                chatInput={chatInput}
-                setChatInput={setChatInput}
-                onSend={handleSendMessage}
-                currentUserId={session?.user?.id ?? null}
-                reactionRowsByMessage={data.reactionRowsByMessage}
-                onToggleReaction={data.toggleReaction}
-              />
-            ) : (
-              <div className="chat-list chat-list--notifications">
-                <DashboardNotifications
-                  importantAlerts={data.events ?? []}
-                  predictionActivityFeed={data.predictionActivityFeed ?? []}
-                  predictionActivityLog={data.predictionActivityLog ?? []}
-                  matches={worldCupMatches ?? []}
-                  communityPickProfiles={data.communityPickProfiles ?? []}
-                  isAdmin={Boolean(data.profile?.is_admin)}
-                  onCreateImportantAlert={data.createEvent}
-                />
-              </div>
-            )}
-          </article>
-
-          <article className="phone dash-perfil dash-profile pulponi-card profile-page" id="perfil">
-            <div className="phone-header">
-              <span>PERFIL</span>
-              <button type="button" onClick={() => setProfileEdit(!profileEdit)} aria-label="Ajustes">
-                <Settings size={16} />
-              </button>
-            </div>
-
-            <div className="profile-page__body">
-              <Profile
-                avatarUrl={avatarUrl}
-                username={profile?.username ?? displayUser.replace('@', '')}
-                displayName={displayName}
-                rank={myCurrentRank}
-                points={profile?.points ?? 0}
-                exacts={profile?.exacts ?? 0}
-                pulpoIndex={myPulpoIndex}
-                streak={profile?.streak ?? 0}
-                verified
-                uploadLabel="Subir foto"
-                onUpload={handleAvatarUpload}
-              />
-
-              {profileEdit ? (
-                <ProfilePageCard title="Editar perfil" className="profile-page-card--edit">
-                  <div className="profile-page__edit">
-                    <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nombre" />
-                    <input
-                      value={editUsername}
-                      onChange={(e) => setEditUsername(e.target.value)}
-                      placeholder="Username"
-                    />
-                    <button type="button" className="primary" onClick={handleSaveProfile}>
-                      Guardar cambios
-                    </button>
-                  </div>
-                </ProfilePageCard>
-              ) : null}
-
-              <div className="profile-page__cards profile-page__cards--own">
-                <ProfilePageCard title="Índice Pulpo">
-                  <PulpoIndexCard
-                    profile={profile}
-                    picks={data.picks}
-                    matches={worldCupMatches}
-                    communityPickProfiles={data.communityPickProfiles}
-                    userId={session?.user?.id}
-                  />
-                </ProfilePageCard>
-
-                <ProfilePageCard title="Tu ranking">
-                  <ProfileRankingSummary userId={session?.user?.id} />
-                </ProfilePageCard>
-
-                <ProfilePageCard title="Estadísticas">
-                  <ProfileStatsGrid stats={myProfileExtras.stats} />
-                </ProfilePageCard>
-
-                <ProfilePageCard
-                  title="Historial de predicciones"
-                  className="profile-page-card--predictions-history"
-                >
-                  <ProfilePickHistory rows={myProfileExtras.pickHistory} />
-                </ProfilePageCard>
-
-                <ProfilePageCard
-                  title="Badges"
-                  meta={`${unlockedCount} / ${achievementsTotal}`}
-                >
-                  <ProfileAchievementsStrip
-                    unlockedIds={unlockedAchievementIds}
-                    catalog={achievementCatalog}
-                    onViewAll={() => openUserProfile(session.user.id)}
-                  />
-                  <ProfileBadgesList badges={myBadges} />
-                </ProfilePageCard>
-
-                {SHOW_PROFILE_ACTIVITY ? (
-                  <ProfilePageCard title="Actividad reciente">
-                    <ProfileActivityList
-                      items={
-                        myProfileExtras.activity?.length
-                          ? myProfileExtras.activity
-                          : (data.activity ?? []).map((row, i) => ({
-                              id: `feed-${i}`,
-                              text: row.text,
-                              at: null,
-                            }))
-                      }
-                    />
-                  </ProfilePageCard>
-                ) : null}
-
-                <ProfilePageCard title="Elegir avatar" className="profile-page-card--avatars">
-                  <AvatarSelector currentPhotoUrl={profile?.photo_url} onSelect={handleSelectPreset} />
-                </ProfilePageCard>
-              </div>
-            </div>
-          </article>
         </section>
 
-        <section id="partidos" className="panel">
+        <section id="partidos" className={sectionClass('partidos', 'panel')}>
           <div className="section-title">
             <div>
               <span className="eyebrow">Predicciones</span>
@@ -1098,83 +851,200 @@ export default function App() {
           </div>
         </section>
 
-        <section id="usuario" className="panel panel--social-profile">
-          <div className="section-title">
-            <div>
-              <span className="eyebrow">Comunidad</span>
-              <h2>Perfil de jugador</h2>
-            </div>
-          </div>
+        <section id="ranking" className={sectionClass('ranking', 'panel')}>
           {viewProfileId ? (
             <UserPublicProfile
               data={publicProfile.data}
               loading={publicProfile.loading}
               error={publicProfile.error}
               isOwnProfile={viewProfileId === session.user.id}
-              onEditProfile={() => scrollToSection('perfil')}
+              onEditProfile={() => navigateToSection('perfil')}
               onBack={closeUserProfile}
               achievementsTotal={achievementsTotal}
             />
           ) : (
-            <div className="social-profile social-profile--empty pulponi-card">
-              <p className="social-profile__muted">
-                Toca un usuario en el ranking para ver su perfil público, stats, historial y badges.
-              </p>
-            </div>
+            <>
+              <div className="section-title">
+                <div>
+                  <span className="eyebrow">Leaderboard</span>
+                  <h2>Ranking</h2>
+                  <p className="section-lead muted">
+                    Toca un jugador para abrir su perfil público. Exactos, rachas e Índice Pulpo incluidos.
+                  </p>
+                </div>
+                <div className="export-actions">
+                  <button type="button" onClick={() => exportResults('png')}>
+                    Exportar PNG
+                  </button>
+                  <button type="button" onClick={() => exportResults('jpeg')}>
+                    Exportar JPEG
+                  </button>
+                  <button type="button" onClick={() => exportResults('pdf')}>
+                    Exportar PDF
+                  </button>
+                </div>
+              </div>
+              <RankingLeaderboard
+                rows={data.ranking ?? []}
+                currentUserId={session?.user?.id}
+                onSelectUser={openUserProfile}
+              />
+              <RankingMovement session={session} className="dash-ranking pulponi-card ranking-section-movement" />
+              <article className="phone pulponi-card ranking-section-pulpo">
+                <div className="phone-header phone-header--center">
+                  <span>ÍNDICE PULPO</span>
+                </div>
+                <PulpoIndexCard
+                  profile={profile}
+                  picks={data.picks}
+                  matches={worldCupMatches}
+                  communityPickProfiles={data.communityPickProfiles}
+                  userId={session?.user?.id}
+                />
+              </article>
+            </>
           )}
         </section>
 
-        <section id="ranking" className="panel">
+        <section id="comunidad" className={sectionClass('comunidad', 'panel')}>
           <div className="section-title">
             <div>
-              <span className="eyebrow">Leaderboard</span>
-              <h2>Ranking general</h2>
-            </div>
-            <div className="export-actions">
-              <button type="button" onClick={() => exportResults('png')}>
-                Exportar PNG
-              </button>
-              <button type="button" onClick={() => exportResults('jpeg')}>
-                Exportar JPEG
-              </button>
-              <button type="button" onClick={() => exportResults('pdf')}>
-                Exportar PDF
-              </button>
+              <span className="eyebrow">Comunidad</span>
+              <h2>Comunidad Pulponi</h2>
             </div>
           </div>
-          <RankingLeaderboard
-            rows={data.ranking ?? []}
-            currentUserId={session?.user?.id}
-            onSelectUser={openUserProfile}
-          />
-        </section>
-
-        <section id="logros" className="panel">
-          <div className="section-title">
-            <div>
-              <span className="eyebrow">Badges Pulponi</span>
-              <h2>Mis logros</h2>
-              <p className="achievements-summary">
-                Logros desbloqueados:{' '}
-                <strong>
-                  {unlockedCount} / {achievementsTotal}
-                </strong>
-              </p>
-            </div>
-          </div>
-          <div className="achievements-grid">
-            {achievementCatalog.map((achievement) => (
-              <AchievementCard
-                key={achievement.id}
-                achievement={achievement}
-                unlocked={isAchievementUnlockedById(unlockedAchievementIds, achievement.id)}
-                personal
+          <div className="comunidad-shell">
+            <article className="phone pulponi-card phone--notifications comunidad-notifications">
+              <div className="chat-list chat-list--notifications">
+                <DashboardNotifications
+                  importantAlerts={data.events ?? []}
+                  predictionActivityFeed={data.predictionActivityFeed ?? []}
+                  predictionActivityLog={data.predictionActivityLog ?? []}
+                  matches={worldCupMatches ?? []}
+                  communityPickProfiles={data.communityPickProfiles ?? []}
+                  isAdmin={Boolean(data.profile?.is_admin)}
+                  onCreateImportantAlert={data.createEvent}
+                />
+              </div>
+            </article>
+            <article className="phone phone--chat-wide dash-chat pulponi-card comunidad-chat">
+              <div className="phone-header">
+                <span>CHAT DEL PARTIDO</span>
+                <small>{(data.ranking ?? []).length} miembros</small>
+              </div>
+              <MatchChat
+                messages={data.chatData}
+                chatInput={chatInput}
+                setChatInput={setChatInput}
+                onSend={handleSendMessage}
+                currentUserId={session?.user?.id ?? null}
+                reactionRowsByMessage={data.reactionRowsByMessage}
+                onToggleReaction={data.toggleReaction}
               />
-            ))}
+            </article>
           </div>
         </section>
 
-        <section id="reglas" className="panel">
+        <section id="perfil" className={sectionClass('perfil', 'panel')}>
+          <article className="phone dash-perfil dash-profile pulponi-card profile-page">
+            <div className="phone-header">
+              <span>PERFIL</span>
+              <button type="button" onClick={() => setProfileEdit(!profileEdit)} aria-label="Ajustes">
+                <Settings size={16} />
+              </button>
+            </div>
+
+            <div className="profile-page__body">
+              <Profile
+                avatarUrl={avatarUrl}
+                username={profile?.username ?? displayUser.replace('@', '')}
+                displayName={displayName}
+                rank={myCurrentRank}
+                points={profile?.points ?? 0}
+                exacts={profile?.exacts ?? 0}
+                pulpoIndex={myPulpoIndex}
+                streak={profile?.streak ?? 0}
+                verified
+                uploadLabel="Subir foto"
+                onUpload={handleAvatarUpload}
+              />
+
+              {profileEdit ? (
+                <ProfilePageCard title="Editar perfil" className="profile-page-card--edit">
+                  <div className="profile-page__edit">
+                    <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nombre" />
+                    <input
+                      value={editUsername}
+                      onChange={(e) => setEditUsername(e.target.value)}
+                      placeholder="Username"
+                    />
+                    <button type="button" className="primary" onClick={handleSaveProfile}>
+                      Guardar cambios
+                    </button>
+                  </div>
+                </ProfilePageCard>
+              ) : null}
+
+              <div className="profile-page__cards profile-page__cards--own">
+                <ProfilePageCard title="Índice Pulpo">
+                  <PulpoIndexCard
+                    profile={profile}
+                    picks={data.picks}
+                    matches={worldCupMatches}
+                    communityPickProfiles={data.communityPickProfiles}
+                    userId={session?.user?.id}
+                  />
+                </ProfilePageCard>
+
+                <ProfilePageCard title="Tu ranking">
+                  <ProfileRankingSummary userId={session?.user?.id} />
+                </ProfilePageCard>
+
+                <ProfilePageCard title="Estadísticas">
+                  <ProfileStatsGrid stats={myProfileExtras.stats} />
+                </ProfilePageCard>
+
+                <ProfilePageCard
+                  title="Historial de predicciones"
+                  className="profile-page-card--predictions-history"
+                >
+                  <ProfilePickHistory rows={myProfileExtras.pickHistory} />
+                </ProfilePageCard>
+
+                <ProfilePageCard title="Badges" meta={`${unlockedCount} / ${achievementsTotal}`}>
+                  <ProfileAchievementsStrip
+                    unlockedIds={unlockedAchievementIds}
+                    catalog={achievementCatalog}
+                    onViewAll={() => openUserProfile(session.user.id)}
+                  />
+                  <ProfileBadgesList badges={myBadges} />
+                </ProfilePageCard>
+
+                {SHOW_PROFILE_ACTIVITY ? (
+                  <ProfilePageCard title="Actividad reciente">
+                    <ProfileActivityList
+                      items={
+                        myProfileExtras.activity?.length
+                          ? myProfileExtras.activity
+                          : (data.activity ?? []).map((row, i) => ({
+                              id: `feed-${i}`,
+                              text: row.text,
+                              at: null,
+                            }))
+                      }
+                    />
+                  </ProfilePageCard>
+                ) : null}
+
+                <ProfilePageCard title="Elegir avatar" className="profile-page-card--avatars">
+                  <AvatarSelector currentPhotoUrl={profile?.photo_url} onSelect={handleSelectPreset} />
+                </ProfilePageCard>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section id="reglas" className={sectionClass('reglas', 'panel')}>
           <div className="section-title">
             <div>
               <span className="eyebrow">Oficial</span>
@@ -1183,11 +1053,19 @@ export default function App() {
           </div>
           <div className="rules-accordion">
             <details open>
-              <summary>Puntos</summary>
+              <summary>Sistema de puntos</summary>
               <p>Marcador exacto (90&apos; + compensación): 3 puntos. Resultado correcto (ganador o empate): 1 punto. Sin predicción: 0 puntos.</p>
             </details>
             <details>
-              <summary>Penales</summary>
+              <summary>Cómo funciona la quiniela</summary>
+              <p>
+                Antes de cada kickoff elige el marcador al 90&apos; (+ compensación). Solo cuenta el tiempo
+                regular: tiempos extra y penales no cambian tu pick de marcador. En eliminatorias puedes
+                indicar quién avanza en penales para un bonus extra.
+              </p>
+            </details>
+            <details>
+              <summary>Reglamento · Penales</summary>
               <p>La quiniela se califica solo con el marcador al final del tiempo regular. Tiempos extra no cuentan. Si hay penales, tu marcador regular sigue siendo el del 90&apos;. En eliminatorias indica quién avanza: +1 bonus si aciertas.</p>
             </details>
             <details>
@@ -1214,7 +1092,7 @@ export default function App() {
             className={activeNav === n.id ? 'active' : ''}
             onClick={(e) => {
               e.preventDefault();
-              scrollToSection(n.id);
+              navigateToSection(n.id);
             }}
           >
             {n.icon}

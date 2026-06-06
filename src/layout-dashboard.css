@@ -3882,3 +3882,147 @@
     gap: 6px;
   }
 }
+
+/* ——— Section navigation (app shell) ——— */
+.app-shell {
+  width: 100%;
+  max-width: 1600px;
+  margin-inline: auto;
+  padding: 0 16px calc(96px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+.app-section {
+  display: none;
+}
+
+.app-section.is-active {
+  display: block;
+  animation: appSectionIn 0.18s ease;
+}
+
+@keyframes appSectionIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.inicio-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+  padding-bottom: 8px;
+}
+
+.inicio-grid__wide {
+  grid-column: 1 / -1;
+}
+
+.inicio-my-rank {
+  padding: 14px 16px 16px;
+  text-align: center;
+}
+
+.inicio-my-rank__pos {
+  margin: 0;
+  font-size: 2.4rem;
+  font-weight: 950;
+  font-style: italic;
+  color: var(--red, #ff1e27);
+  line-height: 1;
+}
+
+.inicio-my-rank__meta {
+  margin: 8px 0 12px;
+  color: var(--muted, #a1a1aa);
+  font-size: 0.88rem;
+}
+
+.inicio-my-rank__link {
+  border: 1px solid rgba(255, 30, 39, 0.35);
+  background: rgba(255, 30, 39, 0.08);
+  color: #fff;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.inicio-countdown {
+  margin: 0;
+  padding: 12px 16px 16px;
+}
+
+.comunidad-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.comunidad-notifications .chat-list--notifications {
+  max-height: none;
+}
+
+.comunidad-chat .chat-list {
+  min-height: 280px;
+}
+
+.ranking-section-movement {
+  margin-top: 14px;
+}
+
+.ranking-section-pulpo {
+  margin-top: 14px;
+}
+
+.section-lead {
+  margin: 6px 0 0;
+  font-size: 0.88rem;
+  max-width: 42ch;
+}
+
+.topbar-logout-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted, #a1a1aa);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.topbar-logout-btn:hover {
+  color: #fff;
+  border-color: rgba(255, 30, 39, 0.45);
+}
+
+.ranking-leaderboard--compact .ranking-leaderboard__head {
+  display: none;
+}
+
+@media (min-width: 760px) {
+  .inicio-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1120px) {
+  .comunidad-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: start;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar-logout-btn {
+    display: none;
+  }
+}
