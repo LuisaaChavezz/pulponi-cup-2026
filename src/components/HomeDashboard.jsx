@@ -213,9 +213,8 @@ export default function HomeDashboard({
                   type="button"
                   className="home-dash-profile-row"
                   onClick={() => onSelectUser?.(row.id)}
-                  aria-label={`Ver perfil de ${formatUsername(row)}, puesto ${i + 1}`}
+                  aria-label={`Ver perfil de ${formatUsername(row)}`}
                 >
-                  <span className="home-dash-profile-row__pos">#{i + 1}</span>
                   <UserAvatar photoUrl={row.photo_url} className="home-dash-profile-row__avatar" alt="" />
                   <span className="home-dash-profile-row__name">{formatUsername(row)}</span>
                   <span className="home-dash-profile-row__pts">{Number(row.points ?? 0)}</span>
