@@ -104,14 +104,14 @@ export default function HomeDashboard({
     return buildCommunityGeneralInsights(scores, heroMatch);
   }, [heroMatch, communityPickProfiles]);
 
-  const recentActivity = useMemo(() => {
+  const activityFeed = useMemo(() => {
     const list = Array.isArray(predictionActivityFeed) ? predictionActivityFeed : [];
-    return [...list]
-      .sort((a, b) => (b.at?.getTime?.() ?? 0) - (a.at?.getTime?.() ?? 0))
-      .slice(0, 5);
+    return [...list].sort((a, b) => (b.at?.getTime?.() ?? 0) - (a.at?.getTime?.() ?? 0));
   }, [predictionActivityFeed]);
 
-  const topFive = (ranking ?? []).slice(0, 5);
+  const recentActivity = activityFeed.slice(0, 8);
+  const hasMoreActivity = activityFeed.length > 8;
+
   const communityProfiles = ranking ?? [];
   const venueLine = [formatVenue(heroMatch), formatVenueCity(heroMatch)].filter(Boolean).join(' · ');
 
@@ -274,7 +274,7 @@ export default function HomeDashboard({
         {chatBlock}
       </div>
 
-      <div className="home-dash-summary">
+      <div className="home-dash-insights">
         <article className="home-dash-card home-dash-card--rank">
           <h3 className="home-dash-card__title">TU POSICIÓN</h3>
           <p className="home-dash-rank-num">#{myCurrentRank ?? '—'}</p>
@@ -295,29 +295,6 @@ export default function HomeDashboard({
           <HomeDashButton onClick={onViewRanking}>VER RANKING COMPLETO</HomeDashButton>
         </article>
 
-        <article className="home-dash-card home-dash-card--top5">
-          <h3 className="home-dash-card__title">TOP 5</h3>
-          {topFive.length === 0 ? (
-            <p className="home-dash-empty">Sin datos todavía</p>
-          ) : (
-            <ol className="home-dash-top5">
-              {topFive.map((row, i) => (
-                <li key={row.id ?? i}>
-                  <button type="button" className="home-dash-top5__row" onClick={() => onSelectUser?.(row.id)}>
-                    <span className="home-dash-top5__pos">#{i + 1}</span>
-                    <UserAvatar photoUrl={row.photo_url} className="home-dash-top5__avatar" alt="" />
-                    <span className="home-dash-top5__name">{formatUsername(row)}</span>
-                    <span className="home-dash-top5__pts">{Number(row.points ?? 0)}</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-          )}
-          <HomeDashButton onClick={onViewRanking}>VER RANKING COMPLETO</HomeDashButton>
-        </article>
-      </div>
-
-      <div className="home-dash-bottom">
         <article className="home-dash-card home-dash-card--trend">
           <h3 className="home-dash-card__title">TENDENCIA DEL PRÓXIMO PARTIDO</h3>
           {!heroMatch ? (
@@ -357,12 +334,12 @@ export default function HomeDashboard({
           )}
         </article>
 
-        <article className="home-dash-card home-dash-card--activity">
+        <article className="home-dash-card home-dash-card--activity home-dash-card--activity-expanded">
           <h3 className="home-dash-card__title">ACTIVIDAD RECIENTE</h3>
           {recentActivity.length === 0 ? (
             <p className="home-dash-empty">No hay actividad reciente</p>
           ) : (
-            <ul className="home-dash-activity">
+            <ul className="home-dash-activity home-dash-activity-scroll">
               {recentActivity.map((item) => {
                 const parts = parseActivityParts(item.text);
                 return (
@@ -385,7 +362,9 @@ export default function HomeDashboard({
               })}
             </ul>
           )}
-          <HomeDashButton onClick={onViewCommunity}>VER TODA</HomeDashButton>
+          {hasMoreActivity ? (
+            <HomeDashButton onClick={onViewCommunity}>VER TODA</HomeDashButton>
+          ) : null}
         </article>
       </div>
     </div>

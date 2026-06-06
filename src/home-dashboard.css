@@ -433,11 +433,33 @@
   filter: brightness(1.06);
 }
 
-/* ——— Summary row ——— */
-.home-dash-summary {
+/* ——— Insights: posición + tendencia + actividad ——— */
+.home-dash-insights {
   display: grid;
   gap: 12px;
   grid-template-columns: 1fr;
+  grid-template-areas:
+    'rank'
+    'trend'
+    'activity';
+}
+
+.home-dash-card--rank {
+  grid-area: rank;
+}
+
+.home-dash-card--trend {
+  grid-area: trend;
+}
+
+.home-dash-card--activity {
+  grid-area: activity;
+}
+
+.home-dash-card--activity-expanded {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .home-dash-rank-num {
@@ -479,60 +501,6 @@
 .home-dash-stat-list strong {
   font-size: 0.95rem;
   font-weight: 900;
-}
-
-.home-dash-top5 {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.home-dash-top5__row {
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 7px 8px;
-  background: rgba(255, 255, 255, 0.02);
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.home-dash-top5__row:hover {
-  border-color: rgba(255, 30, 39, 0.35);
-}
-
-.home-dash-top5__pos {
-  font-size: 0.72rem;
-  font-weight: 900;
-  color: var(--red, #ff1e27);
-  min-width: 1.6rem;
-}
-
-.home-dash-top5__avatar {
-  width: 28px;
-  height: 28px;
-}
-
-.home-dash-top5__name {
-  font-size: 0.82rem;
-  font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-dash-top5__pts {
-  font-size: 0.82rem;
-  font-weight: 900;
-  color: #fff;
 }
 
 /* ——— Ranking en movimiento (Inicio, compacto) ——— */
@@ -645,12 +613,6 @@
 }
 
 /* ——— Trend bars ——— */
-.home-dash-bottom {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr;
-}
-
 .home-dash-bars {
   list-style: none;
   margin: 0;
@@ -707,6 +669,14 @@
   gap: 8px;
 }
 
+.home-dash-activity-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: 448px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .home-dash-activity__row {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -746,12 +716,17 @@
 
 /* ——— Responsive ——— */
 @media (min-width: 760px) {
-  .home-dash-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .home-dash-insights {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'rank activity'
+      'trend activity';
+    align-items: stretch;
   }
 
-  .home-dash-bottom {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .home-dash-card--activity-expanded {
+    min-height: 100%;
   }
 
   .home-dash-hero {
