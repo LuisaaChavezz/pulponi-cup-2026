@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import TeamLogo from './TeamLogo';
 import UserAvatar from './UserAvatar';
 import MatchSchedule from './MatchSchedule';
+import RankingMovement from './RankingMovement';
 import { useKickoffClock } from '../hooks/useKickoffClock';
-import { useRankingMovement } from '../hooks/useRankingMovement';
 import {
   displayTeamName,
   formatCountdownToKickoff,
@@ -16,7 +16,6 @@ import {
   pickInicioMatch,
 } from '../lib/matchUtils';
 import { collectMatchPickScores, buildCommunityGeneralInsights } from '../lib/communityPicks';
-import { selectDisplayName } from '../lib/rankingHistory';
 
 function formatUsername(row) {
   const raw = row?.username ?? row?.name ?? 'jugador';
@@ -49,48 +48,6 @@ function parseActivityParts(text) {
   return { action: raw, match: '' };
 }
 
-function buildMovementHighlight(row) {
-  const movement = row?.movement;
-  const name = selectDisplayName(row);
-  if (!movement) return null;
-
-  if (movement.direction === 'up' && movement.delta > 0) {
-    return {
-      key: row.id,
-      icon: '↑',
-      delta: movement.delta,
-      name,
-      desc: `Subió ${movement.delta} ${movement.delta === 1 ? 'lugar' : 'lugares'}`,
-      weight: movement.delta + (row.currentRank <= 5 ? 2 : 0),
-    };
-  }
-
-  if (movement.direction === 'down' && movement.delta > 0) {
-    return {
-      key: row.id,
-      icon: '↓',
-      delta: movement.delta,
-      name,
-      desc: `Cayó ${movement.delta} ${movement.delta === 1 ? 'lugar' : 'lugares'}`,
-      weight: movement.delta,
-    };
-  }
-
-  if (movement.direction === 'new') {
-    const inTop5 = (row.currentRank ?? 99) <= 5;
-    return {
-      key: row.id,
-      icon: '↑',
-      delta: inTop5 ? row.currentRank : 0,
-      name,
-      desc: inTop5 ? 'Entró al Top 5' : 'Nuevo en el ranking',
-      weight: inTop5 ? 10 : 3,
-    };
-  }
-
-  return null;
-}
-
 function HomeDashButton({ children, onClick, variant = 'ghost' }) {
   return (
     <button type="button" className={`home-dash-btn home-dash-btn--${variant}`} onClick={onClick}>
@@ -115,7 +72,6 @@ export default function HomeDashboard({
   onSelectUser,
 }) {
   const now = useKickoffClock(1000);
-  const { rows: movementRows, loading: movementLoading } = useRankingMovement(session);
 
   const heroPick = useMemo(() => {
     const upcoming = listCarouselUpcomingMatches(matches)[0];
@@ -139,14 +95,6 @@ export default function HomeDashboard({
     const scores = collectMatchPickScores(communityPickProfiles, heroMatch.id);
     return buildCommunityGeneralInsights(scores, heroMatch);
   }, [heroMatch, communityPickProfiles]);
-
-  const movementHighlights = useMemo(() => {
-    return movementRows
-      .map(buildMovementHighlight)
-      .filter(Boolean)
-      .sort((a, b) => b.weight - a.weight)
-      .slice(0, 3);
-  }, [movementRows]);
 
   const recentActivity = useMemo(() => {
     const list = Array.isArray(predictionActivityFeed) ? predictionActivityFeed : [];
@@ -240,6 +188,15 @@ export default function HomeDashboard({
         )}
       </article>
 
+      <RankingMovement
+        session={session}
+        compact
+        maxRest={5}
+        showYouHint={false}
+        className="home-dash-ranking-movement pulponi-card"
+        onViewFull={onViewRanking}
+      />
+
       <div className="home-dash-summary">
         <article className="home-dash-card home-dash-card--rank">
           <h3 className="home-dash-card__title">TU POSICIÓN</h3>
@@ -282,35 +239,6 @@ export default function HomeDashboard({
           <HomeDashButton onClick={onViewRanking}>VER RANKING COMPLETO</HomeDashButton>
         </article>
       </div>
-
-      <article className="home-dash-card home-dash-card--movement">
-        <h3 className="home-dash-card__title">RANKING EN MOVIMIENTO</h3>
-        {movementLoading ? (
-          <p className="home-dash-empty">Sincronizando…</p>
-        ) : movementHighlights.length === 0 ? (
-          <p className="home-dash-empty">Sin datos todavía</p>
-        ) : (
-          <ul className="home-dash-movement">
-            {movementHighlights.map((item) => (
-              <li key={item.key} className={`home-dash-movement__row home-dash-movement__row--${item.icon === '↑' ? 'up' : 'down'}`}>
-                <span className="home-dash-movement__badge" aria-hidden>
-                  {item.icon} {item.delta > 0 ? item.delta : ''}
-                </span>
-                <UserAvatar
-                  photoUrl={movementRows.find((r) => r.id === item.key)?.photo_url}
-                  className="home-dash-movement__avatar"
-                  alt=""
-                />
-                <div className="home-dash-movement__copy">
-                  <strong>{item.name}</strong>
-                  <span>{item.desc}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <HomeDashButton onClick={onViewRanking}>VER RANKING COMPLETO</HomeDashButton>
-      </article>
 
       <div className="home-dash-bottom">
         <article className="home-dash-card home-dash-card--trend">

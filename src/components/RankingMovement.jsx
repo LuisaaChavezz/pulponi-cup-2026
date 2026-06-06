@@ -64,9 +64,20 @@ function RankStats({ points, exacts }) {
   );
 }
 
-export default function RankingMovement({ session, className = '' }) {
-  const { top5, rest, loading, tablesMissing, jornadaLabel, profileSummary } =
+export default function RankingMovement({
+  session,
+  className = '',
+  compact = false,
+  maxRest = null,
+  onViewFull = null,
+  showYouHint = true,
+}) {
+  const { top5, rest, rows, loading, tablesMissing, jornadaLabel, profileSummary } =
     useRankingMovement(session);
+
+  const restLimit = compact ? (maxRest ?? 5) : rest.length;
+  const visibleRest = rest.slice(0, restLimit);
+  const hasMore = compact && rows.length > top5.length + visibleRest.length;
 
   const maxTop5 = useMemo(() => {
     const m = Math.max(1, ...top5.map((r) => r.points));
@@ -77,7 +88,14 @@ export default function RankingMovement({ session, className = '' }) {
 
   return (
     <article
-      className={['phone', 'phone--rank-movement', className].filter(Boolean).join(' ')}
+      className={[
+        'phone',
+        'phone--rank-movement',
+        compact ? 'phone--rank-movement--compact' : '',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       aria-labelledby="ranking-movimiento-title"
     >
       <div className="phone-header phone-header--center phone-header--rank-mov">
@@ -144,11 +162,11 @@ export default function RankingMovement({ session, className = '' }) {
             })}
           </div>
 
-          {rest.length > 0 ? (
+          {visibleRest.length > 0 ? (
             <div className="rm-rest">
-              <p className="rm-rest-head">Resto del ranking</p>
+              <p className="rm-rest-head">{compact ? 'RESTO DEL RANKING' : 'Resto del ranking'}</p>
               <ol className="rm-rest-list">
-                {rest.map((r) => {
+                {visibleRest.map((r) => {
                   const pos = r.currentRank;
                   return (
                     <li
@@ -172,10 +190,16 @@ export default function RankingMovement({ session, className = '' }) {
               </ol>
             </div>
           ) : null}
+
+          {hasMore && onViewFull ? (
+            <button type="button" className="rm-view-full" onClick={onViewFull}>
+              Ver ranking completo
+            </button>
+          ) : null}
         </>
       )}
 
-      {profileSummary && session?.user?.id ? (
+      {showYouHint && profileSummary && session?.user?.id ? (
         <p className="rm-you-hint" aria-live="polite">
           Tu puesto: #{profileSummary.currentRank ?? '—'} · {movementBadgeLabel(profileSummary.movement)}
         </p>
