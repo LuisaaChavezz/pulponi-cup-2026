@@ -211,66 +211,6 @@ export default function DashboardNotifications({
         <h3 className="dash-notifications__title">Mensajes importantes</h3>
       </div>
 
-      <div className="dash-notifications__section dash-notifications__section--community">
-        <div className="dash-notifications__head">
-          <h3 className="dash-notifications__subtitle">Tendencias de la comunidad</h3>
-        </div>
-
-        {!communityTrendMatches.length ? (
-          <p className="dash-notifications__empty">
-            Las tendencias aparecerán cuando haya suficientes predicciones en un partido.
-          </p>
-        ) : (
-          <div className="dash-notifications__community-list">
-            {communityTrendMatches.map((m) => {
-              const scores = collectMatchPickScores(communityPickProfiles, m.id);
-              return <CommunityMatchInsights key={m.id} match={m} scores={scores} compact />;
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="dash-notifications__section dash-notifications__section--announcements">
-        <div className="dash-notifications__head">
-          <h3 className="dash-notifications__subtitle">Anuncios Pulponi Cup y mensajes del sistema</h3>
-        </div>
-
-        {isAdmin ? (
-          <>
-            <p className="dash-notifications__admin-note">Solo administración puede publicar anuncios.</p>
-            <form className="dash-notifications__admin-form" onSubmit={handleSubmitAnnouncement}>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Título del anuncio"
-              required
-            />
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalle" rows={2} />
-            <input type="datetime-local" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-            <button type="submit" className="primary" disabled={saving}>
-              {saving ? 'Publicando…' : 'Publicar mensaje'}
-            </button>
-          </form>
-          </>
-        ) : null}
-
-        <div className="dash-notifications__alerts">
-          {!importantAlerts?.length ? (
-            <p className="dash-notifications__empty">No hay anuncios ni mensajes del sistema por ahora.</p>
-          ) : (
-            importantAlerts.map((ev) => (
-              <article key={ev.id} className="dash-notifications__card">
-                <strong>{ev.title}</strong>
-                <time dateTime={ev.event_date ?? ''}>
-                  {ev.event_date ? new Date(ev.event_date).toLocaleString('es-MX') : 'Sin fecha'}
-                </time>
-                {ev.description ? <p>{ev.description}</p> : null}
-              </article>
-            ))
-          )}
-        </div>
-      </div>
-
       <div className="dash-notifications__section dash-notifications__section--predictions">
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle">Últimas predicciones enviadas</h3>
@@ -355,6 +295,66 @@ export default function DashboardNotifications({
             ) : null}
           </>
         )}
+      </div>
+
+      <div className="dash-notifications__section dash-notifications__section--community">
+        <div className="dash-notifications__head">
+          <h3 className="dash-notifications__subtitle">Tendencias de la comunidad</h3>
+        </div>
+
+        {!communityTrendMatches.length ? (
+          <p className="dash-notifications__empty">
+            Las tendencias aparecerán cuando haya suficientes predicciones en un partido.
+          </p>
+        ) : (
+          <div className="dash-notifications__community-list">
+            {communityTrendMatches.map((m) => {
+              const scores = collectMatchPickScores(communityPickProfiles, m.id);
+              return <CommunityMatchInsights key={m.id} match={m} scores={scores} compact />;
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="dash-notifications__section dash-notifications__section--announcements">
+        <div className="dash-notifications__head">
+          <h3 className="dash-notifications__subtitle">Anuncios Pulponi Cup y mensajes del sistema</h3>
+        </div>
+
+        {isAdmin ? (
+          <>
+            <p className="dash-notifications__admin-note">Solo administración puede publicar anuncios.</p>
+            <form className="dash-notifications__admin-form" onSubmit={handleSubmitAnnouncement}>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título del anuncio"
+              required
+            />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalle" rows={2} />
+            <input type="datetime-local" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+            <button type="submit" className="primary" disabled={saving}>
+              {saving ? 'Publicando…' : 'Publicar mensaje'}
+            </button>
+          </form>
+          </>
+        ) : null}
+
+        <div className="dash-notifications__alerts">
+          {!importantAlerts?.length ? (
+            <p className="dash-notifications__empty">No hay anuncios ni mensajes del sistema por ahora.</p>
+          ) : (
+            importantAlerts.map((ev) => (
+              <article key={ev.id} className="dash-notifications__card">
+                <strong>{ev.title}</strong>
+                <time dateTime={ev.event_date ?? ''}>
+                  {ev.event_date ? new Date(ev.event_date).toLocaleString('es-MX') : 'Sin fecha'}
+                </time>
+                {ev.description ? <p>{ev.description}</p> : null}
+              </article>
+            ))
+          )}
+        </div>
       </div>
 
     </div>
