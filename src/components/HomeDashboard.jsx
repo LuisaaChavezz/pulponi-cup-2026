@@ -198,57 +198,150 @@ export default function HomeDashboard({
   );
 
   const profilesBlock = (
-    <aside className="home-dash-sidebar home-dash-sidebar--profiles">
-      <article className="home-dash-sidebar-card home-dash-sidebar-card--profiles pulponi-card">
-        <header className="home-dash-sidebar-card__head">
-          <h3 className="home-dash-sidebar-card__title">Perfiles de la comunidad</h3>
-        </header>
-        {communityProfiles.length === 0 ? (
-          <p className="home-dash-empty home-dash-sidebar-card__empty">Sin datos todavía</p>
-        ) : (
-          <ul className="home-dash-profiles-scroll">
-            {communityProfiles.map((row, i) => (
-              <li key={row.id ?? i}>
-                <button
-                  type="button"
-                  className="home-dash-profile-row"
-                  onClick={() => onSelectUser?.(row.id)}
-                  aria-label={`Ver perfil de ${formatUsername(row)}`}
-                >
-                  <UserAvatar photoUrl={row.photo_url} className="home-dash-profile-row__avatar" alt="" />
-                  <span className="home-dash-profile-row__name">{formatUsername(row)}</span>
-                  <span className="home-dash-profile-row__pts">{Number(row.points ?? 0)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </article>
-    </aside>
+    <article className="home-dash-sidebar-card home-dash-sidebar-card--profiles pulponi-card">
+      <header className="home-dash-sidebar-card__head">
+        <h3 className="home-dash-sidebar-card__title">Perfiles de la comunidad</h3>
+      </header>
+      {communityProfiles.length === 0 ? (
+        <p className="home-dash-empty home-dash-sidebar-card__empty">Sin datos todavía</p>
+      ) : (
+        <ul className="home-dash-profiles-scroll">
+          {communityProfiles.map((row, i) => (
+            <li key={row.id ?? i}>
+              <button
+                type="button"
+                className="home-dash-profile-row"
+                onClick={() => onSelectUser?.(row.id)}
+                aria-label={`Ver perfil de ${formatUsername(row)}`}
+              >
+                <UserAvatar photoUrl={row.photo_url} className="home-dash-profile-row__avatar" alt="" />
+                <span className="home-dash-profile-row__name">{formatUsername(row)}</span>
+                <span className="home-dash-profile-row__pts">{Number(row.points ?? 0)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </article>
   );
 
   const chatBlock = (
-    <aside className="home-dash-sidebar home-dash-sidebar--chat">
-      <article className="home-dash-sidebar-card home-dash-sidebar-card--chat pulponi-card">
-        <header className="home-dash-sidebar-card__head">
-          <h3 className="home-dash-sidebar-card__title">Chat</h3>
-          {memberCount > 0 ? (
-            <small className="home-dash-sidebar-card__meta">{memberCount} miembros</small>
-          ) : null}
-        </header>
-        <div className="home-dash-chat-body">
-          <MatchChat
-            messages={chatMessages}
-            chatInput={chatInput}
-            setChatInput={setChatInput}
-            onSend={onSendMessage}
-            currentUserId={session?.user?.id ?? null}
-            reactionRowsByMessage={reactionRowsByMessage}
-            onToggleReaction={onToggleReaction}
-          />
-        </div>
+    <article className="home-dash-sidebar-card home-dash-sidebar-card--chat pulponi-card">
+      <header className="home-dash-sidebar-card__head">
+        <h3 className="home-dash-sidebar-card__title">Chat</h3>
+        {memberCount > 0 ? (
+          <small className="home-dash-sidebar-card__meta">{memberCount} miembros</small>
+        ) : null}
+      </header>
+      <div className="home-dash-chat-body">
+        <MatchChat
+          messages={chatMessages}
+          chatInput={chatInput}
+          setChatInput={setChatInput}
+          onSend={onSendMessage}
+          currentUserId={session?.user?.id ?? null}
+          reactionRowsByMessage={reactionRowsByMessage}
+          onToggleReaction={onToggleReaction}
+        />
+      </div>
+    </article>
+  );
+
+  const insightsBlock = (
+    <>
+      <article className="home-dash-card home-dash-card--rank">
+        <h3 className="home-dash-card__title">TU POSICIÓN</h3>
+        <p className="home-dash-rank-num">#{myCurrentRank ?? '—'}</p>
+        <ul className="home-dash-stat-list">
+          <li>
+            <span>Puntos</span>
+            <strong>{Number(profile?.points ?? 0)}</strong>
+          </li>
+          <li>
+            <span>Exactos</span>
+            <strong>{Number(profile?.exacts ?? 0)}</strong>
+          </li>
+          <li>
+            <span>Racha</span>
+            <strong>{Number(profile?.streak ?? 0)}</strong>
+          </li>
+        </ul>
+        <HomeDashButton onClick={onViewRanking}>VER RANKING COMPLETO</HomeDashButton>
       </article>
-    </aside>
+
+      <article className="home-dash-card home-dash-card--trend">
+        <h3 className="home-dash-card__title">TENDENCIA DEL PRÓXIMO PARTIDO</h3>
+        {!heroMatch ? (
+          <p className="home-dash-empty">No hay próximo partido</p>
+        ) : !trendInsights?.outcome?.sufficient ? (
+          <p className="home-dash-empty">{trendInsights?.outcome?.message ?? 'Sin datos todavía'}</p>
+        ) : (
+          <ul className="home-dash-bars">
+            <li>
+              <div className="home-dash-bar__head">
+                <span>{trendInsights.outcome.homeLabel} gana</span>
+                <strong>{trendInsights.outcome.homePct}%</strong>
+              </div>
+              <div className="home-dash-bar__track">
+                <div className="home-dash-bar__fill" style={{ width: `${trendInsights.outcome.homePct}%` }} />
+              </div>
+            </li>
+            <li>
+              <div className="home-dash-bar__head">
+                <span>Empate</span>
+                <strong>{trendInsights.outcome.drawPct}%</strong>
+              </div>
+              <div className="home-dash-bar__track">
+                <div
+                  className="home-dash-bar__fill home-dash-bar__fill--draw"
+                  style={{ width: `${trendInsights.outcome.drawPct}%` }}
+                />
+              </div>
+            </li>
+            <li>
+              <div className="home-dash-bar__head">
+                <span>{trendInsights.outcome.awayLabel} gana</span>
+                <strong>{trendInsights.outcome.awayPct}%</strong>
+              </div>
+              <div className="home-dash-bar__track">
+                <div className="home-dash-bar__fill home-dash-bar__fill--away" style={{ width: `${trendInsights.outcome.awayPct}%` }} />
+              </div>
+            </li>
+          </ul>
+        )}
+      </article>
+
+      <article className="home-dash-card home-dash-card--activity home-dash-card--activity-expanded">
+        <h3 className="home-dash-card__title">ACTIVIDAD RECIENTE</h3>
+        {recentActivity.length === 0 ? (
+          <p className="home-dash-empty">No hay actividad reciente</p>
+        ) : (
+          <ul className="home-dash-activity home-dash-activity-scroll">
+            {recentActivity.map((item) => {
+              const parts = parseActivityParts(item.text);
+              return (
+                <li key={item.id} className="home-dash-activity__row">
+                  <UserAvatar avatarUrl={item.avatarUrl} className="home-dash-activity__avatar" alt="" />
+                  <div className="home-dash-activity__copy">
+                    <p>
+                      <strong>{parts.action}</strong>
+                      {parts.match ? (
+                        <>
+                          {' '}
+                          — <span>{parts.match}</span>
+                        </>
+                      ) : null}
+                    </p>
+                    <time dateTime={item.at?.toISOString?.() ?? ''}>{formatRelativeTime(item.at, now)}</time>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {hasMoreActivity ? <HomeDashButton onClick={onViewCommunity}>VER TODA</HomeDashButton> : null}
+      </article>
+    </>
   );
 
   return (
@@ -264,107 +357,16 @@ export default function HomeDashboard({
         </p>
       ) : null}
 
-      <div className="home-dash-layout">
-        {profilesBlock}
-        <div className="home-dash-center">
-          {heroBlock}
-          {rankingBlock}
+      <div className="home-dash-stack">
+        <div className="home-dash-stack__center">
+          <section className="home-dash-stack__section home-dash-stack__section--hero">{heroBlock}</section>
+          <section className="home-dash-stack__section home-dash-stack__section--ranking">{rankingBlock}</section>
         </div>
-        {chatBlock}
-      </div>
-
-      <div className="home-dash-insights">
-        <article className="home-dash-card home-dash-card--rank">
-          <h3 className="home-dash-card__title">TU POSICIÓN</h3>
-          <p className="home-dash-rank-num">#{myCurrentRank ?? '—'}</p>
-          <ul className="home-dash-stat-list">
-            <li>
-              <span>Puntos</span>
-              <strong>{Number(profile?.points ?? 0)}</strong>
-            </li>
-            <li>
-              <span>Exactos</span>
-              <strong>{Number(profile?.exacts ?? 0)}</strong>
-            </li>
-            <li>
-              <span>Racha</span>
-              <strong>{Number(profile?.streak ?? 0)}</strong>
-            </li>
-          </ul>
-          <HomeDashButton onClick={onViewRanking}>VER RANKING COMPLETO</HomeDashButton>
-        </article>
-
-        <article className="home-dash-card home-dash-card--trend">
-          <h3 className="home-dash-card__title">TENDENCIA DEL PRÓXIMO PARTIDO</h3>
-          {!heroMatch ? (
-            <p className="home-dash-empty">No hay próximo partido</p>
-          ) : !trendInsights?.outcome?.sufficient ? (
-            <p className="home-dash-empty">{trendInsights?.outcome?.message ?? 'Sin datos todavía'}</p>
-          ) : (
-            <ul className="home-dash-bars">
-              <li>
-                <div className="home-dash-bar__head">
-                  <span>{trendInsights.outcome.homeLabel} gana</span>
-                  <strong>{trendInsights.outcome.homePct}%</strong>
-                </div>
-                <div className="home-dash-bar__track">
-                  <div className="home-dash-bar__fill" style={{ width: `${trendInsights.outcome.homePct}%` }} />
-                </div>
-              </li>
-              <li>
-                <div className="home-dash-bar__head">
-                  <span>Empate</span>
-                  <strong>{trendInsights.outcome.drawPct}%</strong>
-                </div>
-                <div className="home-dash-bar__track">
-                  <div className="home-dash-bar__fill home-dash-bar__fill--draw" style={{ width: `${trendInsights.outcome.drawPct}%` }} />
-                </div>
-              </li>
-              <li>
-                <div className="home-dash-bar__head">
-                  <span>{trendInsights.outcome.awayLabel} gana</span>
-                  <strong>{trendInsights.outcome.awayPct}%</strong>
-                </div>
-                <div className="home-dash-bar__track">
-                  <div className="home-dash-bar__fill home-dash-bar__fill--away" style={{ width: `${trendInsights.outcome.awayPct}%` }} />
-                </div>
-              </li>
-            </ul>
-          )}
-        </article>
-
-        <article className="home-dash-card home-dash-card--activity home-dash-card--activity-expanded">
-          <h3 className="home-dash-card__title">ACTIVIDAD RECIENTE</h3>
-          {recentActivity.length === 0 ? (
-            <p className="home-dash-empty">No hay actividad reciente</p>
-          ) : (
-            <ul className="home-dash-activity home-dash-activity-scroll">
-              {recentActivity.map((item) => {
-                const parts = parseActivityParts(item.text);
-                return (
-                  <li key={item.id} className="home-dash-activity__row">
-                    <UserAvatar avatarUrl={item.avatarUrl} className="home-dash-activity__avatar" alt="" />
-                    <div className="home-dash-activity__copy">
-                      <p>
-                        <strong>{parts.action}</strong>
-                        {parts.match ? (
-                          <>
-                            {' '}
-                            — <span>{parts.match}</span>
-                          </>
-                        ) : null}
-                      </p>
-                      <time dateTime={item.at?.toISOString?.() ?? ''}>{formatRelativeTime(item.at, now)}</time>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {hasMoreActivity ? (
-            <HomeDashButton onClick={onViewCommunity}>VER TODA</HomeDashButton>
-          ) : null}
-        </article>
+        <section className="home-dash-stack__section home-dash-stack__section--profiles">{profilesBlock}</section>
+        <section className="home-dash-stack__section home-dash-stack__section--chat">{chatBlock}</section>
+        <section className="home-dash-stack__section home-dash-stack__section--insights">
+          <div className="home-dash-insights">{insightsBlock}</div>
+        </section>
       </div>
     </div>
   );
