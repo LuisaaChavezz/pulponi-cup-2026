@@ -7,6 +7,7 @@ import './avatars-global.css';
 import './pulponi-player-card.css';
 import './ranking-leaderboard.css';
 import './home-dashboard.css';
+import './navigation.css';
 
 class RootErrorBoundary extends Component {
   constructor(props) {

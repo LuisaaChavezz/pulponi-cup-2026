@@ -521,13 +521,13 @@ export default function App() {
             <a
               key={n.id}
               href={`#${n.id}`}
-              className={activeNav === n.id ? 'active' : ''}
+              className={`desktop-nav__item${activeNav === n.id ? ' is-active' : ''}`}
               onClick={(e) => {
                 e.preventDefault();
                 navigateToSection(n.id);
               }}
             >
-              {n.label}
+              <span className="desktop-nav__label">{n.label}</span>
             </a>
           ))}
         </nav>
@@ -953,21 +953,25 @@ export default function App() {
         </section>
       </main>
 
-      <nav className="bottom-nav">
-        {NAV.map((n) => (
-          <a
-            key={n.id}
-            href={`#${n.id}`}
-            className={activeNav === n.id ? 'active' : ''}
-            onClick={(e) => {
-              e.preventDefault();
-              navigateToSection(n.id);
-            }}
-          >
-            {n.icon}
-            <span>{n.label}</span>
-          </a>
-        ))}
+      <nav className="bottom-nav" aria-label="Navegación principal">
+        <div className="bottom-nav__inner">
+          {NAV.map((n) => (
+            <a
+              key={n.id}
+              href={`#${n.id}`}
+              className={`bottom-nav__item${activeNav === n.id ? ' is-active' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                navigateToSection(n.id);
+              }}
+            >
+              <span className="bottom-nav__icon" aria-hidden>
+                {n.icon}
+              </span>
+              <span className="bottom-nav__label">{n.label}</span>
+            </a>
+          ))}
+        </div>
       </nav>
 
       <div ref={exportCardRef} className="export-card-hidden" aria-hidden="true">
