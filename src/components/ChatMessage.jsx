@@ -177,57 +177,61 @@ export default function ChatMessage({ message, reactionRows = [], currentUserId,
 
       {canReact ? (
         <div className="chat-message-reactions" aria-label="Reacciones">
-          <div className="chat-reaction-pills" role="group">
-            {pills.map(({ emoji, count, me }) => (
-              <div key={emoji} className="chat-reaction-pill-wrap">
-                <button
-                  type="button"
-                  className={[
-                    'chat-reaction-pill',
-                    me ? 'chat-reaction-pill--mine' : '',
-                    poppingEmoji === emoji ? 'chat-reaction-pill--pop' : '',
-                    popover?.emoji === emoji ? 'chat-reaction-pill--open' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  aria-expanded={popover?.emoji === emoji}
-                  onClick={(e) => toggleReactionPopover(emoji, e.currentTarget)}
-                >
-                  <span className="chat-reaction-pill__emoji" aria-hidden>
-                    {emoji}
-                  </span>
-                  <span className="chat-reaction-pill__count">{count}</span>
-                  <span className="sr-only">
-                    {count} {count === 1 ? 'persona reaccionó' : 'personas reaccionaron'} con {emoji}. Abre la lista
-                    para ver usuarios.
-                  </span>
-                </button>
+          <div className="chat-reaction-bar">
+            {pills.length > 0 ? (
+              <div className="chat-reaction-pills" role="group">
+                {pills.map(({ emoji, count, me }) => (
+                  <div key={emoji} className="chat-reaction-pill-wrap">
+                    <button
+                      type="button"
+                      className={[
+                        'chat-reaction-pill',
+                        me ? 'chat-reaction-pill--mine' : '',
+                        poppingEmoji === emoji ? 'chat-reaction-pill--pop' : '',
+                        popover?.emoji === emoji ? 'chat-reaction-pill--open' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      aria-expanded={popover?.emoji === emoji}
+                      onClick={(e) => toggleReactionPopover(emoji, e.currentTarget)}
+                    >
+                      <span className="chat-reaction-pill__emoji" aria-hidden>
+                        {emoji}
+                      </span>
+                      <span className="chat-reaction-pill__count">{count}</span>
+                      <span className="sr-only">
+                        {count} {count === 1 ? 'persona reaccionó' : 'personas reaccionaron'} con {emoji}. Abre la
+                        lista para ver usuarios.
+                      </span>
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : null}
+            <div className="chat-reaction-picker" role="toolbar" aria-label="Añadir o quitar reacción">
+              {CHAT_REACTION_EMOJIS.map((emoji) => {
+                const pickerMe = grouped.get(emoji)?.me;
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className={[
+                      'chat-reaction-picker__btn',
+                      pickerMe ? 'chat-reaction-picker__btn--mine' : '',
+                      poppingEmoji === emoji ? 'chat-reaction-picker__btn--pop' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => handlePickerEmoji(emoji)}
+                    aria-pressed={pickerMe ? 'true' : 'false'}
+                  >
+                    <span className="chat-reaction-picker__emoji">{emoji}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           {reactionSummary ? <p className="chat-reaction-summary">{reactionSummary}</p> : null}
-          <div className="chat-reaction-picker" role="toolbar" aria-label="Añadir o quitar reacción">
-            {CHAT_REACTION_EMOJIS.map((emoji) => {
-              const pickerMe = grouped.get(emoji)?.me;
-              return (
-                <button
-                  key={emoji}
-                  type="button"
-                  className={[
-                    'chat-reaction-picker__btn',
-                    pickerMe ? 'chat-reaction-picker__btn--mine' : '',
-                    poppingEmoji === emoji ? 'chat-reaction-picker__btn--pop' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  onClick={() => handlePickerEmoji(emoji)}
-                  aria-pressed={pickerMe ? 'true' : 'false'}
-                >
-                  <span className="chat-reaction-picker__emoji">{emoji}</span>
-                </button>
-              );
-            })}
-          </div>
         </div>
       ) : null}
       {popoverNode ? createPortal(popoverNode, document.body) : null}
