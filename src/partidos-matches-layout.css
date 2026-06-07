@@ -1,0 +1,50 @@
+/**
+ * Partidos — grid móvil/tablet (carga al final del bundle).
+ * Anula index.css legacy que forzaba 1 columna en .matches-grid.
+ */
+
+@media (max-width: 639px) {
+  #partidos .matches-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  #partidos .matches-grid > .match-card {
+    grid-column: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+
+  #partidos .matches-grid > .match-card:only-child,
+  #partidos .matches-grid > .match-card:last-child:nth-child(2n + 1):not(:only-child) {
+    grid-column: 1 / -1 !important;
+    justify-self: center !important;
+    width: 50% !important;
+    max-width: 50% !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  #partidos .matches-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 24px !important;
+  }
+
+  #partidos .matches-grid > .match-card {
+    grid-column: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+
+  #partidos .matches-grid > .match-card:only-child,
+  #partidos .matches-grid > .match-card:last-child:nth-child(2n + 1):not(:only-child) {
+    grid-column: 1 / -1 !important;
+    justify-self: center !important;
+    width: 50% !important;
+    max-width: 50% !important;
+  }
+}

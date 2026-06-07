@@ -8,6 +8,7 @@ import './pulponi-player-card.css';
 import './ranking-leaderboard.css';
 import './home-dashboard.css';
 import './navigation.css';
+import './partidos-matches-layout.css';
 
 class RootErrorBoundary extends Component {
   constructor(props) {
