@@ -4,7 +4,7 @@
  * - Fallback: momios Pulponi simulados, claramente etiquetados.
  */
 
-import { buildCommunityTrendOdds } from './parlayCommunityOdds';
+import { buildCommunityTrendOdds, validateParlayMatchOdds } from './parlayCommunityOdds';
 
 const ODDS_API_SPORT = 'soccer_fifa_world_cup';
 
@@ -151,7 +151,11 @@ export async function resolveParlayOddsForMatches(
       byMatchId[String(match.id)] = fromApi;
       authorizedCount += 1;
     } else {
-      byMatchId[String(match.id)] = buildCommunityTrendOdds(match, communityProfiles);
+      const row = buildCommunityTrendOdds(match, communityProfiles);
+      if (!validateParlayMatchOdds(row, row.trendPcts ?? null)) {
+        console.warn('[parlayOdds] invalid simulated odds for match', match.id);
+      }
+      byMatchId[String(match.id)] = row;
       simulatedCount += 1;
     }
   }
