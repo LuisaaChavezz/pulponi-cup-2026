@@ -4427,6 +4427,25 @@
   box-shadow: 0 0 0 1px rgba(255, 30, 39, 0.25);
 }
 
+@media (max-width: 767px) {
+  #partidos .matches-toolbar__filter--desktop-only {
+    display: none !important;
+  }
+
+  #partidos .matches-toolbar {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  #partidos .matches-toolbar__filters {
+    gap: 8px;
+  }
+
+  #partidos .matches-toolbar__select {
+    flex: 1 1 100%;
+  }
+}
+
 /* ——— Partidos: estado de predicción ——— */
 #partidos .match-pick-badge {
   margin: 0 0 8px;

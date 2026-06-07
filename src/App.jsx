@@ -860,7 +860,7 @@ export default function App() {
             <form className="matches-toolbar__filters" onSubmit={handleMatchSearchSubmit} role="search">
               <input
                 type="search"
-                className="matches-toolbar__search"
+                className="matches-toolbar__search matches-toolbar__filter--desktop-only"
                 placeholder="Buscar equipo, sede o grupo…"
                 value={matchSearchInput}
                 onChange={(e) => handleMatchSearchInputChange(e.target.value)}
@@ -873,7 +873,7 @@ export default function App() {
                 aria-label="Buscar partidos"
               />
               <select
-                className="matches-toolbar__select"
+                className="matches-toolbar__select matches-toolbar__filter--desktop-only"
                 value={matchStatusFilter}
                 onChange={(e) => setMatchStatusFilter(e.target.value)}
                 aria-label="Filtrar por estado"
