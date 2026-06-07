@@ -1,9 +1,9 @@
-/* Pulponi Cup — Parlay combinada compacta */
+/* Pulponi Cup — Parlay: tarjetas compactas estilo sportsbook */
 
 .parlay-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   max-width: 1080px;
 }
 
@@ -14,7 +14,7 @@
 .parlay-page__layout {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
 @media (min-width: 900px) {
@@ -32,128 +32,199 @@
 .parlay-page__match-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
+/* ——— Match card ——— */
 .parlay-match-card {
-  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 9px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 8, 10, 0.92);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
 }
 
-.parlay-match-card__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-  margin-bottom: 8px;
+.parlay-match-card__kickoff {
+  display: block;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.52);
+  line-height: 1.2;
 }
 
-.parlay-match-card__teams {
-  display: flex;
-  flex-wrap: wrap;
+.parlay-match-card__matchup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 6px 8px;
-  min-width: 0;
+  padding: 2px 0;
 }
 
 .parlay-match-card__team {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-  font-size: 0.84rem;
-}
-
-.parlay-match-card__vs {
-  color: var(--muted, #a1a1aa);
-  font-size: 0.72rem;
-  font-weight: 600;
-}
-
-.parlay-match-card__time {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--muted, #a1a1aa);
-  white-space: nowrap;
-}
-
-.parlay-match-card__odds {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.parlay-odd-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 8px 6px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--text, #f6f6f6);
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-}
-
-.parlay-odd-btn:hover {
-  border-color: rgba(255, 30, 39, 0.4);
-}
-
-.parlay-odd-btn.is-active {
-  border-color: rgba(255, 30, 39, 0.7);
-  background: rgba(255, 30, 39, 0.1);
-  box-shadow: 0 0 12px rgba(255, 30, 39, 0.18);
-}
-
-.parlay-odd-btn__label {
-  font-size: 0.68rem;
-  color: var(--muted, #a1a1aa);
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
   text-align: center;
-  line-height: 1.15;
 }
 
-.parlay-odd-btn__value {
-  font-size: 0.92rem;
-  font-weight: 800;
-  color: #86efac;
-  letter-spacing: 0.02em;
-}
-
-.parlay-odd-btn__value--favorite {
-  color: #fecaca;
-}
-
-.parlay-odd-btn__action {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #71717a;
-}
-
-.parlay-odd-btn.is-active .parlay-odd-btn__action {
-  color: #fca5a5;
-}
-
-.parlay-match-card__picked {
-  margin: 8px 0 0;
+.parlay-match-card__team-name {
+  display: block;
+  width: 100%;
   font-size: 0.78rem;
-  color: #86efac;
-  font-weight: 700;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #fff;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  white-space: normal;
+  text-overflow: clip;
 }
 
-.parlay-match-card__picked-odd {
-  font-size: 0.92rem;
-  color: #fecaca;
+.parlay-match-card__vs {
+  align-self: center;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  color: rgba(255, 30, 39, 0.88);
+  line-height: 1;
+}
+
+/* Logos 32px en parlay */
+.parlay-match-card .team-logo-frame,
+.parlay-match-card .team-logo-frame--sm {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  max-width: 32px !important;
+  max-height: 32px !important;
+  margin: 0;
+  padding: 0;
+  border-width: 1px;
+  border-radius: 9999px;
+  box-shadow: none;
+}
+
+.parlay-match-card .team-logo-frame .team-logo {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+.parlay-match-card .team-logo-frame--emoji .flag {
+  font-size: 18px !important;
+  line-height: 1;
+}
+
+.parlay-match-card__hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+  line-height: 1.2;
+}
+
+.parlay-match-card__picks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ——— Pick buttons (bet slip style) ——— */
+.parlay-pick-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: #f4f4f5;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.parlay-pick-btn:hover {
+  border-color: rgba(255, 30, 39, 0.45);
+  background: rgba(255, 30, 39, 0.06);
+}
+
+.parlay-pick-btn.is-active {
+  border-color: rgba(255, 30, 39, 0.92);
+  background: rgba(255, 30, 39, 0.14);
+  box-shadow:
+    0 0 0 1px rgba(255, 30, 39, 0.35) inset,
+    0 0 16px rgba(255, 30, 39, 0.22);
+}
+
+.parlay-pick-btn__label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.25;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.parlay-pick-btn__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.parlay-pick-btn__odd {
+  font-size: 0.82rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: #86efac;
   letter-spacing: 0.02em;
 }
 
+.parlay-pick-btn__odd--favorite {
+  color: #fecaca;
+}
+
+.parlay-pick-btn.is-active .parlay-pick-btn__odd {
+  color: #fff;
+}
+
+.parlay-pick-btn__check {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: rgba(255, 30, 39, 0.9);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 10px rgba(255, 30, 39, 0.45);
+}
+
+/* ——— Slip ——— */
 .parlay-page__slip {
   padding: 14px 16px;
 }
@@ -212,12 +283,14 @@
   display: block;
   font-size: 0.78rem;
   margin-bottom: 2px;
+  word-break: break-word;
 }
 
 .parlay-page__selection .muted {
   display: block;
   font-size: 0.68rem;
   margin-top: 2px;
+  word-break: break-word;
 }
 
 .parlay-page__selection-odd {
@@ -351,8 +424,17 @@
   font-size: 0.74rem;
 }
 
-@media (max-width: 520px) {
-  .parlay-match-card__odds {
-    grid-template-columns: 1fr;
+@media (min-width: 768px) {
+  .parlay-match-card {
+    padding: 9px 12px 10px;
+  }
+
+  .parlay-match-card__team-name {
+    font-size: 0.82rem;
+  }
+
+  .parlay-pick-btn {
+    min-height: 38px;
+    padding: 8px 12px;
   }
 }

@@ -17,11 +17,7 @@ import {
 import { getOutcomeOdds } from '../lib/parlayOdds';
 import { createParlayId, loadUserParlays, saveUserParlay } from '../lib/parlayStorage';
 
-const OUTCOMES = [
-  { id: 'home', label: 'Gana local' },
-  { id: 'draw', label: 'Empate' },
-  { id: 'away', label: 'Gana visitante' },
-];
+const OUTCOMES = ['home', 'draw', 'away'];
 
 function selectionKey(matchId, outcome) {
   return `${matchId}:${outcome}`;
@@ -149,61 +145,77 @@ export default function ParlayPage({ matches = [], userId, communityProfiles = [
                 const homeLabel = displayTeamName(match.home_team) ?? 'Local';
                 const awayLabel = displayTeamName(match.away_team) ?? 'Visitante';
                 const kickoffLabel = formatKickoff(match.kickoff);
-                const selectedForMatch = selections.find((s) => s.matchId === String(match.id));
 
                 return (
-                  <article key={match.id} className="parlay-match-card pulponi-card">
-                    <div className="parlay-match-card__top">
-                      <div className="parlay-match-card__teams">
-                        <span className="parlay-match-card__team">
-                          <TeamLogo logo={match.home_logo} flag={match.home_flag} alt={match.home_team ?? ''} size="sm" />
-                          {homeLabel}
-                        </span>
-                        <span className="parlay-match-card__vs">vs</span>
-                        <span className="parlay-match-card__team">
-                          <TeamLogo logo={match.away_logo} flag={match.away_flag} alt={match.away_team ?? ''} size="sm" />
-                          {awayLabel}
-                        </span>
+                  <article key={match.id} className="parlay-match-card">
+                    {kickoffLabel ? (
+                      <time className="parlay-match-card__kickoff" dateTime={match.kickoff}>
+                        {kickoffLabel}
+                      </time>
+                    ) : null}
+
+                    <div className="parlay-match-card__matchup">
+                      <div className="parlay-match-card__team">
+                        <TeamLogo
+                          logo={match.home_logo}
+                          flag={match.home_flag}
+                          alt={match.home_team ?? ''}
+                          size="sm"
+                        />
+                        <span className="parlay-match-card__team-name">{homeLabel}</span>
                       </div>
-                      {kickoffLabel ? <time className="parlay-match-card__time">{kickoffLabel}</time> : null}
+
+                      <span className="parlay-match-card__vs" aria-hidden>
+                        VS
+                      </span>
+
+                      <div className="parlay-match-card__team">
+                        <TeamLogo
+                          logo={match.away_logo}
+                          flag={match.away_flag}
+                          alt={match.away_team ?? ''}
+                          size="sm"
+                        />
+                        <span className="parlay-match-card__team-name">{awayLabel}</span>
+                      </div>
                     </div>
 
-                    <div className="parlay-match-card__odds">
-                      {OUTCOMES.map((o) => {
-                        const odd = getOutcomeOdds(oddsRow, o.id);
-                        const key = selectionKey(match.id, o.id);
+                    <p className="parlay-match-card__hint">Selecciona un resultado</p>
+
+                    <div className="parlay-match-card__picks">
+                      {OUTCOMES.map((outcome) => {
+                        const odd = getOutcomeOdds(oddsRow, outcome);
+                        const key = selectionKey(match.id, outcome);
                         const active = selections.some((s) => s.key === key);
-                        const pickLabel = outcomePickLabel(o.id, homeLabel, awayLabel);
+                        const pickLabel = outcomePickLabel(outcome, homeLabel, awayLabel);
                         const american = formatAmericanOdd(odd);
                         const isFavorite = american.startsWith('-');
+
                         return (
                           <button
                             key={key}
                             type="button"
-                            className={`parlay-odd-btn${active ? ' is-active' : ''}`}
-                            onClick={() => toggleSelection(match, o.id, pickLabel)}
+                            className={`parlay-pick-btn${active ? ' is-active' : ''}`}
+                            onClick={() => toggleSelection(match, outcome, pickLabel)}
                             aria-pressed={active}
                           >
-                            <span className="parlay-odd-btn__label">{pickLabel}</span>
-                            <span
-                              className={`parlay-odd-btn__value${isFavorite ? ' parlay-odd-btn__value--favorite' : ''}`}
-                            >
-                              {american}
+                            <span className="parlay-pick-btn__label">{pickLabel}</span>
+                            <span className="parlay-pick-btn__meta">
+                              <span
+                                className={`parlay-pick-btn__odd${isFavorite ? ' parlay-pick-btn__odd--favorite' : ''}`}
+                              >
+                                {american}
+                              </span>
+                              {active ? (
+                                <span className="parlay-pick-btn__check" aria-hidden>
+                                  ✓
+                                </span>
+                              ) : null}
                             </span>
-                            <span className="parlay-odd-btn__action">{active ? 'Quitar' : 'Agregar'}</span>
                           </button>
                         );
                       })}
                     </div>
-
-                    {selectedForMatch ? (
-                      <p className="parlay-match-card__picked">
-                        {selectedForMatch.outcomeLabel}
-                        <span className="parlay-match-card__picked-odd">
-                          {formatAmericanOdd(selectedForMatch.decimalOdds)}
-                        </span>
-                      </p>
-                    ) : null}
                   </article>
                 );
               })}
@@ -299,7 +311,9 @@ export default function ParlayPage({ matches = [], userId, communityProfiles = [
           </div>
 
           {saveMsg ? (
-            <p className={`parlay-page__save-msg${saveMsg === PARLAY_MIN_STAKE_MESSAGE ? ' parlay-page__save-msg--error' : ''}`}>
+            <p
+              className={`parlay-page__save-msg${saveMsg === PARLAY_MIN_STAKE_MESSAGE ? ' parlay-page__save-msg--error' : ''}`}
+            >
               {saveMsg}
             </p>
           ) : null}
