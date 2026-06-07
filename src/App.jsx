@@ -35,7 +35,9 @@ import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
 import RankingLeaderboard from './components/RankingLeaderboard';
 import MatchCommunityPrediction from './components/MatchCommunityPrediction';
+import PickScoreInput from './components/PickScoreInput';
 import { collectMatchPickScores, parsePickScore } from './lib/communityPicks';
+import { validatePickScores } from './lib/pickScoreInput';
 import { normalizeStoredHighlightList } from './lib/highlightsMapper';
 import { buildRankedLeaderboard } from './lib/rankingHistory';
 import { exportRankingPdf } from './lib/exportRankingPdf';
@@ -368,12 +370,18 @@ export default function App() {
     setPickFeedback(matchId, { type: 'saving' });
     try {
       const draft = pickDrafts[matchId] ?? {};
-      const home = Number(draft.home ?? data.picks[matchId]?.home_pick ?? 0);
-      const away = Number(draft.away ?? data.picks[matchId]?.away_pick ?? 0);
+      const validated = validatePickScores(
+        draft.home ?? data.picks[matchId]?.home_pick,
+        draft.away ?? data.picks[matchId]?.away_pick
+      );
+      if (!validated.ok) {
+        setPickFeedback(matchId, { type: 'error', message: validated.error });
+        return;
+      }
       const result = await data.savePick(
         matchId,
-        home,
-        away,
+        validated.home,
+        validated.away,
         draft.advances ?? data.picks[matchId]?.advances_team
       );
       if (result?.ok) {
@@ -625,31 +633,27 @@ export default function App() {
         <MatchCommunityPrediction scores={communityScores} match={m} />
         <div className="match-card__pick-row">
           <div className="pick-inputs">
-            <input
-              type="number"
-              min="0"
-              placeholder="0"
+            <PickScoreInput
               disabled={locked}
               value={draft.home ?? pick?.home_pick ?? ''}
-              onChange={(e) =>
+              onChange={(home) =>
                 setPickDrafts((d) => ({
                   ...d,
-                  [m.id]: { ...d[m.id], home: e.target.value },
+                  [m.id]: { ...d[m.id], home },
                 }))
               }
+              ariaLabel={`Goles ${homeLabel}`}
             />
-            <input
-              type="number"
-              min="0"
-              placeholder="0"
+            <PickScoreInput
               disabled={locked}
               value={draft.away ?? pick?.away_pick ?? ''}
-              onChange={(e) =>
+              onChange={(away) =>
                 setPickDrafts((d) => ({
                   ...d,
-                  [m.id]: { ...d[m.id], away: e.target.value },
+                  [m.id]: { ...d[m.id], away },
                 }))
               }
+              ariaLabel={`Goles ${awayLabel}`}
             />
           </div>
           {locked ? (

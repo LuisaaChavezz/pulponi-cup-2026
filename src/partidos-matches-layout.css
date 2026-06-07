@@ -232,7 +232,8 @@
     flex: 0 0 auto;
   }
 
-  #partidos .match-card__pick-row .pick-inputs input {
+  #partidos .match-card__pick-row .pick-inputs input,
+  #partidos .match-card__pick-row .pick-score-input__field {
     width: 36px;
     min-width: 36px;
     max-width: 36px;
@@ -316,4 +317,49 @@
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 20px !important;
   }
+}
+
+.pick-score-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pick-score-input__btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text, #f6f6f6);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pick-score-input__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pick-score-input__field {
+  width: 44px;
+  min-height: 32px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text, #f6f6f6);
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.pick-score-input__field::-webkit-outer-spin-button,
+.pick-score-input__field::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }

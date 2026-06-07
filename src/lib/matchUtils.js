@@ -151,7 +151,10 @@ export function hasRecordedScores(match) {
 
 export function formatScoreLine(match) {
   if (!hasRecordedScores(match)) return 'VS';
-  return `${match.home_score} - ${match.away_score}`;
+  const home = Math.round(Number(match.home_score));
+  const away = Math.round(Number(match.away_score));
+  if (!Number.isFinite(home) || !Number.isFinite(away)) return 'VS';
+  return `${home} - ${away}`;
 }
 
 export function formatKickoff(kickoff) {

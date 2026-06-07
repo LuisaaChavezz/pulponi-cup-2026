@@ -10,10 +10,19 @@ export function getInsufficientMessage() {
 /** @param {unknown} pick */
 export function parsePickScore(pick) {
   if (!pick || typeof pick !== 'object') return null;
-  const h = Number(pick.home_pick);
-  const a = Number(pick.away_pick);
-  if (!Number.isFinite(h) || !Number.isFinite(a) || h < 0 || a < 0) return null;
-  return { home: Math.floor(h), away: Math.floor(a) };
+  const h = Math.round(Number(pick.home_pick));
+  const a = Math.round(Number(pick.away_pick));
+  if (
+    !Number.isFinite(h) ||
+    !Number.isFinite(a) ||
+    !Number.isInteger(h) ||
+    !Number.isInteger(a) ||
+    h < 0 ||
+    a < 0
+  ) {
+    return null;
+  }
+  return { home: h, away: a };
 }
 
 export function outcomeFromScore(home, away) {

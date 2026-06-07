@@ -773,6 +773,20 @@ export function useAppData(session) {
 
   async function savePick(matchId, homePick, awayPick, advancesTeam = null) {
     if (!userId) return { ok: false, error: 'Sin sesión' };
+
+    const home = Math.round(Number(homePick));
+    const away = Math.round(Number(awayPick));
+    if (
+      !Number.isFinite(home) ||
+      !Number.isFinite(away) ||
+      !Number.isInteger(home) ||
+      !Number.isInteger(away) ||
+      home < 0 ||
+      away < 0
+    ) {
+      return { ok: false, error: 'Solo se permiten goles enteros (0, 1, 2…).' };
+    }
+
     const prevPick = picks[matchId];
     const hadPick = prevPick != null;
     const nowIso = new Date().toISOString();
