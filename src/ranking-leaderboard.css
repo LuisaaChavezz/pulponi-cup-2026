@@ -33,6 +33,13 @@
   }
 }
 
+@media (min-width: 1024px) {
+  #ranking.panel.is-active .ranking-leaderboard {
+    max-width: 900px;
+    margin: 16px auto 0;
+  }
+}
+
 .ranking-leaderboard {
   overflow: hidden;
   border: 1px solid var(--line, #ffffff18);

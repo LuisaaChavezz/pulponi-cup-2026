@@ -22,6 +22,7 @@ import {
   listMatchDayFilterOptions,
 } from './lib/matchListFilters';
 import { useMatchSync } from './hooks/useMatchSync';
+import { useMobileViewport } from './hooks/useMobileViewport';
 import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
 import HomeDashboard from './components/HomeDashboard';
@@ -123,6 +124,7 @@ export default function App() {
   const [matchPredictionFilter, setMatchPredictionFilter] = useState('all');
 
   const data = useAppData(session);
+  const showRankingMovement = useMobileViewport(1023);
   const appRenderCountRef = useRef(0);
   appRenderCountRef.current += 1;
 
@@ -984,10 +986,12 @@ export default function App() {
                     userId={session?.user?.id}
                   />
                 </section>
-                <RankingMovement
-                  session={session}
-                  className="dash-ranking pulponi-card ranking-section-movement"
-                />
+                {showRankingMovement ? (
+                  <RankingMovement
+                    session={session}
+                    className="dash-ranking pulponi-card ranking-section-movement"
+                  />
+                ) : null}
                 <RankingLeaderboard
                   rows={sortedRanking}
                   currentUserId={session?.user?.id}
