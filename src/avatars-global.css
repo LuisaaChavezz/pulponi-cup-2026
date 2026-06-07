@@ -3,14 +3,23 @@
  * Carga después de index.css / layout-dashboard.css.
  */
 
+:root {
+  --avatar-size-chat: 32px;
+  --avatar-size-ranking: 36px;
+  --avatar-size-community: 40px;
+  --avatar-size-profile: 96px;
+}
+
 .avatar-frame {
   display: block;
   flex-shrink: 0;
   aspect-ratio: 1 / 1;
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  min-height: 34px;
+  width: var(--avatar-size-ranking);
+  height: var(--avatar-size-ranking);
+  min-width: var(--avatar-size-ranking);
+  min-height: var(--avatar-size-ranking);
+  max-width: var(--avatar-size-ranking);
+  max-height: var(--avatar-size-ranking);
   border-radius: 9999px;
   overflow: hidden;
   border: 2px solid rgba(255, 30, 39, 0.45);
@@ -24,52 +33,126 @@
   display: block;
   width: 100%;
   height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  object-position: center;
+  object-position: center center;
   border-radius: 9999px;
 }
 
-.avatar-frame--xs {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
+/* Chat, comentarios, reacciones */
+.avatar-frame--xs,
+.avatar-frame--chat {
+  width: var(--avatar-size-chat);
+  height: var(--avatar-size-chat);
+  min-width: var(--avatar-size-chat);
+  min-height: var(--avatar-size-chat);
+  max-width: var(--avatar-size-chat);
+  max-height: var(--avatar-size-chat);
 }
 
-.avatar-frame--sm {
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  min-height: 34px;
+/* Ranking, top bar, movimiento */
+.avatar-frame--sm,
+.avatar-frame--ranking {
+  width: var(--avatar-size-ranking);
+  height: var(--avatar-size-ranking);
+  min-width: var(--avatar-size-ranking);
+  min-height: var(--avatar-size-ranking);
+  max-width: var(--avatar-size-ranking);
+  max-height: var(--avatar-size-ranking);
 }
 
+/* Perfiles de comunidad */
+.avatar-frame--community,
+.avatar-frame--md {
+  width: var(--avatar-size-community);
+  height: var(--avatar-size-community);
+  min-width: var(--avatar-size-community);
+  min-height: var(--avatar-size-community);
+  max-width: var(--avatar-size-community);
+  max-height: var(--avatar-size-community);
+}
+
+/* Perfil principal */
 .avatar-frame--profile {
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
+  width: var(--avatar-size-profile);
+  height: var(--avatar-size-profile);
+  min-width: var(--avatar-size-profile);
+  min-height: var(--avatar-size-profile);
+  max-width: var(--avatar-size-profile);
+  max-height: var(--avatar-size-profile);
   border: 0;
   box-shadow: none;
   background: #050505;
 }
 
 .avatar-frame--logo-profile {
-  padding: 8px;
+  padding: 6px;
   box-sizing: border-box;
+}
+
+.avatar-frame--xs.avatar-frame--logo-profile,
+.avatar-frame--chat.avatar-frame--logo-profile {
+  padding: 4px;
 }
 
 .avatar-frame--logo-profile > img {
   object-fit: contain;
-  object-position: center;
+  object-position: center center;
   border-radius: 9999px;
 }
 
-/* Foto principal en perfil (legacy): solo si NO usa profile-page */
+/* Chat: forzar 32px aunque use --sm legacy */
+.chat-message-head .avatar-frame,
+.chat-reaction-popover__row .avatar-frame,
+.topbar-avatar-btn .avatar-frame {
+  width: var(--avatar-size-chat);
+  height: var(--avatar-size-chat);
+  min-width: var(--avatar-size-chat);
+  min-height: var(--avatar-size-chat);
+  max-width: var(--avatar-size-chat);
+  max-height: var(--avatar-size-chat);
+}
+
+/* Ranking */
+.ranking-leaderboard .rank-row__avatar.avatar-frame,
+.rm-avatar.avatar-frame,
+.home-dash-mobile-ranking__avatar.avatar-frame {
+  width: var(--avatar-size-ranking);
+  height: var(--avatar-size-ranking);
+  min-width: var(--avatar-size-ranking);
+  min-height: var(--avatar-size-ranking);
+  max-width: var(--avatar-size-ranking);
+  max-height: var(--avatar-size-ranking);
+}
+
+.rm-rest-avatar.avatar-frame {
+  width: var(--avatar-size-chat);
+  height: var(--avatar-size-chat);
+  min-width: var(--avatar-size-chat);
+  min-height: var(--avatar-size-chat);
+  max-width: var(--avatar-size-chat);
+  max-height: var(--avatar-size-chat);
+}
+
+/* Comunidad */
+.home-dash-profile-row__avatar.avatar-frame,
+.social-profile__avatar.avatar-frame,
+.home-dash-activity__avatar.avatar-frame {
+  width: var(--avatar-size-community);
+  height: var(--avatar-size-community);
+  min-width: var(--avatar-size-community);
+  min-height: var(--avatar-size-community);
+  max-width: var(--avatar-size-community);
+  max-height: var(--avatar-size-community);
+}
+
+/* Legacy profile-photo (si aparece en DOM) */
 .profile-photo:not(.profile-page__avatar-wrap) .avatar-frame > img {
   border-radius: 9999px !important;
   object-fit: cover;
-  object-position: center;
+  object-position: center center;
   width: 100%;
   height: 100%;
 }
@@ -98,27 +181,27 @@
   height: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  object-position: center;
+  object-position: center center;
   border-radius: 9999px;
 }
 
 .avatar-option-frame--logo img {
   object-fit: contain;
-  object-position: center;
+  object-position: center center;
   padding: 8px;
   box-sizing: border-box;
 }
 
-/* Actividad reciente: contenedor 42×42, círculo perfecto (evita estiramiento en flex) */
+/* Actividad reciente (feed legacy) */
 .dash-activity-feed .activity-row--feed > .avatar-frame {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  max-width: 42px;
-  min-height: 42px;
-  max-height: 42px;
+  width: var(--avatar-size-community);
+  height: var(--avatar-size-community);
+  min-width: var(--avatar-size-community);
+  max-width: var(--avatar-size-community);
+  min-height: var(--avatar-size-community);
+  max-height: var(--avatar-size-community);
   aspect-ratio: 1 / 1;
-  border-radius: 50%;
+  border-radius: 9999px;
   overflow: hidden;
   flex-shrink: 0;
   align-self: flex-start;
@@ -132,13 +215,13 @@
   max-height: none;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  object-position: center;
-  border-radius: 50%;
+  object-position: center center;
+  border-radius: 9999px;
   display: block;
 }
 
 .dash-activity-feed .activity-row--feed > .avatar-frame.avatar-frame--logo-profile > img {
-  object-fit: cover;
-  object-position: center;
+  object-fit: contain;
+  object-position: center center;
   padding: 0;
 }

@@ -767,7 +767,7 @@ export default function App() {
             onClick={() => navigateToSection('perfil')}
             aria-label="Ir a perfil"
           >
-            <UserAvatar avatarUrl={avatarUrl} className="avatar-frame--sm" alt="" />
+            <UserAvatar avatarUrl={avatarUrl} variant="chat" alt="" />
           </button>
         </div>
       </header>

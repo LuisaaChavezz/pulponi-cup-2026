@@ -111,8 +111,12 @@
 }
 
 .home-dash-profile-row__avatar {
-  width: 26px;
-  height: 26px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  max-width: 40px;
+  max-height: 40px;
   flex-shrink: 0;
 }
 
@@ -762,8 +766,12 @@
 }
 
 .home-dash-activity__avatar {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  max-width: 40px;
+  max-height: 40px;
 }
 
 .home-dash-activity__copy p {
@@ -854,8 +862,12 @@
 }
 
 .home-dash-mobile-ranking__avatar {
-  width: 26px;
-  height: 26px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  max-width: 36px;
+  max-height: 36px;
 }
 
 .home-dash-mobile-ranking__name {

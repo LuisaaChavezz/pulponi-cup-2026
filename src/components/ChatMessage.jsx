@@ -130,7 +130,7 @@ export default function ChatMessage({ message, reactionRows = [], currentUserId,
         <ul className="chat-reaction-popover__list">
           {popoverUsers.map((u) => (
             <li key={`${popover.emoji}-${u.profile_id}`} className="chat-reaction-popover__row">
-              <UserAvatar photoUrl={u.photoUrl} avatarUrl={u.avatarUrl} className="avatar-frame--xs" alt="" />
+              <UserAvatar photoUrl={u.photoUrl} avatarUrl={u.avatarUrl} variant="chat" alt="" />
               <div className="chat-reaction-popover__meta">
                 <span className="chat-reaction-popover__handle">{u.handle}</span>
                 {u.displayName ? <span className="chat-reaction-popover__name">{u.displayName}</span> : null}
@@ -157,7 +157,7 @@ export default function ChatMessage({ message, reactionRows = [], currentUserId,
   return (
     <div className="chat-message">
       <div className="chat-message-head">
-        <UserAvatar photoUrl={message.photoUrl} avatarUrl={message.avatarUrl} className="avatar-frame--sm" alt="" />
+        <UserAvatar photoUrl={message.photoUrl} avatarUrl={message.avatarUrl} variant="chat" alt="" />
         <div>
           <strong>{message.user}</strong>
           <small>{message.time}</small>

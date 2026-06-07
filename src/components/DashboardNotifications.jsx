@@ -23,7 +23,7 @@ const PREDICTION_FEED_RECENT_COUNT = 5;
 function PredictionActivityItem({ item }) {
   return (
     <li className="dash-notifications__pred-item">
-      <UserAvatar avatarUrl={item.avatarUrl} className="avatar-frame--xs" alt="" />
+      <UserAvatar avatarUrl={item.avatarUrl} variant="chat" alt="" />
       <div className="dash-notifications__pred-copy">
         <p>{item?.text ?? 'Sin información todavía'}</p>
         {item.at ? (

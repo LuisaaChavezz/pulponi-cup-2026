@@ -139,7 +139,7 @@ export default function RankingMovement({
                       <span className="rm-pos-emoji" aria-hidden>
                         {TOP_EMOJIS[i] ?? '◆'}
                       </span>
-                      <UserAvatar photoUrl={r.photo_url} className="rm-avatar avatar-frame--sm" alt="" />
+                      <UserAvatar photoUrl={r.photo_url} variant="ranking" className="rm-avatar" alt="" />
                       <div className="rm-top-body">
                         <div className="rm-top-line">
                           <h3 className="rm-top-title">
@@ -173,7 +173,7 @@ export default function RankingMovement({
                       key={r.id}
                       className={`rm-rest-row rm-rest-row--${r.movement?.direction ?? 'same'}`}
                     >
-                      <UserAvatar photoUrl={r.photo_url} className="rm-rest-avatar avatar-frame--xs" alt="" />
+                      <UserAvatar photoUrl={r.photo_url} variant="chat" className="rm-rest-avatar" alt="" />
                       <div className="rm-rest-body">
                         <div className="rm-rest-line">
                           <span className="rm-rest-title">

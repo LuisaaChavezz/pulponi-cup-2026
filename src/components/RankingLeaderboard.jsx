@@ -54,7 +54,7 @@ export default function RankingLeaderboard({
               >
                 <span className="rank-row__pos">#{i + 1}</span>
                 <div className="rank-row__user">
-                  <UserAvatar photoUrl={r.photo_url} className="rank-row__avatar" alt="" />
+                  <UserAvatar photoUrl={r.photo_url} variant="ranking" className="rank-row__avatar" alt="" />
                   <span className="rank-row__name">{username}</span>
                 </div>
                 <span className="rank-row__stat rank-row__stat--pts">{points}</span>

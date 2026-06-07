@@ -1,6 +1,6 @@
 /**
  * Tarjeta de jugador — carga al final para ganar a index.css legacy.
- * Avatar fijo 160px móvil / 220px desktop. Sin foto gigante.
+ * Avatar fijo 96px. Sin foto gigante.
  */
 
 #perfil .profile-photo,
@@ -21,12 +21,12 @@
 
 #perfil img:not(.pulponi-player-card__photo):not(.avatar-option-frame img),
 #usuario img:not(.pulponi-player-card__photo):not(.avatar-option-frame img) {
-  max-width: 160px !important;
-  max-height: 160px !important;
+  max-width: 96px !important;
+  max-height: 96px !important;
 }
 
 .pulponi-player-card {
-  --ppc-avatar: 160px;
+  --ppc-avatar: 96px;
   position: relative;
   width: 100%;
   max-height: 350px;
@@ -80,7 +80,7 @@
 /* Halo blur: solo detrás del avatar, no toda la tarjeta */
 .pulponi-player-card__photo--logo {
   object-fit: contain !important;
-  padding: 14px !important;
+  padding: 10px !important;
   box-sizing: border-box !important;
 }
 
@@ -92,7 +92,7 @@
   width: calc(var(--ppc-avatar) + 48px);
   height: calc(var(--ppc-avatar) + 48px);
   margin-left: calc((var(--ppc-avatar) + 48px) / -2);
-  border-radius: 50%;
+  border-radius: 9999px;
   background-size: cover;
   background-position: center;
   filter: blur(42px);
@@ -142,7 +142,7 @@
   max-width: var(--ppc-avatar);
   max-height: var(--ppc-avatar);
   padding: 3px;
-  border-radius: 50%;
+  border-radius: 9999px;
   background: linear-gradient(145deg, #ff1e27, #7f0d12);
   box-shadow: 0 0 28px rgba(255, 30, 39, 0.45);
   box-sizing: border-box;
@@ -157,17 +157,18 @@
 .profile-page .pulponi-player-card__photo,
 .profile-photo .pulponi-player-card__photo,
 label .pulponi-player-card__photo {
-  width: 160px !important;
-  height: 160px !important;
-  min-width: 160px !important;
-  min-height: 160px !important;
-  max-width: 160px !important;
-  max-height: 160px !important;
-  border-radius: 50% !important;
+  width: 96px !important;
+  height: 96px !important;
+  min-width: 96px !important;
+  min-height: 96px !important;
+  max-width: 96px !important;
+  max-height: 96px !important;
+  border-radius: 9999px !important;
   object-fit: cover !important;
   object-position: center center !important;
   display: block !important;
-  flex: 0 0 160px !important;
+  flex: 0 0 96px !important;
+  aspect-ratio: 1 / 1;
 }
 
 .pulponi-player-card__upload {
@@ -251,12 +252,8 @@ label .pulponi-player-card__photo {
   color: #fecaca;
 }
 
-/* Desktop: avatar 220px, layout horizontal compacto ≤350px */
+/* Desktop: layout horizontal compacto */
 @media (min-width: 768px) {
-  .pulponi-player-card {
-    --ppc-avatar: 220px;
-  }
-
   .pulponi-player-card__halo {
     top: 50%;
     left: 24px;
@@ -275,18 +272,6 @@ label .pulponi-player-card__photo {
   .pulponi-player-card__identity {
     flex: 1;
     min-width: 0;
-  }
-
-  .pulponi-player-card__photo,
-  #perfil .pulponi-player-card__photo,
-  #usuario .pulponi-player-card__photo {
-    width: 220px !important;
-    height: 220px !important;
-    min-width: 220px !important;
-    min-height: 220px !important;
-    max-width: 220px !important;
-    max-height: 220px !important;
-    flex: 0 0 220px !important;
   }
 }
 

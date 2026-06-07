@@ -1298,10 +1298,10 @@
 .dash-perfil .avatar-option-frame {
   flex: 0 0 auto;
   width: 100%;
-  aspect-ratio: 1;
-  max-height: 160px;
+  aspect-ratio: 1 / 1;
+  max-height: 96px;
   margin: 0;
-  border-radius: 10px;
+  border-radius: 9999px;
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -1310,9 +1310,11 @@
 .dash-perfil .avatar-option-frame img {
   width: 100%;
   height: 100%;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
-  object-position: center;
+  object-position: center center;
   display: block;
+  border-radius: 9999px;
 }
 
 .dash-perfil .avatar-option-frame--logo img {
@@ -3063,6 +3065,8 @@
 
 .social-profile__avatar {
   flex-shrink: 0;
+  width: 40px;
+  height: 40px;
 }
 
 .social-profile__identity {

@@ -1,7 +1,6 @@
 import { isLogoAvatar, resolveAvatarUrl } from '../lib/avatars';
 
-const AVATAR_MOBILE = 160;
-const AVATAR_DESKTOP = 220;
+const AVATAR_SIZE = 96;
 
 /**
  * Tarjeta de jugador Pulponi (FUT / Discord / COD).
@@ -37,18 +36,18 @@ export default function Profile({
   ];
 
   const avatarStyle = {
-    width: AVATAR_MOBILE,
-    height: AVATAR_MOBILE,
-    minWidth: AVATAR_MOBILE,
-    minHeight: AVATAR_MOBILE,
-    maxWidth: AVATAR_MOBILE,
-    maxHeight: AVATAR_MOBILE,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    minWidth: AVATAR_SIZE,
+    minHeight: AVATAR_SIZE,
+    maxWidth: AVATAR_SIZE,
+    maxHeight: AVATAR_SIZE,
     objectFit: logo ? 'contain' : 'cover',
-    objectPosition: 'center',
-    borderRadius: '50%',
+    objectPosition: 'center center',
+    borderRadius: '9999px',
     display: 'block',
     flexShrink: 0,
-    padding: logo ? 14 : 0,
+    padding: logo ? 10 : 0,
     boxSizing: 'border-box',
     background: '#08080a',
   };
@@ -96,8 +95,8 @@ export default function Profile({
                 src={src}
                 alt=""
                 className={`pulponi-player-card__photo${logo ? ' pulponi-player-card__photo--logo' : ''}`}
-                width={AVATAR_MOBILE}
-                height={AVATAR_MOBILE}
+                width={AVATAR_SIZE}
+                height={AVATAR_SIZE}
                 style={avatarStyle}
                 loading="lazy"
                 decoding="async"

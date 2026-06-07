@@ -19,7 +19,7 @@ export default function HomeMobileRankingSummary({ ranking = [], onViewRanking }
           {topFive.map((row) => (
             <li key={row.id ?? row.rank_position} className="home-dash-mobile-ranking__row">
               <span className="home-dash-mobile-ranking__pos">{row.rank_position}.</span>
-              <UserAvatar photoUrl={row.photo_url} className="home-dash-mobile-ranking__avatar" alt="" />
+              <UserAvatar photoUrl={row.photo_url} variant="ranking" className="home-dash-mobile-ranking__avatar" alt="" />
               <span className="home-dash-mobile-ranking__name">{formatUsername(row)}</span>
               <span className="home-dash-mobile-ranking__pts">{Number(row.points ?? 0)} pts</span>
             </li>

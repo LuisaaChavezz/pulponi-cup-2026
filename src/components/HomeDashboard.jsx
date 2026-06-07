@@ -208,7 +208,7 @@ export default function HomeDashboard({
                 onClick={() => onSelectUser?.(row.id)}
                 aria-label={`Ver perfil de ${formatUsername(row)}`}
               >
-                <UserAvatar photoUrl={row.photo_url} className="home-dash-profile-row__avatar" alt="" />
+                <UserAvatar photoUrl={row.photo_url} variant="community" className="home-dash-profile-row__avatar" alt="" />
                 <span className="home-dash-profile-row__name">{formatUsername(row)}</span>
                 <span className="home-dash-profile-row__pts">{Number(row.points ?? 0)}</span>
               </button>
@@ -315,7 +315,7 @@ export default function HomeDashboard({
               const parts = parseActivityParts(item.text);
               return (
                 <li key={item.id} className="home-dash-activity__row">
-                  <UserAvatar avatarUrl={item.avatarUrl} className="home-dash-activity__avatar" alt="" />
+                  <UserAvatar avatarUrl={item.avatarUrl} variant="community" className="home-dash-activity__avatar" alt="" />
                   <div className="home-dash-activity__copy">
                     <p>
                       <strong>{parts.action}</strong>
