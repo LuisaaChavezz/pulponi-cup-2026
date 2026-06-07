@@ -4335,8 +4335,8 @@
   margin-top: auto;
 }
 
-/* Tablet: 2 columnas si no caben 3 */
-@media (min-width: 640px) and (max-width: 1023px) {
+/* Tablet: 2 columnas */
+@media (min-width: 769px) and (max-width: 1023px) {
   #partidos .matches-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
@@ -4347,15 +4347,10 @@
   }
 }
 
-/* Tablet ancha / desktop: 3 columnas */
-@media (min-width: 900px) {
-  #partidos .matches-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
+/* Desktop: 3 columnas */
 @media (min-width: 1024px) {
   #partidos .matches-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 20px;
   }
 

@@ -1,112 +1,301 @@
 /**
- * Partidos — overrides finales (carga al final del bundle).
- * Grilla continua; móvil 3 columnas compactas.
+ * Partidos — layout responsive.
+ * Móvil ≤768px: filas horizontales compactas (lista vertical).
+ * Tablet 769–1023px y desktop ≥1024px: grilla de tarjetas (sin cambios visuales en desktop).
  */
 
-@media (max-width: 639px) {
+/* Desktop / tablet: fila inline oculta, tarjetas verticales normales */
+#partidos .match-teams-inline {
+  display: none;
+}
+
+#partidos .match-teams--card {
+  display: flex;
+}
+
+#partidos .match-card__meta {
+  display: contents;
+}
+
+#partidos .match-card__pick-row {
+  display: contents;
+}
+
+@media (max-width: 768px) {
   #partidos .matches-grid {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    display: flex !important;
+    flex-direction: column !important;
     gap: 8px !important;
+    grid-template-columns: unset !important;
   }
 
   #partidos .matches-grid > .match-card {
-    min-height: 300px;
-    padding: 8px !important;
-    font-size: 10px;
-    border-radius: 14px;
-  }
-
-  #partidos .match-card img,
-  #partidos .match-card .team-flag,
-  #partidos .match-card .team-logo-frame--sm {
-    width: 28px !important;
-    height: 28px !important;
-    min-width: 28px !important;
-    min-height: 28px !important;
-  }
-
-  #partidos .match-card .team-logo-frame--sm .team-logo {
-    width: 24px !important;
-    height: 24px !important;
-  }
-
-  #partidos .match-card .team-logo-frame--emoji .flag {
-    font-size: 18px !important;
-  }
-
-  #partidos .match-card header {
-    font-size: 8px;
-    gap: 4px;
-  }
-
-  #partidos .match-card .fifa-pill,
-  #partidos .match-card .demo-pill,
-  #partidos .match-card .live-pill,
-  #partidos .match-card .match-status-code {
-    font-size: 7px;
-    padding: 2px 5px;
-  }
-
-  #partidos .match-card .match-schedule {
-    margin-bottom: 6px;
-  }
-
-  #partidos .match-card .match-schedule-date,
-  #partidos .match-card .match-schedule-time,
-  #partidos .match-card .match-schedule-venue,
-  #partidos .match-card .match-schedule-city,
-  #partidos .match-card .match-schedule-group {
-    font-size: 8px;
-    line-height: 1.25;
-    margin: 0 0 2px;
-  }
-
-  #partidos .match-card .match-teams {
-    margin: 8px 0;
-    gap: 4px;
-  }
-
-  #partidos .match-card .match-team-name {
-    font-size: 8px !important;
-    line-height: 1.15;
-    -webkit-line-clamp: 2;
-  }
-
-  #partidos .match-card .match-score-center {
-    font-size: 13px;
-  }
-
-  #partidos .match-card .pick-inputs {
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 10px 12px !important;
+    border-radius: 12px;
+    display: flex !important;
+    flex-direction: column !important;
     gap: 6px;
-    margin-top: 6px;
+    box-sizing: border-box;
   }
 
-  #partidos .match-card .pick-inputs input {
-    padding: 5px 3px;
-    font-size: 11px;
-    min-height: 28px;
+  /* Meta: fecha/hora + estado */
+  #partidos .match-card__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
-  #partidos .match-card button,
-  #partidos .match-card .pick-submit-btn {
+  #partidos .match-card__meta header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin: 0;
     font-size: 9px;
-    padding: 8px 4px;
+  }
+
+  #partidos .match-card__meta .fifa-pill,
+  #partidos .match-card__meta .demo-pill,
+  #partidos .match-card__meta .live-pill,
+  #partidos .match-card__meta .match-status-code {
+    font-size: 8px;
+    padding: 2px 6px;
     line-height: 1.2;
   }
 
-  #partidos .match-card .pick-locked,
-  #partidos .match-card .pick-save-feedback {
-    font-size: 8px;
+  #partidos .match-card__meta .match-schedule {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    margin: 0;
   }
 
-  #partidos .match-card .pulponi-social--community,
-  #partidos .match-card .pulponi-social--thermo {
-    font-size: 8px;
+  #partidos .match-card__meta .match-schedule-date,
+  #partidos .match-card__meta .match-schedule-time {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: #f4f4f5;
+  }
+
+  #partidos .match-card__meta .match-schedule-date::after {
+    content: '·';
+    margin-left: 8px;
+    color: rgba(255, 30, 39, 0.75);
+    font-weight: 900;
+  }
+
+  #partidos .match-card__meta .match-schedule-venue,
+  #partidos .match-card__meta .match-schedule-city,
+  #partidos .match-card__meta .match-schedule-group {
+    display: none;
+  }
+
+  /* Equipos: fila horizontal compacta */
+  #partidos .match-teams--card {
+    display: none !important;
+  }
+
+  #partidos .match-teams-inline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  #partidos .match-teams-inline .team-logo-frame--sm {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    min-height: 26px !important;
+    flex-shrink: 0;
+  }
+
+  #partidos .match-teams-inline .team-logo-frame--sm .team-logo {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  #partidos .match-teams-inline .team-logo-frame--emoji .flag {
+    font-size: 16px !important;
+  }
+
+  #partidos .match-teams-inline__center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1.2;
+    text-align: center;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  #partidos .match-teams-inline__home,
+  #partidos .match-teams-inline__away {
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #partidos .match-teams-inline__vs {
+    color: rgba(255, 30, 39, 0.9);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: lowercase;
+    flex-shrink: 0;
+  }
+
+  /* Tendencias: 100% | 0% | 0% */
+  #partidos .match-card .pulponi-social--community {
+    margin: 0;
+    padding: 6px 8px;
+    border-radius: 10px;
+  }
+
+  #partidos .match-card .pulponi-social__title {
+    display: none;
+  }
+
+  #partidos .match-card .pulponi-social__empty {
+    font-size: 9px;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  #partidos .match-card .pulponi-social__bars {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+
+  #partidos .match-card .pulponi-social__bars li {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    min-width: 0;
+    padding: 0 4px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  #partidos .match-card .pulponi-social__bars li:last-child {
+    border-right: none;
+  }
+
+  #partidos .match-card .pulponi-social__bar-label,
+  #partidos .match-card .pulponi-social__bar-track {
+    display: none;
+  }
+
+  #partidos .match-card .pulponi-social__bar-pct {
+    min-width: 0;
+    font-size: 10px;
+    font-weight: 900;
+    color: #fecaca;
+    text-align: center;
+  }
+
+  /* Predicción + botón en una fila */
+  #partidos .match-card__pick-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  #partidos .match-card__pick-row .pick-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    flex: 0 0 auto;
+  }
+
+  #partidos .match-card__pick-row .pick-inputs input {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    min-height: 30px;
+    padding: 4px 2px;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+    border-radius: 8px;
+  }
+
+  #partidos .match-card__pick-row .pick-submit-wrap {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  #partidos .match-card__pick-row .pick-submit-btn {
+    width: 100%;
+    min-height: 30px;
+    padding: 6px 8px;
+    font-size: 10px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #partidos .match-card__pick-row .pick-locked {
+    margin: 0;
+    flex: 1;
+    font-size: 9px;
+    line-height: 1.25;
+    text-align: center;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  #partidos .match-card__pick-row .pick-save-feedback {
+    font-size: 9px;
+    padding: 4px 6px;
+  }
+
+  #partidos .match-card .pick-submit-wrap,
+  #partidos .match-card > .pick-locked {
+    margin-top: 0;
+  }
+
+  #partidos .match-card__knockout-select {
+    margin: 0 !important;
+    width: 100%;
+    min-height: 30px;
+    padding: 4px 8px;
+    font-size: 10px;
+    border-radius: 8px;
+  }
+
+  #partidos .match-card .match-final {
+    margin: 0;
+    font-size: 9px;
+    line-height: 1.25;
+    text-align: center;
   }
 }
 
-@media (min-width: 640px) and (max-width: 899px) {
+@media (min-width: 769px) and (max-width: 1023px) {
   #partidos .matches-grid {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -114,15 +303,10 @@
   }
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   #partidos .matches-grid {
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  }
-}
-
-@media (min-width: 1024px) {
-  #partidos .matches-grid {
     gap: 20px !important;
   }
 }

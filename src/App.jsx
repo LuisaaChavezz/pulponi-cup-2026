@@ -510,39 +510,60 @@ export default function App() {
     const pickSaving = pickFeedback?.type === 'saving';
     const hasSavedPick = pick != null;
 
+    const scoreLine = formatScoreLine(m);
+    const homeLabel = displayTeamName(m.home_team) ?? '—';
+    const awayLabel = displayTeamName(m.away_team) ?? '—';
+
     return (
-      <article key={m.id} className="match-card">
-        <header>
-          <span className="match-card-header-left">
-            {m.provisional ? (
-              <span className="fifa-pill" title="Calendario publicado por FIFA">
-                Calendario oficial FIFA
-              </span>
-            ) : null}
-            {m.is_demo ? (
-              <span className="demo-pill" title="Partido de demostración">
-                DEMO
-              </span>
-            ) : null}
+      <article key={m.id} className="match-card match-card--partidos">
+        <div className="match-card__meta">
+          <header>
+            <span className="match-card-header-left">
+              {m.provisional ? (
+                <span className="fifa-pill" title="Calendario publicado por FIFA">
+                  Calendario oficial FIFA
+                </span>
+              ) : null}
+              {m.is_demo ? (
+                <span className="demo-pill" title="Partido de demostración">
+                  DEMO
+                </span>
+              ) : null}
+            </span>
+            <span
+              className={
+                status === 'En vivo' || status === 'Medio tiempo' ? 'live-pill' : 'match-status-code'
+              }
+            >
+              {status}
+            </span>
+          </header>
+          <MatchSchedule match={m} showWeekday={false} />
+        </div>
+        <div className="match-teams-inline">
+          <TeamLogo logo={m.home_logo} flag={m.home_flag} alt={m.home_team ?? ''} size="sm" />
+          <span className="match-teams-inline__center">
+            {scoreLine !== 'VS' ? (
+              scoreLine
+            ) : (
+              <>
+                <span className="match-teams-inline__home">{homeLabel}</span>
+                <span className="match-teams-inline__vs">vs</span>
+                <span className="match-teams-inline__away">{awayLabel}</span>
+              </>
+            )}
           </span>
-          <span
-            className={
-              status === 'En vivo' || status === 'Medio tiempo' ? 'live-pill' : 'match-status-code'
-            }
-          >
-            {status}
-          </span>
-        </header>
-        <MatchSchedule match={m} showWeekday={false} />
-        <div className="match-teams">
-          <div className="match-team-cell">
+          <TeamLogo logo={m.away_logo} flag={m.away_flag} alt={m.away_team ?? ''} size="sm" />
+        </div>
+        <div className="match-teams match-teams--card">
+          <div className="match-team-cell match-team-cell--home">
             <TeamLogo logo={m.home_logo} flag={m.home_flag} alt={m.home_team ?? ''} size="sm" />
             {displayTeamName(m.home_team) ? (
               <span className="match-team-name">{m.home_team}</span>
             ) : null}
           </div>
-          <strong className="match-score-center">{formatScoreLine(m)}</strong>
-          <div className="match-team-cell">
+          <strong className="match-score-center">{scoreLine}</strong>
+          <div className="match-team-cell match-team-cell--away">
             <TeamLogo logo={m.away_logo} flag={m.away_flag} alt={m.away_team ?? ''} size="sm" />
             {displayTeamName(m.away_team) ? (
               <span className="match-team-name">{m.away_team}</span>
@@ -550,36 +571,67 @@ export default function App() {
           </div>
         </div>
         <MatchCommunityPrediction scores={communityScores} match={m} />
-        <div className="pick-inputs">
-          <input
-            type="number"
-            min="0"
-            placeholder="0"
-            disabled={locked}
-            value={draft.home ?? pick?.home_pick ?? ''}
-            onChange={(e) =>
-              setPickDrafts((d) => ({
-                ...d,
-                [m.id]: { ...d[m.id], home: e.target.value },
-              }))
-            }
-          />
-          <input
-            type="number"
-            min="0"
-            placeholder="0"
-            disabled={locked}
-            value={draft.away ?? pick?.away_pick ?? ''}
-            onChange={(e) =>
-              setPickDrafts((d) => ({
-                ...d,
-                [m.id]: { ...d[m.id], away: e.target.value },
-              }))
-            }
-          />
+        <div className="match-card__pick-row">
+          <div className="pick-inputs">
+            <input
+              type="number"
+              min="0"
+              placeholder="0"
+              disabled={locked}
+              value={draft.home ?? pick?.home_pick ?? ''}
+              onChange={(e) =>
+                setPickDrafts((d) => ({
+                  ...d,
+                  [m.id]: { ...d[m.id], home: e.target.value },
+                }))
+              }
+            />
+            <input
+              type="number"
+              min="0"
+              placeholder="0"
+              disabled={locked}
+              value={draft.away ?? pick?.away_pick ?? ''}
+              onChange={(e) =>
+                setPickDrafts((d) => ({
+                  ...d,
+                  [m.id]: { ...d[m.id], away: e.target.value },
+                }))
+              }
+            />
+          </div>
+          {locked ? (
+            <p className="pick-locked">
+              {status === 'Final' ? 'Predicción cerrada · Resultado final' : 'Predicción cerrada'}
+            </p>
+          ) : (
+            <div className="pick-submit-wrap">
+              <button
+                type="button"
+                className="primary full pick-submit-btn"
+                disabled={pickSaving}
+                onClick={() => submitPick(m)}
+              >
+                {pickSaving
+                  ? 'Guardando...'
+                  : hasSavedPick
+                    ? 'Actualizar predicción'
+                    : 'Enviar predicción'}
+              </button>
+              {pickFeedback?.message ? (
+                <p
+                  className={`pick-save-feedback pick-save-feedback--${pickFeedback.type}`}
+                  role={pickFeedback.type === 'error' ? 'alert' : 'status'}
+                >
+                  {pickFeedback.message}
+                </p>
+              ) : null}
+            </div>
+          )}
         </div>
         {m.is_knockout ? (
           <select
+            className="match-card__knockout-select"
             disabled={locked}
             value={draft.advances ?? pick?.advances_team ?? ''}
             onChange={(e) =>
@@ -588,7 +640,6 @@ export default function App() {
                 [m.id]: { ...d[m.id], advances: e.target.value },
               }))
             }
-            style={{ marginTop: 8 }}
           >
             <option value="">¿Quién avanza en penales?</option>
             <option value={m.home_team}>{m.home_team}</option>
@@ -596,34 +647,6 @@ export default function App() {
           </select>
         ) : null}
         {finalLabel ? <p className="match-final">{finalLabel}</p> : null}
-        {locked ? (
-          <p className="pick-locked">
-            {status === 'Final' ? 'Predicción cerrada · Resultado final' : 'Predicción cerrada'}
-          </p>
-        ) : (
-          <div className="pick-submit-wrap">
-            <button
-              type="button"
-              className="primary full pick-submit-btn"
-              disabled={pickSaving}
-              onClick={() => submitPick(m)}
-            >
-              {pickSaving
-                ? 'Guardando...'
-                : hasSavedPick
-                  ? 'Actualizar predicción'
-                  : 'Enviar predicción'}
-            </button>
-            {pickFeedback?.message ? (
-              <p
-                className={`pick-save-feedback pick-save-feedback--${pickFeedback.type}`}
-                role={pickFeedback.type === 'error' ? 'alert' : 'status'}
-              >
-                {pickFeedback.message}
-              </p>
-            ) : null}
-          </div>
-        )}
       </article>
     );
   }

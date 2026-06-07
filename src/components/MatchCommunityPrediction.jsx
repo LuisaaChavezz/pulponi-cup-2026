@@ -1,8 +1,5 @@
 import { getCommunityOutcomeStats, getInsufficientMessage } from '../lib/communityPicks';
 
-const TREND_DISCLAIMER =
-  'Estos porcentajes muestran la tendencia general, no los marcadores individuales.';
-
 export default function MatchCommunityPrediction({ scores, match }) {
   const stats = getCommunityOutcomeStats(scores, match);
 
@@ -22,7 +19,6 @@ export default function MatchCommunityPrediction({ scores, match }) {
       aria-label="Tendencia de la comunidad"
     >
       <p className="pulponi-social__title">Tendencia de la comunidad</p>
-      <p className="pulponi-social__disclaimer">{TREND_DISCLAIMER}</p>
       <ul className="pulponi-social__bars">
         <li>
           <span className="pulponi-social__bar-label">{stats.homeLabel} gana</span>
