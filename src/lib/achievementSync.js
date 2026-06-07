@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { buildAchievementGrants } from './achievementEngine';
 import { buildRankedLeaderboard } from './rankingHistory';
+import { fetchLeaderboardProfiles, LEADERBOARD_ACHIEVEMENT_COLUMNS } from './leaderboardQuery';
 
 async function loadPickScores(client) {
   const { data, error } = await client
@@ -87,15 +88,15 @@ export async function syncAllAchievements(
 ) {
   let profs = profiles;
   if (!profs?.length) {
-    const { data } = await client.from('profiles').select(
-      'id, username, name, points, exacts, streak, picks, pulpo_index, pulpo_stats'
-    );
+    const { data } = await fetchLeaderboardProfiles(client, LEADERBOARD_ACHIEVEMENT_COLUMNS);
     profs = data ?? [];
   }
 
-  const community = communityProfiles?.length
-    ? communityProfiles
-    : (await client.from('profiles').select('id, picks')).data ?? [];
+  let community = communityProfiles ?? [];
+  if (!community.length) {
+    const { data } = await fetchLeaderboardProfiles(client, 'id, picks');
+    community = data ?? [];
+  }
 
   const [pickScoreRows, existingKeys, historyCtx] = await Promise.all([
     loadPickScores(client),

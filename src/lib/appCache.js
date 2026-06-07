@@ -19,3 +19,7 @@ export function cacheInvalidate(prefix) {
     if (key.startsWith(prefix)) store.delete(key);
   }
 }
+
+export function cacheDelete(key) {
+  store.delete(key);
+}

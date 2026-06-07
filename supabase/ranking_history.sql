@@ -1,5 +1,6 @@
 -- Pulponi Cup — Historial de ranking por jornada (movimiento ↑ ↓)
 -- Ejecutar en Supabase → SQL Editor
+-- Después: supabase/ranking_leaderboard.sql (vista + filtro auth.users en historial)
 
 create extension if not exists "pgcrypto";
 

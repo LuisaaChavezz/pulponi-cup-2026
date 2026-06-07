@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { fetchLeaderboardProfiles } from '../lib/leaderboardQuery';
 import {
   attachPositionMovement,
   buildRankedLeaderboard,
@@ -12,10 +13,7 @@ import {
 } from '../lib/rankingSnapshot';
 
 async function fetchLeaderboard() {
-  return supabase
-    .from('profiles')
-    .select('id, username, name, photo_url, points, exacts, streak')
-    .order('points', { ascending: false });
+  return fetchLeaderboardProfiles(supabase);
 }
 
 /** Canal realtime compartido para RankingMovement en la pestaña Ranking. */

@@ -7,6 +7,7 @@ import { syncWorldCupFixtures } from '../lib/footballApi';
 import { filterWorldCupMatches } from '../lib/worldCupScope';
 import { normalizeMatchRow, normalizeMatches } from '../lib/normalizeMatch';
 import { formatActivityLogMessage } from '../lib/activityMessages';
+import { fetchLeaderboardProfiles } from '../lib/leaderboardQuery';
 import {
   buildPredictionPublicMessage,
   formatActivityDisplayName,
@@ -22,7 +23,7 @@ import {
   loadUserAchievementIds,
   syncAllAchievements,
 } from '../lib/achievementSync';
-import { cacheGet, cacheSet, cacheInvalidate } from '../lib/appCache';
+import { cacheGet, cacheSet, cacheInvalidate, cacheDelete } from '../lib/appCache';
 import {
   markBootstrapStart,
   markBootstrapPhase,
@@ -226,25 +227,15 @@ export function useAppData(session) {
   }, []);
 
   const loadRanking = useCallback(async () => {
-    const cached = cacheGet('ranking');
-    if (cached) {
-      setRanking(cached);
-      return;
-    }
+    cacheDelete('ranking');
     try {
-      const { data, error } = await timedQuery('ranking', () =>
-        supabase
-          .from('profiles')
-          .select('id, username, name, photo_url, points, exacts, streak')
-          .order('points', { ascending: false })
-      );
+      const { data, error } = await timedQuery('ranking', () => fetchLeaderboardProfiles(supabase));
       if (error) {
         console.warn('[loadRanking]', error.message);
         setRanking([]);
         return;
       }
       const rows = data ?? [];
-      cacheSet('ranking', rows, 120_000);
       setRanking(rows);
     } catch (e) {
       console.warn('[loadRanking]', e?.message ?? e);

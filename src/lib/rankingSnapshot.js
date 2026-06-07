@@ -1,11 +1,9 @@
 import { supabase } from './supabase';
+import { fetchLeaderboardProfiles } from './leaderboardQuery';
 import { buildRankedLeaderboard, snapshotMatchesHistory } from './rankingHistory';
 
 async function fetchProfilesForRanking(client = supabase) {
-  const { data, error } = await client
-    .from('profiles')
-    .select('id, username, name, photo_url, points, exacts, streak')
-    .order('points', { ascending: false });
+  const { data, error } = await fetchLeaderboardProfiles(client);
   if (error) throw error;
   return data ?? [];
 }

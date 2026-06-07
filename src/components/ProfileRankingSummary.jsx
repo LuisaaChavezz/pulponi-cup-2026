@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getProfileRankingSummary, buildRankedLeaderboard, attachPositionMovement } from '../lib/rankingHistory';
 import { loadJornadaComparison, loadProfileHistoryRows } from '../lib/rankingSnapshot';
+import { fetchLeaderboardProfiles } from '../lib/leaderboardQuery';
 import { supabase } from '../lib/supabase';
 
 export default function ProfileRankingSummary({ userId }) {
@@ -19,10 +20,7 @@ export default function ProfileRankingSummary({ userId }) {
     (async () => {
       setLoading(true);
       const [{ data: profiles }, comparison] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, username, name, photo_url, points, exacts, streak')
-          .order('points', { ascending: false }),
+        fetchLeaderboardProfiles(supabase),
         loadJornadaComparison(),
       ]);
 
@@ -39,10 +37,7 @@ export default function ProfileRankingSummary({ userId }) {
       .channel(`profile-ranking-${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
         void (async () => {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, username, name, photo_url, points, exacts, streak')
-            .order('points', { ascending: false });
+          const { data: profiles } = await fetchLeaderboardProfiles(supabase);
           const comparison = await loadJornadaComparison();
           const ranked = buildRankedLeaderboard(profiles ?? []);
           const withMovement = attachPositionMovement(ranked, comparison.previousHistory);

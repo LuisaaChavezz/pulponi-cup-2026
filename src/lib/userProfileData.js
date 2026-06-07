@@ -1,5 +1,6 @@
 import { parsePickScore, collectMatchPickScores } from './communityPicks';
 import { buildRankedLeaderboard, getProfileRankingSummary } from './rankingHistory';
+import { LEADERBOARD_PUBLIC_COLUMNS, LEADERBOARD_SOURCE } from './leaderboardQuery';
 import { formatKickoff, isMatchFinished, isProfilePickRevealed, uiStatus } from './matchUtils';
 import { formatActivityLogMessage } from './activityMessages';
 import { getAchievementById } from '../data/achievements';
@@ -268,10 +269,8 @@ export async function loadPublicProfile(
 
   try {
     const profileRes = await client
-      .from('profiles')
-      .select(
-        'id, username, name, photo_url, points, exacts, streak, pulpo_index, pulpo_stats, picks, created_at'
-      )
+      .from(LEADERBOARD_SOURCE)
+      .select(LEADERBOARD_PUBLIC_COLUMNS)
       .eq('id', profileId)
       .maybeSingle();
 
@@ -291,10 +290,10 @@ export async function loadPublicProfile(
     ] = await Promise.all([
       safeQuery(
         client
-          .from('profiles')
+          .from(LEADERBOARD_SOURCE)
           .select('id, username, name, photo_url, points, exacts, streak')
           .order('points', { ascending: false }),
-        'profiles ranking'
+        'ranking_leaderboard'
       ),
       safeQuery(
         client
