@@ -876,7 +876,9 @@ export default function App() {
         </section>
 
         <section id="parlay" className={sectionClass('parlay', 'panel')}>
-          {activeNav === 'parlay' ? <ParlayPage /> : null}
+          {activeNav === 'parlay' ? (
+            <ParlayPage matches={worldCupMatches} userId={session?.user?.id} />
+          ) : null}
         </section>
 
         <section id="ranking" className={sectionClass('ranking', 'panel')}>
@@ -1064,6 +1066,18 @@ export default function App() {
                 Antes de cada kickoff elige el marcador al 90&apos; (+ compensación). Solo cuenta el tiempo
                 regular: tiempos extra y penales no cambian tu pick de marcador. En eliminatorias puedes
                 indicar quién avanza en penales para un bonus extra.
+              </p>
+            </details>
+            <details>
+              <summary>Parlay virtual Pulponi</summary>
+              <p>
+                En la pestaña PARLAY puedes combinar entre 5 y 25 selecciones 1X2. Si hay API de momios
+                autorizada configurada (The Odds API vía proxy seguro), se muestran cotizaciones reales
+                agregadas. Si no, verás momios Pulponi simulados, claramente etiquetados — sin datos de
+                casas no autorizadas ni scraping. El momio total multiplica cada selección. Sobre la ganancia
+                estimada se aplica una comisión interna Pulponi del 30% (factor usuario 70%).{' '}
+                <strong>El cálculo final usa el sistema interno Pulponi.</strong> No se maneja dinero real:
+                solo puntos virtuales y ranking interno.
               </p>
             </details>
             <details>

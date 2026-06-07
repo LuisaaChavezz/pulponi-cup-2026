@@ -1,62 +1,400 @@
-/* Pulponi Cup — Parlay placeholder */
+/* Pulponi Cup — Parlay virtual transparente */
 
 .parlay-page {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 720px;
+  max-width: 1180px;
 }
 
 .parlay-page__head .section-lead {
-  max-width: 36rem;
+  max-width: 40rem;
 }
 
-.parlay-page__placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 240px;
-  padding: 32px 24px;
-  text-align: center;
-  border: 1px solid rgba(255, 30, 39, 0.35);
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(255, 30, 39, 0.14), transparent 55%),
-    linear-gradient(165deg, rgba(18, 18, 22, 0.98) 0%, rgba(8, 8, 10, 0.98) 100%);
-  box-shadow:
-    0 0 0 1px rgba(255, 30, 39, 0.08) inset,
-    0 16px 40px rgba(0, 0, 0, 0.35),
-    0 0 28px rgba(255, 30, 39, 0.1);
+.parlay-page__banner {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 15, 18, 0.9);
 }
 
-.parlay-page__placeholder-icon {
-  font-size: 2rem;
-  line-height: 1;
+.parlay-page__banner strong {
+  display: block;
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
 }
 
-.parlay-page__placeholder-title {
+.parlay-page__banner p {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--muted, #a1a1aa);
+}
+
+.parlay-page__banner--authorized {
+  border-color: rgba(74, 222, 128, 0.35);
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.08);
+}
+
+.parlay-page__banner--authorized strong {
+  color: #86efac;
+}
+
+.parlay-page__banner--simulated {
+  border-color: rgba(255, 30, 39, 0.35);
+  box-shadow: 0 0 20px rgba(255, 30, 39, 0.1);
+}
+
+.parlay-page__banner--simulated strong {
+  color: #fecaca;
+}
+
+.parlay-page__banner--mixed {
+  border-color: rgba(250, 204, 21, 0.35);
+}
+
+.parlay-page__banner--mixed strong {
+  color: #fde68a;
+}
+
+.parlay-page__rules {
+  padding: 16px 18px;
+}
+
+.parlay-page__rules-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #fecaca;
 }
 
-.parlay-page__placeholder-copy {
+.parlay-page__rules-list {
   margin: 0;
-  max-width: 22rem;
-  font-size: 0.95rem;
-  line-height: 1.5;
+  padding-left: 18px;
+  color: #d4d4d8;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.parlay-page__rules-list li + li {
+  margin-top: 6px;
+}
+
+.parlay-page__layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 960px) {
+  .parlay-page__layout {
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+    align-items: start;
+  }
+
+  .parlay-page__slip {
+    position: sticky;
+    top: 12px;
+  }
+}
+
+.parlay-page__matches-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.parlay-page__matches-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.parlay-page__match-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.parlay-match-card {
+  padding: 14px 16px;
+}
+
+.parlay-match-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.parlay-match-card__teams {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.parlay-match-card__vs {
+  color: var(--muted, #a1a1aa);
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.parlay-match-card__source {
+  margin: 8px 0 10px;
+  font-size: 0.75rem;
+}
+
+.parlay-match-card__odds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.parlay-odd-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text, #f6f6f6);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.parlay-odd-btn:hover {
+  border-color: rgba(255, 30, 39, 0.45);
+}
+
+.parlay-odd-btn.is-active {
+  border-color: rgba(255, 30, 39, 0.75);
+  background: rgba(255, 30, 39, 0.12);
+  box-shadow: 0 0 16px rgba(255, 30, 39, 0.2);
+}
+
+.parlay-odd-btn__label {
+  font-size: 0.72rem;
+  color: var(--muted, #a1a1aa);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.parlay-odd-btn__value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fecaca;
+}
+
+.parlay-page__slip {
+  padding: 16px 18px;
+}
+
+.parlay-page__slip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.parlay-page__slip-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.parlay-page__count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fca5a5;
+}
+
+.parlay-page__count.is-ok {
+  color: #86efac;
+}
+
+.parlay-page__empty-slip {
+  margin: 0 0 14px;
+  font-size: 0.88rem;
+}
+
+.parlay-page__selections {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.parlay-page__selection {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.parlay-page__selection strong {
+  display: block;
+  font-size: 0.82rem;
+  margin-bottom: 2px;
+}
+
+.parlay-page__selection .muted {
+  display: block;
+  font-size: 0.78rem;
+}
+
+.parlay-page__selection-source {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.68rem;
+  color: #71717a;
+}
+
+.parlay-page__remove {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #fca5a5;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.parlay-page__stake {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.parlay-page__stake input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text, #f6f6f6);
+  font-size: 1rem;
+}
+
+.parlay-page__calc {
+  margin: 0 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.parlay-page__calc div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.parlay-page__calc dt {
+  margin: 0;
+  font-size: 0.78rem;
   color: var(--muted, #a1a1aa);
   font-weight: 600;
 }
 
-@media (min-width: 768px) {
-  .parlay-page__placeholder {
-    min-height: 280px;
-    padding: 40px 32px;
+.parlay-page__calc dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.parlay-page__calc-commission dd {
+  color: #fca5a5;
+}
+
+.parlay-page__calc-highlight dd {
+  color: #fecaca;
+}
+
+.parlay-page__calc-total {
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 30, 39, 0.25);
+}
+
+.parlay-page__calc-total dd {
+  color: #86efac;
+  font-size: 1.05rem;
+}
+
+.parlay-page__calc-note {
+  margin: 0 0 14px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.parlay-page__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.parlay-page__save-msg {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: #86efac;
+  font-weight: 700;
+}
+
+.parlay-page__saved {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.parlay-page__saved h4 {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted, #a1a1aa);
+}
+
+.parlay-page__saved ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.parlay-page__saved li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 520px) {
+  .parlay-match-card__odds {
+    grid-template-columns: 1fr;
   }
 }
