@@ -4,6 +4,8 @@ import UserAvatar from './UserAvatar';
 import MatchSchedule from './MatchSchedule';
 import RankingMovement from './RankingMovement';
 import MatchChat from './MatchChat';
+import HomeMobileRankingSummary from './HomeMobileRankingSummary';
+import HomeMobileMatchesCarousel from './HomeMobileMatchesCarousel';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   displayTeamName,
@@ -360,11 +362,27 @@ export default function HomeDashboard({
       <div className="home-dash-stack">
         <div className="home-dash-stack__center">
           <section className="home-dash-stack__section home-dash-stack__section--hero">{heroBlock}</section>
-          <section className="home-dash-stack__section home-dash-stack__section--ranking">{rankingBlock}</section>
+          <section className="home-dash-stack__section home-dash-stack__section--mobile-ranking home-dash-mobile-only">
+            <HomeMobileRankingSummary ranking={ranking} onViewRanking={onViewRanking} />
+          </section>
+          <section className="home-dash-stack__section home-dash-stack__section--ranking home-dash-desktop-only">
+            {rankingBlock}
+          </section>
         </div>
-        <section className="home-dash-stack__section home-dash-stack__section--profiles">{profilesBlock}</section>
-        <section className="home-dash-stack__section home-dash-stack__section--chat">{chatBlock}</section>
-        <section className="home-dash-stack__section home-dash-stack__section--insights">
+        <section className="home-dash-stack__section home-dash-stack__section--mobile-carousel home-dash-mobile-only">
+          <HomeMobileMatchesCarousel
+            matches={matches}
+            excludeMatchId={heroMatch?.id ?? null}
+            onMakePrediction={onMakePrediction}
+          />
+        </section>
+        <section className="home-dash-stack__section home-dash-stack__section--profiles home-dash-desktop-only">
+          {profilesBlock}
+        </section>
+        <section className="home-dash-stack__section home-dash-stack__section--chat home-dash-desktop-only">
+          {chatBlock}
+        </section>
+        <section className="home-dash-stack__section home-dash-stack__section--insights home-dash-desktop-only">
           <div className="home-dash-insights">{insightsBlock}</div>
         </section>
       </div>
