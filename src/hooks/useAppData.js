@@ -74,17 +74,22 @@ async function ensureOwnProfileRow(client, uid) {
     .eq('id', uid)
     .maybeSingle();
 
+  console.log('QUERY RESULT ensureOwnProfileRow profiles.select id', existing, readErr);
+
   if (readErr) {
     console.warn('[ensureOwnProfileRow] read', readErr);
     return { ok: false, error: readErr };
   }
   if (existing?.id) return { ok: true, created: false };
 
+  console.log('QUERY BEFORE ensureOwnProfileRow profiles.insert', { uid });
   const { data, error } = await client
     .from('profiles')
     .insert({ id: uid })
     .select('*')
-    .single();
+    .maybeSingle();
+
+  console.log('QUERY RESULT ensureOwnProfileRow profiles.insert', data, error);
 
   if (error) {
     console.warn('[ensureOwnProfileRow] insert', error);
@@ -142,18 +147,21 @@ export function useAppData(session) {
 
     await ensureOwnProfileRow(supabase, userId);
 
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+    console.log('QUERY RESULT loadProfile profiles.select', data, error);
     if (error) {
       console.warn('[loadProfile]', error.message, error);
       return;
     }
-    if (data) {
-      const normalizedPicks = normalizePicksKeys(data.picks);
-      const row = { ...data, picks: normalizedPicks };
-      cacheSet(`profile:${userId}`, row, 120_000);
-      setProfile(row);
-      setPicks(normalizedPicks);
+    if (!data) {
+      console.warn('[loadProfile] sin fila de perfil para', userId);
+      return;
     }
+    const normalizedPicks = normalizePicksKeys(data.picks);
+    const row = { ...data, picks: normalizedPicks };
+    cacheSet(`profile:${userId}`, row, 120_000);
+    setProfile(row);
+    setPicks(normalizedPicks);
   }, [userId, session?.user?.email]);
 
   const loadMatchesChunk = useCallback(
@@ -472,17 +480,18 @@ export function useAppData(session) {
     console.log('[AUTH USER]', { id: userId });
     console.log('[ACTIVITY]', type, safePayload);
 
-    const { data, error } = await supabase
+    const { data: activityRows, error } = await supabase
       .from('activity_log')
       .insert({
         profile_id: userId,
         action: type,
         payload: safePayload,
       })
-      .select('id, action, payload, created_at')
-      .single();
+      .select('id, action, payload, created_at');
 
-    console.log('[ACTIVITY INSERT RESULT]', data, error);
+    console.log('QUERY RESULT activity_log.insert', activityRows, error);
+
+    const data = activityRows?.[0] ?? null;
     if (error) {
       console.error('[ACTIVITY] insert failed', error);
       return { ok: false, error };
@@ -873,35 +882,70 @@ export function useAppData(session) {
     console.log('[AUTH USER]', { id: userId, email: session?.user?.email ?? null });
     console.log('[PREDICTION SAVE PAYLOAD]', { profile_id: userId, match_id: matchKey, updatePayload });
 
-    const { data, error } = await supabase
+    await ensureOwnProfileRow(supabase, userId);
+
+    console.log('QUERY BEFORE savePick profiles.update', { userId, matchKey });
+
+    const { error: updateError } = await supabase
       .from('profiles')
-      .update(updatePayload)
-      .eq('id', userId)
-      .select('id, picks')
-      .single();
+      .update({ picks: nextPicks })
+      .eq('id', userId);
 
-    console.log('[PREDICTION SAVE RESULT]', data, error);
+    console.log('QUERY RESULT savePick profiles.update', null, updateError);
 
-    if (error) {
-      console.error('[savePick] update failed', error);
-      return { ok: false, error: error.message ?? 'No se pudo guardar la predicción' };
-    }
-
-    const persistedPicks = normalizePicksKeys(data?.picks ?? nextPicks);
-    if (!persistedPicks[matchKey]) {
-      console.error('[savePick] persistencia no confirmada para match', matchKey, persistedPicks);
-      return { ok: false, error: 'La predicción no se guardó en Supabase. Revisa permisos RLS.' };
+    if (updateError) {
+      console.error('[savePick] update failed', updateError);
+      return { ok: false, error: updateError.message ?? 'No se pudo guardar la predicción' };
     }
 
     cacheInvalidate(`profile:${userId}`);
+
+    const { data: reloaded, error: reloadError } = await supabase
+      .from('profiles')
+      .select('id, picks, name, username, photo_url, points, exacts, streak')
+      .eq('id', userId)
+      .maybeSingle();
+
+    console.log('QUERY RESULT savePick profiles.reload', reloaded, reloadError);
+
+    if (reloadError) {
+      return { ok: false, error: reloadError.message ?? 'No se pudo verificar la predicción' };
+    }
+
+    if (!reloaded) {
+      console.error('[savePick] perfil no encontrado tras update', { userId, matchKey });
+      return {
+        ok: false,
+        error:
+          'No se pudo guardar: tu perfil no se actualizó. Ejecuta supabase/profiles_persistence_policies.sql en Supabase.',
+      };
+    }
+
+    const persistedPicks = normalizePicksKeys(reloaded.picks ?? {});
+    if (!persistedPicks[matchKey]) {
+      console.error('[savePick] persistencia no confirmada para match', matchKey, persistedPicks);
+      return {
+        ok: false,
+        error:
+          'La predicción no persistió en Supabase (RLS UPDATE). Ejecuta supabase/profiles_persistence_policies.sql.',
+      };
+    }
+
+    const row = { ...reloaded, picks: persistedPicks };
     setPicks(persistedPicks);
-    setProfile((prev) => (prev ? { ...prev, picks: persistedPicks } : prev));
-    cacheSet(`profile:${userId}`, { ...(profile ?? {}), id: userId, picks: persistedPicks }, 120_000);
+    setProfile((prev) => (prev ? { ...prev, ...row } : row));
+    cacheSet(`profile:${userId}`, row, 120_000);
+
+    console.log('[PREDICTION SAVE RESULT]', {
+      profile_id: userId,
+      match_id: matchKey,
+      pick: persistedPicks[matchKey],
+    });
 
     const m = matches.find((x) => String(x.id) === matchKey);
     const pickAction = hadPick ? 'updated' : 'created';
     const actionType = hadPick ? 'prediction_updated' : 'prediction_created';
-    const displayName = formatActivityDisplayName(profile);
+    const displayName = formatActivityDisplayName(row);
     const public_message = buildPredictionPublicMessage(
       displayName,
       pickAction,
@@ -1013,16 +1057,26 @@ export function useAppData(session) {
 
     await ensureOwnProfileRow(supabase, userId);
 
-    const { data, error } = await supabase
+    console.log('QUERY BEFORE updateProfile profiles.update', { userId, payload });
+
+    const { data: updatedRows, error } = await supabase
       .from('profiles')
       .update(payload)
       .eq('id', userId)
-      .select('*')
-      .single();
+      .select('*');
 
+    console.log('QUERY RESULT updateProfile profiles.update', updatedRows, error);
+
+    const data = updatedRows?.[0] ?? null;
     console.log('[PROFILE SAVE RESULT]', data, error);
 
     if (error) return error;
+    if (!data) {
+      return {
+        message:
+          'No se pudo guardar el perfil (0 filas). Ejecuta supabase/profiles_persistence_policies.sql en Supabase.',
+      };
+    }
 
     cacheInvalidate(`profile:${userId}`);
     if (data) {
