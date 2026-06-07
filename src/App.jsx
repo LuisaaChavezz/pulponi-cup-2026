@@ -42,10 +42,8 @@ import { resolveAvatarUrl } from './lib/avatars';
 import AvatarSelector from './components/AvatarSelector';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
-import RankingMovement from './components/RankingMovement';
 import ProfileRankingSummary from './components/ProfileRankingSummary';
 import RankingLeaderboard from './components/RankingLeaderboard';
-import PulpoIndexCard from './components/PulpoIndexCard';
 import MatchCommunityPrediction from './components/MatchCommunityPrediction';
 import { collectMatchPickScores } from './lib/communityPicks';
 import { normalizeStoredHighlightList } from './lib/highlightsMapper';
@@ -835,7 +833,7 @@ export default function App() {
                     <span className="eyebrow">Leaderboard</span>
                     <h2>Ranking</h2>
                     <p className="section-lead muted">
-                      Toca un jugador para abrir su perfil público. Exactos, rachas e Índice Pulpo incluidos.
+                      Toca un jugador para abrir su perfil público. Exactos y rachas incluidos.
                     </p>
                   </div>
                   <div className="export-actions ranking-export-actions">
@@ -849,19 +847,6 @@ export default function App() {
                   currentUserId={session?.user?.id}
                   onSelectUser={openUserProfile}
                 />
-                <RankingMovement session={session} className="dash-ranking pulponi-card ranking-section-movement" />
-                <article className="phone pulponi-card ranking-section-pulpo">
-                  <div className="phone-header phone-header--center">
-                    <span>ÍNDICE PULPO</span>
-                  </div>
-                  <PulpoIndexCard
-                    profile={profile}
-                    picks={data.picks}
-                    matches={worldCupMatches}
-                    communityPickProfiles={data.communityPickProfiles}
-                    userId={session?.user?.id}
-                  />
-                </article>
               </>
             )
           ) : null}
