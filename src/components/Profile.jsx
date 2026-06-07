@@ -1,4 +1,4 @@
-import { isLogoAvatar, resolveAvatarUrl } from '../lib/avatars';
+import { resolveAvatarUrl } from '../lib/avatars';
 
 const AVATAR_SIZE = 96;
 
@@ -22,8 +22,13 @@ export default function Profile({
   onUpload,
 }) {
   const src = avatarUrl ?? resolveAvatarUrl(photoUrl);
-  const logo = isLogoAvatar(src);
-  const handle = username?.startsWith('@') ? username : username ? `@${username}` : '@jugador';
+  const handle = username?.startsWith('@')
+    ? username
+    : username
+      ? `@${username}`
+      : displayName
+        ? `@${String(displayName).split(/\s+/)[0]}`
+        : '@miembro';
 
   const stats = [
     { key: 'rank', value: rank != null ? `#${rank}` : '—', label: 'Ranking' },
@@ -42,12 +47,11 @@ export default function Profile({
     minHeight: AVATAR_SIZE,
     maxWidth: AVATAR_SIZE,
     maxHeight: AVATAR_SIZE,
-    objectFit: logo ? 'contain' : 'cover',
-    objectPosition: 'center center',
+    objectFit: 'cover',
+    objectPosition: 'center',
     borderRadius: '9999px',
     display: 'block',
     flexShrink: 0,
-    padding: logo ? 10 : 0,
     boxSizing: 'border-box',
     background: '#08080a',
   };
@@ -94,7 +98,7 @@ export default function Profile({
               <img
                 src={src}
                 alt=""
-                className={`pulponi-player-card__photo${logo ? ' pulponi-player-card__photo--logo' : ''}`}
+                className="pulponi-player-card__photo"
                 width={AVATAR_SIZE}
                 height={AVATAR_SIZE}
                 style={avatarStyle}

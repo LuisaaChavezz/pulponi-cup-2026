@@ -525,8 +525,15 @@ export default function App() {
   if (!session) return <AuthPage />;
 
   const profile = data.profile;
-  const displayUser = profile?.username ? `@${profile.username}` : '@tú';
-  const displayName = profile?.name ?? 'Jugador';
+  const displayUser = profile?.username
+    ? `@${String(profile.username).replace(/^@+/, '')}`
+    : profile?.name
+      ? `@${String(profile.name).split(/\s+/)[0].toLowerCase()}`
+      : '@tú';
+  const displayName =
+    String(profile?.name ?? '').trim() ||
+    String(profile?.username ?? '').replace(/^@+/, '').trim() ||
+    'Jugador';
   const avatarUrl = resolveAvatarUrl(profile?.photo_url);
 
   const unlockedAchievementIds = data.userAchievementIds ?? [];
@@ -810,6 +817,7 @@ export default function App() {
                 myCurrentRank={myCurrentRank}
                 predictionActivityFeed={data.predictionActivityFeed ?? []}
                 communityPickProfiles={data.communityPickProfiles ?? []}
+                communityProfiles={data.communityProfiles ?? []}
                 matchesLoading={data.matchesLoading}
                 matchSyncNotice={data.matchSyncNotice}
                 chatMessages={data.chatData ?? []}
@@ -818,7 +826,7 @@ export default function App() {
                 onSendMessage={handleSendMessage}
                 reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
                 onToggleReaction={data.toggleReaction}
-                memberCount={(data.ranking ?? []).length}
+                memberCount={(data.communityProfiles ?? data.ranking ?? []).length}
                 onMakePrediction={() => navigateToSection('partidos')}
                 onViewRanking={() => navigateToSection('ranking')}
                 onViewCommunity={() => navigateToSection('comunidad')}

@@ -22,8 +22,11 @@ import {
 import { collectMatchPickScores, buildCommunityGeneralInsights } from '../lib/communityPicks';
 
 function formatUsername(row) {
-  const raw = row?.username ?? row?.name ?? 'jugador';
-  return String(raw).replace(/^@+/, '').trim() || 'jugador';
+  const name = String(row?.name ?? '').trim();
+  if (name) return name.split(/\s+/)[0];
+  const user = String(row?.username ?? '').replace(/^@+/, '').trim();
+  if (user) return user;
+  return 'Miembro';
 }
 
 function formatRelativeTime(at, now = new Date()) {
@@ -68,6 +71,7 @@ export default function HomeDashboard({
   myCurrentRank,
   predictionActivityFeed = [],
   communityPickProfiles = [],
+  communityProfiles = [],
   matchesLoading = false,
   matchSyncNotice = null,
   chatMessages = [],
@@ -116,7 +120,10 @@ export default function HomeDashboard({
   const recentActivity = activityFeed.slice(0, 8);
   const hasMoreActivity = activityFeed.length > 8;
 
-  const communityProfiles = ranking ?? [];
+  const profileList =
+    (communityProfiles?.length ? communityProfiles : null) ??
+    (ranking?.length ? ranking : null) ??
+    (communityPickProfiles?.length ? communityPickProfiles : []);
   const venueLine = [formatVenue(heroMatch), formatVenueCity(heroMatch)].filter(Boolean).join(' · ');
 
   const heroBlock = (
@@ -195,11 +202,11 @@ export default function HomeDashboard({
       <header className="home-dash-sidebar-card__head">
         <h3 className="home-dash-sidebar-card__title">Perfiles de la comunidad</h3>
       </header>
-      {communityProfiles.length === 0 ? (
+      {profileList.length === 0 ? (
         <p className="home-dash-empty home-dash-sidebar-card__empty">Sin datos todavía</p>
       ) : (
         <ul className="home-dash-profiles-scroll">
-          {communityProfiles.map((row, i) => (
+          {profileList.map((row, i) => (
             <li key={row.id ?? i}>
               <button
                 type="button"

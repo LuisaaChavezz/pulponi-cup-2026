@@ -128,6 +128,8 @@ export function useAppData(session) {
   const [reactionRowsByMessage, setReactionRowsByMessage] = useState({});
   /** Perfiles con picks para Termómetro / comunidad (Supabase real). */
   const [communityPickProfiles, setCommunityPickProfiles] = useState([]);
+  /** Todos los perfiles visibles en Inicio (public.profiles). */
+  const [communityProfiles, setCommunityProfiles] = useState([]);
   const [achievementCatalog, setAchievementCatalog] = useState(ACHIEVEMENT_CATALOG);
   const [userAchievementIds, setUserAchievementIds] = useState([]);
   const [pendingUnlock, setPendingUnlock] = useState(null);
@@ -138,7 +140,7 @@ export function useAppData(session) {
     console.log('[AUTH USER]', { id: userId, email: session?.user?.email ?? null });
 
     const cached = cacheGet(`profile:${userId}`);
-    if (cached) {
+    if (cached && (cached.username || cached.name)) {
       setProfile(cached);
       if (cached.picks && typeof cached.picks === 'object') {
         setPicks(normalizePicksKeys(cached.picks));
@@ -341,6 +343,30 @@ export function useAppData(session) {
     } catch (e) {
       console.warn('[communityPicks]', e?.message ?? e);
       setCommunityPickProfiles([]);
+      return [];
+    }
+  }, []);
+
+  const loadCommunityProfiles = useCallback(async () => {
+    try {
+      const { data, error } = await timedQuery('communityProfiles', () =>
+        supabase
+          .from('profiles')
+          .select('id, username, name, photo_url, points')
+          .order('username', { ascending: true, nullsFirst: false })
+      );
+      if (error) {
+        console.warn('[loadCommunityProfiles]', error?.message ?? error);
+        const fallback = await fetchLeaderboardProfiles(supabase);
+        setCommunityProfiles(fallback.data ?? []);
+        return fallback.data ?? [];
+      }
+      const rows = data ?? [];
+      setCommunityProfiles(rows);
+      return rows;
+    } catch (e) {
+      console.warn('[loadCommunityProfiles]', e?.message ?? e);
+      setCommunityProfiles([]);
       return [];
     }
   }, []);
@@ -686,6 +712,7 @@ export function useAppData(session) {
     loadBadges();
     loadEvents();
     await loadCommunityPicks();
+    loadCommunityProfiles();
     loadPredictionFeeds();
   }, [
     loadProfile,
@@ -697,6 +724,7 @@ export function useAppData(session) {
     loadEvents,
     loadPredictionFeeds,
     loadCommunityPicks,
+    loadCommunityProfiles,
   ]);
 
   const loginBootstrapGenRef = useRef(0);
@@ -724,6 +752,7 @@ export function useAppData(session) {
   const loadSecondaryData = useCallback(async () => {
     await Promise.all([
       loadCommunityPicks(),
+      loadCommunityProfiles(),
       loadPredictionFeeds(),
       loadActivity(),
       loadBadges(),
@@ -733,6 +762,7 @@ export function useAppData(session) {
     reportBootstrapDiagnostics('Fase 2 (secundaria)');
   }, [
     loadCommunityPicks,
+    loadCommunityProfiles,
     loadPredictionFeeds,
     loadActivity,
     loadBadges,
@@ -965,9 +995,23 @@ export function useAppData(session) {
 
     if (activityResult?.error) {
       console.warn('[savePick] activity_log insert failed', activityResult.error);
+    } else {
+      setPredictionActivityFeed((prev) => {
+        const optimistic = {
+          id: `pick-${userId}-${matchKey}-${Date.now()}`,
+          profile_id: userId,
+          text: public_message,
+          avatarUrl: resolveAvatarUrl(row.photo_url),
+          at: new Date(),
+        };
+        return [optimistic, ...(prev ?? []).filter((item) => item.text !== optimistic.text)].slice(
+          0,
+          PREDICTION_ACTIVITY_QUERY_LIMIT
+        );
+      });
     }
 
-    void loadPredictionFeedsRef.current();
+    await loadPredictionFeedsRef.current?.();
     cacheInvalidate('community-picks');
     void loadCommunityPicks();
     return { ok: true, isUpdate: hadPick };
@@ -1127,7 +1171,9 @@ export function useAppData(session) {
     loadPredictionFeeds,
     loadLatestPredictions: loadPredictionFeeds,
     communityPickProfiles,
+    communityProfiles,
     loadCommunityPicks,
+    loadCommunityProfiles,
     savePick,
     sendComment,
     toggleReaction,

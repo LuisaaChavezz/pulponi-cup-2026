@@ -16,7 +16,7 @@ export function formatActivityLogMessage(row, matchById) {
   const action = (row.action || '').trim();
   const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
 
-  const match = p.match_id && matchById?.get ? matchById.get(p.match_id) : null;
+  const match = p.match_id != null && matchById?.get ? matchById.get(String(p.match_id)) : null;
 
   const home = trimStr(p.home_team) || trimStr(match?.home_team) || 'Local';
   const away = trimStr(p.away_team) || trimStr(match?.away_team) || 'Visitante';

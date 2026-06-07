@@ -46,19 +46,24 @@ export async function fetchLeaderboardProfiles(
   );
 
   const rpcResult = await client.rpc('get_ranking_leaderboard');
-  if (rpcResult.error) return rpcResult;
-
-  const rows = (rpcResult.data ?? []).map((row) => {
-    const out = { ...row };
-    if (columns !== LEADERBOARD_COLUMNS && columns !== '*') {
-      for (const key of Object.keys(out)) {
-        if (!columns.includes(key)) delete out[key];
+  if (!rpcResult.error) {
+    const rows = (rpcResult.data ?? []).map((row) => {
+      const out = { ...row };
+      if (columns !== LEADERBOARD_COLUMNS && columns !== '*') {
+        for (const key of Object.keys(out)) {
+          if (!columns.includes(key)) delete out[key];
+        }
       }
-    }
-    return out;
-  });
+      return out;
+    });
+    return { data: rows, error: null };
+  }
 
-  return { data: rows, error: null };
+  console.warn(
+    '[leaderboard] RPC get_ranking_leaderboard no disponible; usando public.profiles. Ejecuta supabase/ranking_leaderboard.sql'
+  );
+
+  return client.from('profiles').select(columns).order('points', { ascending: false });
 }
 
 /** @deprecated Usar fetchLeaderboardProfiles (async). */
