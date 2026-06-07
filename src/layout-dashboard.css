@@ -2984,6 +2984,90 @@
   font-variant-numeric: tabular-nums;
 }
 
+.pulpo-index__main {
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .ranking-section-pulpo.phone {
+    min-height: auto !important;
+    max-width: 900px;
+    margin: 16px auto 24px;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .ranking-section-pulpo .pulpo-index {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 32px;
+    align-items: center;
+    min-height: auto;
+    padding: 24px;
+  }
+
+  .ranking-section-pulpo .pulpo-index__main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .ranking-section-pulpo .pulpo-index__head {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ranking-section-pulpo .pulpo-index__titles {
+    flex: none;
+  }
+
+  .ranking-section-pulpo .pulpo-index__tier {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .ranking-section-pulpo .pulpo-index__meter {
+    width: min(100%, 200px);
+    margin: 4px auto 0;
+  }
+
+  .ranking-section-pulpo .pulpo-index__breakdown {
+    gap: 6px;
+    padding-left: 24px;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .ranking-section-pulpo .pulpo-index__breakdown li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 20px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .ranking-section-pulpo .pulpo-index__breakdown li span:first-child {
+    text-align: left;
+  }
+
+  .ranking-section-pulpo .pulpo-index__breakdown li span:last-child {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .ranking-section-movement {
+    max-width: 900px;
+    margin-inline: auto;
+    margin-top: 16px;
+  }
+
+  #ranking.panel.is-active .ranking-leaderboard {
+    margin-top: 0;
+  }
+}
+
 /* —— Perfil público (red social) —— */
 .rank-row--link {
   width: 100%;

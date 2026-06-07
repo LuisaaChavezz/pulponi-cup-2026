@@ -18,29 +18,31 @@ export default function PulpoIndexCard({ profile, picks, matches, communityPickP
 
   return (
     <div className={`pulpo-index pulpo-index--${levelSlug}`} aria-label={formatPulpoIndexLine(stats)}>
-      <div className="pulpo-index__head">
-        <span className="pulpo-index__emoji" aria-hidden>
-          🐙
-        </span>
-        <div className="pulpo-index__titles">
-          <p className="pulpo-index__label">Índice Pulpo</p>
-          <p className="pulpo-index__value">{stats.index}%</p>
+      <div className="pulpo-index__main">
+        <div className="pulpo-index__head">
+          <span className="pulpo-index__emoji" aria-hidden>
+            🐙
+          </span>
+          <div className="pulpo-index__titles">
+            <p className="pulpo-index__label">Índice Pulpo</p>
+            <p className="pulpo-index__value">{stats.index}%</p>
+          </div>
         </div>
-      </div>
 
-      <p className="pulpo-index__tier">
-        {profile?.pulpo_stats?.title ?? stats.level.title}
-      </p>
+        <p className="pulpo-index__tier">
+          {profile?.pulpo_stats?.title ?? stats.level.title}
+        </p>
 
-      <div
-        className="pulpo-index__meter"
-        role="meter"
-        aria-valuenow={stats.index}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`Índice Pulpo ${stats.index} por ciento`}
-      >
-        <div className="pulpo-index__meter-fill" style={{ width: `${stats.index}%` }} />
+        <div
+          className="pulpo-index__meter"
+          role="meter"
+          aria-valuenow={stats.index}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Índice Pulpo ${stats.index} por ciento`}
+        >
+          <div className="pulpo-index__meter-fill" style={{ width: `${stats.index}%` }} />
+        </div>
       </div>
 
       <ul className="pulpo-index__breakdown">
