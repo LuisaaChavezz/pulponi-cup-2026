@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { selectDisplayName } from '../lib/rankingHistory';
 import { useRankingMovement } from '../hooks/useRankingMovement';
+import RankingParticipantsList from './RankingParticipantsList';
 import UserAvatar from './UserAvatar';
 
 const TOP_EMOJIS = ['🐙🏆', '🧠', '👑', '🔥', '⚡'];
@@ -99,7 +100,9 @@ export default function RankingMovement({
       aria-labelledby="ranking-movimiento-title"
     >
       <div className="phone-header phone-header--center phone-header--rank-mov">
-        <span id="ranking-movimiento-title">Ranking en movimiento</span>
+        <span id="ranking-movimiento-title">
+          {movementActive ? 'Ranking en movimiento' : 'Participantes'}
+        </span>
       </div>
 
       {tablesMissing ? (
@@ -123,9 +126,7 @@ export default function RankingMovement({
           <p>El ranking todavía está vacío.</p>
         </div>
       ) : !movementActive ? (
-        <div className="rm-empty rm-empty--waiting">
-          <p>El ranking en movimiento comenzará cuando se registren los primeros puntos.</p>
-        </div>
+        <RankingParticipantsList participants={rows} avatarVariant="ranking" />
       ) : (
         <>
           <div className="rm-top5-graph" role="list">

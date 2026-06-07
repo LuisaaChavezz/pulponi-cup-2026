@@ -1,5 +1,6 @@
 import UserAvatar from './UserAvatar';
-import { buildRankedLeaderboard } from '../lib/rankingHistory';
+import RankingParticipantsList from './RankingParticipantsList';
+import { buildRankedLeaderboard, leaderboardHasScoredPoints } from '../lib/rankingHistory';
 
 function formatUsername(row) {
   const raw = row?.username ?? row?.name ?? 'jugador';
@@ -7,7 +8,31 @@ function formatUsername(row) {
 }
 
 export default function HomeMobileRankingSummary({ ranking = [], onViewRanking }) {
-  const topFive = buildRankedLeaderboard(ranking).slice(0, 5);
+  const ranked = buildRankedLeaderboard(ranking);
+  const hasScoredPoints = leaderboardHasScoredPoints(ranked);
+  const topFive = ranked.slice(0, 5);
+
+  if (!hasScoredPoints) {
+    return (
+      <article className="home-dash-mobile-ranking pulponi-card home-dash-mobile-ranking--participants">
+        <h3 className="home-dash-mobile-ranking__title">Participantes</h3>
+        {ranked.length === 0 ? (
+          <p className="home-dash-empty home-dash-mobile-ranking__empty">Sin participantes todavía</p>
+        ) : (
+          <RankingParticipantsList
+            participants={ranked}
+            className="home-dash-participants"
+            listClassName="home-dash-participants__list"
+            rowClassName="home-dash-participants__row"
+            avatarVariant="ranking"
+          />
+        )}
+        <button type="button" className="home-dash-btn home-dash-btn--ghost" onClick={onViewRanking}>
+          Ver ranking completo
+        </button>
+      </article>
+    );
+  }
 
   return (
     <article className="home-dash-mobile-ranking pulponi-card">
