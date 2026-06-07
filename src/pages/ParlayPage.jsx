@@ -16,6 +16,10 @@ import {
 } from '../lib/parlayCalculator';
 import { getOutcomeOdds } from '../lib/parlayOdds';
 import { createParlayId, loadUserParlays, saveUserParlay } from '../lib/parlayStorage';
+import { exportParlayPdf } from '../lib/exportParlayPdf';
+
+const PDF_ERROR_MSG = 'No se pudo generar el PDF.';
+const PDF_MIN_SELECTIONS_MSG = 'Necesitas mínimo 5 selecciones para descargar tu parlay.';
 
 const OUTCOMES = ['home', 'draw', 'away'];
 
@@ -36,12 +40,13 @@ function outcomePickLabel(outcome, homeLabel, awayLabel) {
   return 'Empate';
 }
 
-export default function ParlayPage({ matches = [], userId, communityProfiles = [] }) {
+export default function ParlayPage({ matches = [], userId, username = '', communityProfiles = [] }) {
   const oddsState = useParlayOdds(matches, communityProfiles);
   const [selections, setSelections] = useState([]);
   const [stakeInput, setStakeInput] = useState(String(PARLAY_MIN_STAKE));
   const [savedParlays, setSavedParlays] = useState(() => (userId ? loadUserParlays(userId) : []));
   const [saveMsg, setSaveMsg] = useState('');
+  const [pdfError, setPdfError] = useState('');
 
   const effectiveStake = useMemo(() => resolveParlayStake(stakeInput), [stakeInput]);
   const stakeError = isParlayStakeValid(stakeInput) ? '' : PARLAY_MIN_STAKE_MESSAGE;
@@ -53,6 +58,8 @@ export default function ParlayPage({ matches = [], userId, communityProfiles = [
     selections.length >= PARLAY_MIN_SELECTIONS &&
     selections.length <= PARLAY_MAX_SELECTIONS &&
     isParlayStakeValid(stakeInput);
+
+  const canExportPdf = selections.length >= PARLAY_MIN_SELECTIONS;
 
   const toggleSelection = useCallback(
     (match, outcome, pickLabel) => {
@@ -82,18 +89,38 @@ export default function ParlayPage({ matches = [], userId, communityProfiles = [
         ];
       });
       setSaveMsg('');
+      setPdfError('');
     },
     [oddsState.byMatchId]
   );
 
+  const handleExportPdf = useCallback(() => {
+    if (!canExportPdf) return;
+    setPdfError('');
+    try {
+      exportParlayPdf({
+        username,
+        selections,
+        stake: payout.stake,
+        totalOdds,
+        grossGain: payout.grossGain,
+      });
+    } catch (error) {
+      console.error('[exportParlayPdf]', error);
+      setPdfError(PDF_ERROR_MSG);
+    }
+  }, [canExportPdf, username, selections, payout.stake, payout.grossGain, totalOdds]);
+
   const removeSelection = useCallback((key) => {
     setSelections((prev) => prev.filter((s) => s.key !== key));
     setSaveMsg('');
+    setPdfError('');
   }, []);
 
   const clearSelections = useCallback(() => {
     setSelections([]);
     setSaveMsg('');
+    setPdfError('');
   }, []);
 
   const handleSaveParlay = useCallback(() => {
@@ -303,6 +330,18 @@ export default function ParlayPage({ matches = [], userId, communityProfiles = [
             <button type="button" className="primary full" disabled={!canSubmit} onClick={handleSaveParlay}>
               Guardar combinada
             </button>
+            <button
+              type="button"
+              className="parlay-page__export-btn full"
+              disabled={!canExportPdf}
+              onClick={handleExportPdf}
+            >
+              Descargar parlay en PDF
+            </button>
+            {!canExportPdf ? (
+              <p className="parlay-page__export-hint">{PDF_MIN_SELECTIONS_MSG}</p>
+            ) : null}
+            {pdfError ? <p className="parlay-page__export-error">{pdfError}</p> : null}
             {selections.length > 0 ? (
               <button type="button" onClick={clearSelections}>
                 Limpiar

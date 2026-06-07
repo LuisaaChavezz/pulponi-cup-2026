@@ -913,6 +913,7 @@ export default function App() {
               <ParlayPage
                 matches={worldCupMatches}
                 userId={session?.user?.id}
+                username={profile?.username ?? session?.user?.email ?? ''}
                 communityProfiles={data.communityPickProfiles ?? []}
               />
             </Suspense>

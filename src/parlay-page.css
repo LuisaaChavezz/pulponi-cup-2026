@@ -383,6 +383,47 @@
   gap: 8px;
 }
 
+.parlay-page__export-btn {
+  border: 1px solid rgba(255, 30, 39, 0.45);
+  background: rgba(255, 30, 39, 0.08);
+  color: #fecaca;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s, opacity 0.15s;
+}
+
+.parlay-page__export-btn:hover:not(:disabled) {
+  border-color: rgba(255, 30, 39, 0.75);
+  background: rgba(255, 30, 39, 0.14);
+  color: #fff;
+}
+
+.parlay-page__export-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.parlay-page__export-hint {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.52);
+  line-height: 1.35;
+  text-align: center;
+}
+
+.parlay-page__export-error {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fca5a5;
+  text-align: center;
+}
+
 .parlay-page__save-msg {
   margin: 10px 0 0;
   font-size: 0.8rem;
