@@ -1,29 +1,33 @@
 import { useCallback, useMemo, useState } from 'react';
-import MatchSchedule from '../components/MatchSchedule';
 import TeamLogo from '../components/TeamLogo';
-import { displayTeamName } from '../lib/matchUtils';
+import { displayTeamName, formatMatchDateShort, formatMatchTime } from '../lib/matchUtils';
 import { useParlayOdds } from '../hooks/useParlayOdds';
 import {
   PARLAY_MIN_SELECTIONS,
   PARLAY_MAX_SELECTIONS,
-  PULPONI_COMMISSION_RATE,
-  PULPONI_GAIN_FACTOR,
   calculateVirtualParlayPayout,
   formatDecimalOdds,
   multiplySelectionOdds,
   parlaySelectionCountLabel,
 } from '../lib/parlayCalculator';
-import { getOutcomeOdds, oddsSourceBadge } from '../lib/parlayOdds';
+import { getOutcomeOdds } from '../lib/parlayOdds';
 import { createParlayId, loadUserParlays, saveUserParlay } from '../lib/parlayStorage';
 
 const OUTCOMES = [
-  { id: 'home', label: 'Local' },
+  { id: 'home', label: 'Gana local' },
   { id: 'draw', label: 'Empate' },
-  { id: 'away', label: 'Visitante' },
+  { id: 'away', label: 'Gana visitante' },
 ];
 
 function selectionKey(matchId, outcome) {
   return `${matchId}:${outcome}`;
+}
+
+function formatKickoff(kickoff) {
+  const date = formatMatchDateShort(kickoff);
+  const time = formatMatchTime(kickoff);
+  if (date && time) return `${date} · ${time}`;
+  return date || time || '';
 }
 
 export default function ParlayPage({ matches = [], userId }) {
@@ -62,12 +66,9 @@ export default function ParlayPage({ matches = [], userId }) {
             matchId: String(match.id),
             homeTeam: match.home_team,
             awayTeam: match.away_team,
-            kickoff: match.kickoff,
             outcome,
             outcomeLabel: OUTCOMES.find((o) => o.id === outcome)?.label ?? outcome,
             decimalOdds,
-            oddsSource: oddsRow?.source ?? 'pulponi_simulated',
-            oddsSourceLabel: oddsSourceBadge(oddsRow),
           },
         ];
       });
@@ -94,45 +95,15 @@ export default function ParlayPage({ matches = [], userId }) {
       selections,
       stake: payout.stake,
       totalOdds: payout.totalOdds,
-      grossGain: payout.grossGain,
-      pulponiCommissionRate: payout.commissionRate,
-      pulponiGain: payout.pulponiGain,
-      pulponiReturn: payout.pulponiReturn,
+      possibleGain: payout.pulponiGain,
       oddsMode: oddsState.mode,
       status: 'pending',
     };
     const rows = saveUserParlay(userId, parlay);
     setSavedParlays(rows);
-    setSaveMsg('Parlay virtual guardado. Solo puntos internos — sin dinero real.');
+    setSaveMsg('Parlay guardado.');
     setSelections([]);
   }, [userId, canSubmit, selections, payout, oddsState.mode]);
-
-  const oddsBanner = (() => {
-    if (oddsState.loading) {
-      return { tone: 'neutral', title: 'Cargando momios…', copy: 'Consultando fuente autorizada o generando momios Pulponi.' };
-    }
-    if (oddsState.mode === 'authorized') {
-      return {
-        tone: 'authorized',
-        title: 'Momios autorizados activos',
-        copy: `Cotizaciones agregadas vía The Odds API (${oddsState.authorizedCount} partidos). El cálculo final usa el sistema interno Pulponi.`,
-      };
-    }
-    if (oddsState.mode === 'mixed') {
-      return {
-        tone: 'mixed',
-        title: 'Momios mixtos',
-        copy: `${oddsState.authorizedCount} partidos con momios autorizados y ${oddsState.simulatedCount} con momios Pulponi simulados. Sin datos de casas no autorizadas.`,
-      };
-    }
-    return {
-      tone: 'simulated',
-      title: 'Momios Pulponi (simulados)',
-      copy: oddsState.apiConfigured
-        ? 'No se pudieron cargar momios autorizados. Usamos momios Pulponi simulados — no son cotizaciones de casas de apuestas.'
-        : 'Sin API de momios configurada. Usamos momios Pulponi simulados — claramente etiquetados, sin dinero real.',
-    };
-  })();
 
   return (
     <div className="parlay-page">
@@ -141,73 +112,48 @@ export default function ParlayPage({ matches = [], userId }) {
           <span className="eyebrow">Combinadas</span>
           <h2>PARLAY</h2>
           <p className="section-lead muted">
-            Crea combinaciones de predicciones y compite por el mejor porcentaje de aciertos.
+            Arma tu combinada con al menos {PARLAY_MIN_SELECTIONS} selecciones.
           </p>
         </div>
       </div>
 
-      <div className={`parlay-page__banner parlay-page__banner--${oddsBanner.tone}`} role="status">
-        <strong>{oddsBanner.title}</strong>
-        <p>{oddsBanner.copy}</p>
-      </div>
-
-      <article className="parlay-page__rules pulponi-card">
-        <h3 className="parlay-page__rules-title">Reglas transparentes</h3>
-        <ul className="parlay-page__rules-list">
-          <li>Mínimo {PARLAY_MIN_SELECTIONS} y máximo {PARLAY_MAX_SELECTIONS} selecciones por parlay.</li>
-          <li>Momio total = multiplicación de cada selección (formato decimal).</li>
-          <li>
-            Comisión Pulponi interna: {(PULPONI_COMMISSION_RATE * 100).toFixed(0)}% sobre la ganancia estimada
-            (factor usuario {(PULPONI_GAIN_FACTOR * 100).toFixed(0)}%).
-          </li>
-          <li>No se maneja dinero real. Solo puntos virtuales y ranking interno.</li>
-          <li>
-            <strong>El cálculo final usa el sistema interno Pulponi.</strong>
-          </li>
-        </ul>
-      </article>
-
       <div className="parlay-page__layout">
         <div className="parlay-page__matches">
-          <div className="parlay-page__matches-head">
-            <h3>Partidos disponibles</h3>
-            <span className="parlay-page__matches-meta muted">
-              {oddsState.openMatches.length} partidos abiertos
-            </span>
-          </div>
-
           {oddsState.loading ? (
-            <p className="muted sync-footnote">Cargando momios…</p>
+            <p className="muted sync-footnote">Cargando partidos…</p>
           ) : oddsState.openMatches.length === 0 ? (
-            <p className="muted sync-footnote">No hay partidos abiertos para armar parlay.</p>
+            <p className="muted sync-footnote">No hay partidos abiertos.</p>
           ) : (
             <div className="parlay-page__match-list">
               {oddsState.openMatches.map((match) => {
                 const oddsRow = oddsState.byMatchId[String(match.id)];
                 const homeLabel = displayTeamName(match.home_team) ?? 'Local';
                 const awayLabel = displayTeamName(match.away_team) ?? 'Visitante';
-                const sourceLabel = oddsSourceBadge(oddsRow);
+                const kickoffLabel = formatKickoff(match.kickoff);
+                const selectedForMatch = selections.find((s) => s.matchId === String(match.id));
 
                 return (
                   <article key={match.id} className="parlay-match-card pulponi-card">
-                    <div className="parlay-match-card__head">
+                    <div className="parlay-match-card__top">
                       <div className="parlay-match-card__teams">
-                        <TeamLogo logo={match.home_logo} flag={match.home_flag} alt={match.home_team ?? ''} size="sm" />
-                        <span>{homeLabel}</span>
+                        <span className="parlay-match-card__team">
+                          <TeamLogo logo={match.home_logo} flag={match.home_flag} alt={match.home_team ?? ''} size="sm" />
+                          {homeLabel}
+                        </span>
                         <span className="parlay-match-card__vs">vs</span>
-                        <TeamLogo logo={match.away_logo} flag={match.away_flag} alt={match.away_team ?? ''} size="sm" />
-                        <span>{awayLabel}</span>
+                        <span className="parlay-match-card__team">
+                          <TeamLogo logo={match.away_logo} flag={match.away_flag} alt={match.away_team ?? ''} size="sm" />
+                          {awayLabel}
+                        </span>
                       </div>
-                      <MatchSchedule match={match} showWeekday={false} showGroup={false} />
+                      {kickoffLabel ? <time className="parlay-match-card__time">{kickoffLabel}</time> : null}
                     </div>
-                    <p className="parlay-match-card__source muted">{sourceLabel}</p>
+
                     <div className="parlay-match-card__odds">
                       {OUTCOMES.map((o) => {
                         const odd = getOutcomeOdds(oddsRow, o.id);
                         const key = selectionKey(match.id, o.id);
                         const active = selections.some((s) => s.key === key);
-                        const label =
-                          o.id === 'home' ? homeLabel : o.id === 'away' ? awayLabel : o.label;
                         return (
                           <button
                             key={key}
@@ -216,12 +162,19 @@ export default function ParlayPage({ matches = [], userId }) {
                             onClick={() => toggleSelection(match, o.id)}
                             aria-pressed={active}
                           >
-                            <span className="parlay-odd-btn__label">{label}</span>
+                            <span className="parlay-odd-btn__label">{o.label}</span>
                             <span className="parlay-odd-btn__value">{formatDecimalOdds(odd)}</span>
+                            <span className="parlay-odd-btn__action">{active ? 'Quitar' : 'Agregar'}</span>
                           </button>
                         );
                       })}
                     </div>
+
+                    {selectedForMatch ? (
+                      <p className="parlay-match-card__picked">
+                        Selección: {selectedForMatch.outcomeLabel} · {formatDecimalOdds(selectedForMatch.decimalOdds)}
+                      </p>
+                    ) : null}
                   </article>
                 );
               })}
@@ -231,7 +184,7 @@ export default function ParlayPage({ matches = [], userId }) {
 
         <aside className="parlay-page__slip pulponi-card">
           <div className="parlay-page__slip-head">
-            <h3>Tu parlay virtual</h3>
+            <h3>Combinada</h3>
             <span className={`parlay-page__count${selections.length >= PARLAY_MIN_SELECTIONS ? ' is-ok' : ''}`}>
               {parlaySelectionCountLabel(selections.length)}
             </span>
@@ -239,7 +192,7 @@ export default function ParlayPage({ matches = [], userId }) {
 
           {selections.length === 0 ? (
             <p className="muted parlay-page__empty-slip">
-              Elige al menos {PARLAY_MIN_SELECTIONS} resultados (1X2) de partidos distintos.
+              Elige {PARLAY_MIN_SELECTIONS} a {PARLAY_MAX_SELECTIONS} resultados.
             </p>
           ) : (
             <ul className="parlay-page__selections">
@@ -252,9 +205,13 @@ export default function ParlayPage({ matches = [], userId }) {
                     <span className="muted">
                       {sel.outcomeLabel} · {formatDecimalOdds(sel.decimalOdds)}
                     </span>
-                    <span className="parlay-page__selection-source">{sel.oddsSourceLabel}</span>
                   </div>
-                  <button type="button" className="parlay-page__remove" onClick={() => removeSelection(sel.key)} aria-label="Quitar selección">
+                  <button
+                    type="button"
+                    className="parlay-page__remove"
+                    onClick={() => removeSelection(sel.key)}
+                    aria-label="Quitar selección"
+                  >
                     ×
                   </button>
                 </li>
@@ -263,7 +220,7 @@ export default function ParlayPage({ matches = [], userId }) {
           )}
 
           <label className="parlay-page__stake">
-            <span>Puntos virtuales a jugar</span>
+            <span>Monto virtual</span>
             <input
               type="number"
               min="1"
@@ -278,35 +235,19 @@ export default function ParlayPage({ matches = [], userId }) {
               <dt>Momio total</dt>
               <dd>{formatDecimalOdds(totalOdds)}</dd>
             </div>
-            <div>
-              <dt>Ganancia bruta estimada</dt>
-              <dd>{payout.grossGain.toFixed(1)} pts</dd>
-            </div>
-            <div className="parlay-page__calc-commission">
-              <dt>Comisión Pulponi ({(PULPONI_COMMISSION_RATE * 100).toFixed(0)}%)</dt>
-              <dd>-{(payout.grossGain * PULPONI_COMMISSION_RATE).toFixed(1)} pts</dd>
-            </div>
-            <div className="parlay-page__calc-highlight">
-              <dt>Ganancia Pulponi ({(PULPONI_GAIN_FACTOR * 100).toFixed(0)}%)</dt>
-              <dd>{payout.pulponiGain.toFixed(1)} pts</dd>
-            </div>
             <div className="parlay-page__calc-total">
-              <dt>Retorno virtual estimado</dt>
-              <dd>{payout.pulponiReturn.toFixed(1)} pts</dd>
+              <dt>Posible ganancia</dt>
+              <dd>{payout.pulponiGain.toFixed(1)} pts</dd>
             </div>
           </dl>
 
-          <p className="parlay-page__calc-note muted">
-            El cálculo final usa el sistema interno Pulponi. Sin dinero real.
-          </p>
-
           <div className="parlay-page__actions">
             <button type="button" className="primary full" disabled={!canSubmit} onClick={handleSaveParlay}>
-              Guardar parlay virtual
+              Guardar combinada
             </button>
             {selections.length > 0 ? (
               <button type="button" onClick={clearSelections}>
-                Limpiar selecciones
+                Limpiar
               </button>
             ) : null}
           </div>
@@ -315,13 +256,13 @@ export default function ParlayPage({ matches = [], userId }) {
 
           {savedParlays.length > 0 ? (
             <div className="parlay-page__saved">
-              <h4>Parlays guardados</h4>
+              <h4>Recientes</h4>
               <ul>
                 {savedParlays.slice(0, 5).map((p) => (
                   <li key={p.id}>
                     <span>
-                      {p.selections.length} picks · momio {formatDecimalOdds(p.totalOdds)} ·{' '}
-                      {p.pulponiReturn.toFixed(1)} pts est.
+                      {p.selections.length} picks · {formatDecimalOdds(p.totalOdds)} ·{' '}
+                      {(p.possibleGain ?? p.pulponiGain ?? 0).toFixed(1)} pts
                     </span>
                     <span className="muted">{new Date(p.createdAt).toLocaleString('es-MX')}</span>
                   </li>

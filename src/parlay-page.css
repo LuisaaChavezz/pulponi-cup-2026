@@ -1,97 +1,25 @@
-/* Pulponi Cup — Parlay virtual transparente */
+/* Pulponi Cup — Parlay combinada compacta */
 
 .parlay-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  max-width: 1180px;
+  gap: 14px;
+  max-width: 1080px;
 }
 
 .parlay-page__head .section-lead {
-  max-width: 40rem;
-}
-
-.parlay-page__banner {
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(15, 15, 18, 0.9);
-}
-
-.parlay-page__banner strong {
-  display: block;
-  font-size: 0.92rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.parlay-page__banner p {
-  margin: 0;
-  font-size: 0.88rem;
-  line-height: 1.45;
-  color: var(--muted, #a1a1aa);
-}
-
-.parlay-page__banner--authorized {
-  border-color: rgba(74, 222, 128, 0.35);
-  box-shadow: 0 0 20px rgba(74, 222, 128, 0.08);
-}
-
-.parlay-page__banner--authorized strong {
-  color: #86efac;
-}
-
-.parlay-page__banner--simulated {
-  border-color: rgba(255, 30, 39, 0.35);
-  box-shadow: 0 0 20px rgba(255, 30, 39, 0.1);
-}
-
-.parlay-page__banner--simulated strong {
-  color: #fecaca;
-}
-
-.parlay-page__banner--mixed {
-  border-color: rgba(250, 204, 21, 0.35);
-}
-
-.parlay-page__banner--mixed strong {
-  color: #fde68a;
-}
-
-.parlay-page__rules {
-  padding: 16px 18px;
-}
-
-.parlay-page__rules-title {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #fecaca;
-}
-
-.parlay-page__rules-list {
-  margin: 0;
-  padding-left: 18px;
-  color: #d4d4d8;
-  font-size: 0.88rem;
-  line-height: 1.55;
-}
-
-.parlay-page__rules-list li + li {
-  margin-top: 6px;
+  max-width: 32rem;
 }
 
 .parlay-page__layout {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 12px;
 }
 
-@media (min-width: 960px) {
+@media (min-width: 900px) {
   .parlay-page__layout {
-    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
     align-items: start;
   }
 
@@ -101,102 +29,118 @@
   }
 }
 
-.parlay-page__matches-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.parlay-page__matches-head h3 {
-  margin: 0;
-  font-size: 1rem;
-}
-
 .parlay-page__match-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .parlay-match-card {
-  padding: 14px 16px;
+  padding: 10px 12px;
 }
 
-.parlay-match-card__head {
+.parlay-match-card__top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px 12px;
+  margin-bottom: 8px;
 }
 
 .parlay-match-card__teams {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.parlay-match-card__team {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
 }
 
 .parlay-match-card__vs {
   color: var(--muted, #a1a1aa);
+  font-size: 0.72rem;
   font-weight: 600;
-  font-size: 0.78rem;
 }
 
-.parlay-match-card__source {
-  margin: 8px 0 10px;
-  font-size: 0.75rem;
+.parlay-match-card__time {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted, #a1a1aa);
+  white-space: nowrap;
 }
 
 .parlay-match-card__odds {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .parlay-odd-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 10px 8px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--text, #f6f6f6);
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
 .parlay-odd-btn:hover {
-  border-color: rgba(255, 30, 39, 0.45);
+  border-color: rgba(255, 30, 39, 0.4);
 }
 
 .parlay-odd-btn.is-active {
-  border-color: rgba(255, 30, 39, 0.75);
-  background: rgba(255, 30, 39, 0.12);
-  box-shadow: 0 0 16px rgba(255, 30, 39, 0.2);
+  border-color: rgba(255, 30, 39, 0.7);
+  background: rgba(255, 30, 39, 0.1);
+  box-shadow: 0 0 12px rgba(255, 30, 39, 0.18);
 }
 
 .parlay-odd-btn__label {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--muted, #a1a1aa);
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .parlay-odd-btn__value {
-  font-size: 1rem;
+  font-size: 0.92rem;
   font-weight: 800;
   color: #fecaca;
 }
 
+.parlay-odd-btn__action {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+.parlay-odd-btn.is-active .parlay-odd-btn__action {
+  color: #fca5a5;
+}
+
+.parlay-match-card__picked {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  color: #86efac;
+  font-weight: 700;
+}
+
 .parlay-page__slip {
-  padding: 16px 18px;
+  padding: 14px 16px;
 }
 
 .parlay-page__slip-head {
@@ -204,16 +148,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .parlay-page__slip-head h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .parlay-page__count {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #fca5a5;
 }
@@ -223,18 +167,18 @@
 }
 
 .parlay-page__empty-slip {
-  margin: 0 0 14px;
-  font-size: 0.88rem;
+  margin: 0 0 12px;
+  font-size: 0.82rem;
 }
 
 .parlay-page__selections {
   list-style: none;
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 220px;
+  gap: 6px;
+  max-height: 200px;
   overflow: auto;
 }
 
@@ -243,39 +187,32 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.22);
 }
 
 .parlay-page__selection strong {
   display: block;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   margin-bottom: 2px;
 }
 
 .parlay-page__selection .muted {
   display: block;
-  font-size: 0.78rem;
-}
-
-.parlay-page__selection-source {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.68rem;
-  color: #71717a;
+  font-size: 0.72rem;
 }
 
 .parlay-page__remove {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: transparent;
   color: #fca5a5;
-  font-size: 1.1rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
 }
@@ -283,27 +220,27 @@
 .parlay-page__stake {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 14px;
-  font-size: 0.82rem;
+  gap: 5px;
+  margin-bottom: 12px;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
 .parlay-page__stake input {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 9px 11px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.35);
   color: var(--text, #f6f6f6);
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .parlay-page__calc {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .parlay-page__calc div {
@@ -315,39 +252,25 @@
 
 .parlay-page__calc dt {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--muted, #a1a1aa);
   font-weight: 600;
 }
 
 .parlay-page__calc dd {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 800;
-}
-
-.parlay-page__calc-commission dd {
-  color: #fca5a5;
-}
-
-.parlay-page__calc-highlight dd {
-  color: #fecaca;
 }
 
 .parlay-page__calc-total {
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 30, 39, 0.25);
+  border-top: 1px solid rgba(255, 30, 39, 0.22);
 }
 
 .parlay-page__calc-total dd {
   color: #86efac;
-  font-size: 1.05rem;
-}
-
-.parlay-page__calc-note {
-  margin: 0 0 14px;
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: 1rem;
 }
 
 .parlay-page__actions {
@@ -358,20 +281,20 @@
 
 .parlay-page__save-msg {
   margin: 10px 0 0;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: #86efac;
   font-weight: 700;
 }
 
 .parlay-page__saved {
-  margin-top: 16px;
-  padding-top: 14px;
+  margin-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .parlay-page__saved h4 {
-  margin: 0 0 8px;
-  font-size: 0.82rem;
+  margin: 0 0 6px;
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted, #a1a1aa);
@@ -383,14 +306,14 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .parlay-page__saved li {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
 }
 
 @media (max-width: 520px) {
