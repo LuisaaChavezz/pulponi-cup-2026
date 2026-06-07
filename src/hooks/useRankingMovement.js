@@ -5,6 +5,7 @@ import {
   attachPositionMovement,
   buildRankedLeaderboard,
   getProfileRankingSummary,
+  leaderboardHasScoredPoints,
 } from '../lib/rankingHistory';
 import {
   loadJornadaComparison,
@@ -109,6 +110,7 @@ export function useRankingMovement(session) {
   const [tablesMissing, setTablesMissing] = useState(false);
   const [profileSummary, setProfileSummary] = useState(null);
   const [jornadaLabel, setJornadaLabel] = useState(null);
+  const [movementActive, setMovementActive] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!userId) return;
@@ -129,10 +131,14 @@ export function useRankingMovement(session) {
       setTablesMissing(comparison.tablesMissing);
 
       const ranked = buildRankedLeaderboard(profiles ?? []);
+      const scored = leaderboardHasScoredPoints(ranked);
+      setMovementActive(scored);
+
       const withMovement = attachPositionMovement(ranked, comparison.previousHistory);
       setRows(withMovement);
 
-      const prevLabel = comparison.previousJornada?.label ?? comparison.latestJornada?.label ?? null;
+      const prevLabel =
+        scored && comparison.previousJornada?.label ? comparison.previousJornada.label : null;
       setJornadaLabel(prevLabel);
 
       const historyRows = await loadProfileHistoryRows(userId);
@@ -191,6 +197,7 @@ export function useRankingMovement(session) {
     tablesMissing,
     profileSummary,
     jornadaLabel,
+    movementActive,
     refresh,
   };
 }

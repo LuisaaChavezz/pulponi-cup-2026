@@ -25,7 +25,7 @@ function movementBadgeLabel(movement) {
 }
 
 function MovementBadge({ movement }) {
-  if (!movement) return null;
+  if (!movement || movement.direction === 'none') return null;
   const dir = movement.direction;
   const label = movementBadgeLabel(movement);
   const cls = [
@@ -72,7 +72,7 @@ export default function RankingMovement({
   onViewFull = null,
   showYouHint = true,
 }) {
-  const { top5, rest, rows, loading, tablesMissing, jornadaLabel, profileSummary } =
+  const { top5, rest, rows, loading, tablesMissing, jornadaLabel, profileSummary, movementActive } =
     useRankingMovement(session);
 
   const restLimit = compact ? (maxRest ?? 5) : rest.length;
@@ -109,7 +109,7 @@ export default function RankingMovement({
         </p>
       ) : null}
 
-      {jornadaLabel ? (
+      {movementActive && jornadaLabel ? (
         <p className="rm-jornada-ref">Comparado vs {jornadaLabel}</p>
       ) : null}
 
@@ -121,6 +121,10 @@ export default function RankingMovement({
       ) : isEmpty ? (
         <div className="rm-empty">
           <p>El ranking todavía está vacío.</p>
+        </div>
+      ) : !movementActive ? (
+        <div className="rm-empty rm-empty--waiting">
+          <p>El ranking en movimiento comenzará cuando se registren los primeros puntos.</p>
         </div>
       ) : (
         <>
@@ -199,9 +203,12 @@ export default function RankingMovement({
         </>
       )}
 
-      {showYouHint && profileSummary && session?.user?.id ? (
+      {showYouHint && movementActive && profileSummary && session?.user?.id ? (
         <p className="rm-you-hint" aria-live="polite">
-          Tu puesto: #{profileSummary.currentRank ?? '—'} · {movementBadgeLabel(profileSummary.movement)}
+          Tu puesto: #{profileSummary.currentRank ?? '—'}
+          {profileSummary.movement?.direction !== 'none'
+            ? ` · ${movementBadgeLabel(profileSummary.movement)}`
+            : ''}
         </p>
       ) : null}
     </article>

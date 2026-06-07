@@ -64,6 +64,7 @@ export default function ProfileRankingSummary({ userId }) {
   if (!summary) return null;
 
   const mov = summary.movement;
+  const showMovement = summary.movementActive && mov?.direction !== 'none';
   const movClass =
     mov?.direction === 'up'
       ? 'profile-ranking-summary__change--up'
@@ -84,7 +85,7 @@ export default function ProfileRankingSummary({ userId }) {
           <span>Mejor posición</span>
         </div>
         <div className="profile-ranking-summary__cell">
-          <b className={movClass}>{mov?.lineLabel ?? '—'}</b>
+          <b className={showMovement ? movClass : undefined}>{showMovement ? mov?.lineLabel : '—'}</b>
           <span>Cambio reciente</span>
         </div>
         <div className="profile-ranking-summary__cell">
@@ -92,7 +93,11 @@ export default function ProfileRankingSummary({ userId }) {
           <span>Puntos actuales</span>
         </div>
       </div>
-      {!summary.hasHistory && summary.currentRank != null ? (
+      {!summary.movementActive ? (
+        <p className="profile-ranking-summary__hint">
+          El historial de posiciones comenzará cuando se registren los primeros puntos.
+        </p>
+      ) : !summary.hasHistory && summary.currentRank != null ? (
         <p className="profile-ranking-summary__hint">
           Tu historial de jornadas se irá guardando cuando cambie el ranking.
         </p>

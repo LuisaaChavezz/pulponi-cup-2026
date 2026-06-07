@@ -46,3 +46,33 @@ create policy "ranking_history_insert"
 
 comment on table public.ranking_jornadas is 'Instantáneas del leaderboard (una fila por jornada/corte)';
 comment on table public.ranking_history is 'Posición y puntos de cada jugador por jornada';
+
+-- Elimina jornadas donde todos los jugadores tenían 0 puntos (snapshots inválidos pre-quiniela)
+create or replace function public.cleanup_zero_point_ranking_jornadas()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  removed integer;
+begin
+  if to_regclass('public.ranking_jornadas') is null then
+    return 0;
+  end if;
+
+  delete from public.ranking_jornadas j
+  where not exists (
+    select 1
+    from public.ranking_history h
+    where h.jornada_id = j.id
+      and h.points > 0
+  );
+
+  get diagnostics removed = row_count;
+  return removed;
+end;
+$$;
+
+grant execute on function public.cleanup_zero_point_ranking_jornadas() to authenticated;
+grant execute on function public.cleanup_zero_point_ranking_jornadas() to service_role;

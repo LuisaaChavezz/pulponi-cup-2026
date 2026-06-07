@@ -1,6 +1,11 @@
 import { supabase } from './supabase';
 import { fetchLeaderboardProfiles } from './leaderboardQuery';
-import { buildRankedLeaderboard, snapshotMatchesHistory } from './rankingHistory';
+import {
+  buildRankedLeaderboard,
+  historySnapshotHasScoredPoints,
+  leaderboardHasScoredPoints,
+  snapshotMatchesHistory,
+} from './rankingHistory';
 
 async function fetchProfilesForRanking(client = supabase) {
   const { data, error } = await fetchLeaderboardProfiles(client);
@@ -29,25 +34,69 @@ async function getHistoryForJornada(client, jornadaId) {
   return data ?? [];
 }
 
+/** IDs de jornadas donde al menos un jugador tiene points > 0. */
+async function getValidJornadaIds(client = supabase) {
+  const { data, error } = await client.from('ranking_history').select('jornada_id, points');
+  if (error) throw error;
+
+  const maxPointsByJornada = new Map();
+  for (const row of data ?? []) {
+    const id = row.jornada_id;
+    const pts = Number(row.points ?? 0);
+    maxPointsByJornada.set(id, Math.max(maxPointsByJornada.get(id) ?? 0, pts));
+  }
+
+  return [...maxPointsByJornada.entries()]
+    .filter(([, maxPts]) => maxPts > 0)
+    .map(([id]) => id)
+    .sort((a, b) => b - a);
+}
+
+/** Elimina jornadas cuyo snapshot tiene todos los puntos en 0. */
+export async function cleanupZeroPointRankingSnapshots(client = supabase) {
+  try {
+    const { data, error } = await client.rpc('cleanup_zero_point_ranking_jornadas');
+    if (error) {
+      if (!/does not exist|42883|PGRST202/i.test(String(error.message ?? error))) {
+        console.warn('[rankingSnapshot] cleanup zero jornadas', error.message);
+      }
+      return 0;
+    }
+    return Number(data ?? 0);
+  } catch (e) {
+    console.warn('[rankingSnapshot] cleanup zero jornadas', e?.message ?? e);
+    return 0;
+  }
+}
+
 /**
- * Guarda una nueva jornada si el ranking cambió respecto al último snapshot.
+ * Guarda una nueva jornada si el ranking cambió respecto al último snapshot válido.
+ * No registra historial mientras todos los usuarios tengan 0 puntos.
  * @returns {{ captured: boolean, jornadaId?: number }}
  */
 export async function maybeCaptureRankingSnapshot(client = supabase) {
   try {
+    await cleanupZeroPointRankingSnapshots(client);
+
     const profiles = await fetchProfilesForRanking(client);
     const ranked = buildRankedLeaderboard(profiles);
     if (!ranked.length) return { captured: false };
 
-    const latest = await getLatestJornada(client);
-    if (latest?.id) {
-      const prevHistory = await getHistoryForJornada(client, latest.id);
-      if (snapshotMatchesHistory(prevHistory, ranked)) {
-        return { captured: false, jornadaId: latest.id };
+    if (!leaderboardHasScoredPoints(ranked)) {
+      return { captured: false, reason: 'no_points' };
+    }
+
+    const validIds = await getValidJornadaIds(client);
+    let latestValidHistory = [];
+    if (validIds.length > 0) {
+      latestValidHistory = await getHistoryForJornada(client, validIds[0]);
+      if (snapshotMatchesHistory(latestValidHistory, ranked)) {
+        return { captured: false, jornadaId: validIds[0] };
       }
     }
 
-    const jornadaNumber = (latest?.id ?? 0) + 1;
+    const latestAny = await getLatestJornada(client);
+    const jornadaNumber = (latestAny?.id ?? 0) + 1;
     const label = `Jornada ${jornadaNumber}`;
 
     const { data: jornadaRow, error: jErr } = await client
@@ -85,33 +134,48 @@ export async function maybeCaptureRankingSnapshot(client = supabase) {
 }
 
 /**
- * Última y penúltima jornada para comparar movimiento.
+ * Última y penúltima jornada válida (con puntos reales) para comparar movimiento.
  */
 export async function loadJornadaComparison(client = supabase) {
   try {
+    await cleanupZeroPointRankingSnapshots(client);
+
+    const validIds = await getValidJornadaIds(client);
+    if (!validIds.length) {
+      return {
+        latestJornada: null,
+        previousJornada: null,
+        previousHistory: [],
+        tablesMissing: false,
+        movementActive: false,
+      };
+    }
+
+    const [latestId, previousId] = validIds;
+    const idList = [latestId, previousId].filter(Boolean);
+
     const { data: jornadas, error } = await client
       .from('ranking_jornadas')
       .select('id, label, created_at')
-      .order('id', { ascending: false })
-      .limit(2);
+      .in('id', idList);
 
     if (error) throw error;
-    const list = jornadas ?? [];
-    const latest = list[0] ?? null;
-    const previous = list[1] ?? null;
+
+    const byId = new Map((jornadas ?? []).map((j) => [j.id, j]));
+    const latestJornada = byId.get(latestId) ?? null;
+    const previousJornada = previousId != null ? byId.get(previousId) ?? null : null;
 
     let previousHistory = [];
-    if (previous?.id) {
-      previousHistory = await getHistoryForJornada(client, previous.id);
-    } else if (latest?.id) {
-      previousHistory = await getHistoryForJornada(client, latest.id);
+    if (previousJornada?.id) {
+      previousHistory = await getHistoryForJornada(client, previousJornada.id);
     }
 
     return {
-      latestJornada: latest,
-      previousJornada: previous,
-      previousHistory,
+      latestJornada,
+      previousJornada,
+      previousHistory: historySnapshotHasScoredPoints(previousHistory) ? previousHistory : [],
       tablesMissing: false,
+      movementActive: true,
     };
   } catch (e) {
     const msg = String(e?.message ?? e);
@@ -121,6 +185,7 @@ export async function loadJornadaComparison(client = supabase) {
         previousJornada: null,
         previousHistory: [],
         tablesMissing: true,
+        movementActive: false,
       };
     }
     console.warn('[loadJornadaComparison]', msg);
@@ -129,6 +194,7 @@ export async function loadJornadaComparison(client = supabase) {
       previousJornada: null,
       previousHistory: [],
       tablesMissing: false,
+      movementActive: false,
     };
   }
 }
@@ -136,10 +202,14 @@ export async function loadJornadaComparison(client = supabase) {
 export async function loadProfileHistoryRows(profileId, client = supabase) {
   if (!profileId) return [];
   try {
+    const validIds = await getValidJornadaIds(client);
+    if (!validIds.length) return [];
+
     const { data, error } = await client
       .from('ranking_history')
       .select('profile_id, rank_position, points, jornada_id')
-      .eq('profile_id', profileId);
+      .eq('profile_id', profileId)
+      .in('jornada_id', validIds);
     if (error) throw error;
     return data ?? [];
   } catch (e) {

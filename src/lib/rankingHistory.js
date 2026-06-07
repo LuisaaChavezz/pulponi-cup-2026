@@ -2,6 +2,24 @@
  * Ranking por jornada: snapshots en Supabase y movimiento de posiciones.
  */
 
+/** Al menos un jugador con puntos > 0 (quiniela iniciada). */
+export function leaderboardHasScoredPoints(profilesOrRanked) {
+  return (profilesOrRanked ?? []).some((r) => Number(r.points ?? 0) > 0);
+}
+
+/** Snapshot de jornada válido: no todos en cero. */
+export function historySnapshotHasScoredPoints(historyRows) {
+  return (historyRows ?? []).some((r) => Number(r.points ?? 0) > 0);
+}
+
+/** Sin movimiento (↑↓ / nuevo) — antes de puntos reales o sin jornada previa válida. */
+export const MOVEMENT_INACTIVE = {
+  direction: 'none',
+  delta: 0,
+  shortLabel: '—',
+  lineLabel: '—',
+};
+
 export function selectDisplayName(profile) {
   const u = profile?.username?.trim();
   if (u) return u.charAt(0).toUpperCase() + u.slice(1);
@@ -61,6 +79,21 @@ export function snapshotMatchesHistory(historyRows, rankedList) {
  * @param {Array<{ profile_id, rank_position }>} previousHistory
  */
 export function attachPositionMovement(rankedList, previousHistory) {
+  const attachInactive = (row) => ({
+    ...row,
+    currentRank: row.rank_position,
+    previousRank: null,
+    movement: MOVEMENT_INACTIVE,
+  });
+
+  if (!leaderboardHasScoredPoints(rankedList)) {
+    return (rankedList ?? []).map(attachInactive);
+  }
+
+  if (!historySnapshotHasScoredPoints(previousHistory)) {
+    return (rankedList ?? []).map(attachInactive);
+  }
+
   const prevByProfile = new Map(
     (previousHistory ?? []).map((r) => [r.profile_id, Number(r.rank_position)])
   );
@@ -68,7 +101,8 @@ export function attachPositionMovement(rankedList, previousHistory) {
   return rankedList.map((row) => {
     const currentRank = row.rank_position;
     const previousRank = prevByProfile.has(row.id) ? prevByProfile.get(row.id) : null;
-    const movement = buildMovement(currentRank, previousRank);
+    const movement =
+      previousRank == null ? MOVEMENT_INACTIVE : buildMovement(currentRank, previousRank);
     return {
       ...row,
       currentRank,
@@ -136,16 +170,19 @@ export function getProfileRankingSummary(userId, rankedList, allHistoryRows) {
   const me = rankedList.find((r) => r.id === userId);
   const currentRank = me?.currentRank ?? me?.rank_position ?? null;
   const currentPoints = me?.points ?? 0;
-  const movement = me?.movement ?? buildMovement(currentRank, null);
+  const scored = leaderboardHasScoredPoints(rankedList);
+  const movement = scored
+    ? (me?.movement ?? MOVEMENT_INACTIVE)
+    : MOVEMENT_INACTIVE;
 
   const myHistoryRanks = (allHistoryRows ?? [])
     .filter((h) => h.profile_id === userId)
     .map((h) => Number(h.rank_position))
     .filter((n) => Number.isFinite(n) && n > 0);
 
-  if (currentRank != null) myHistoryRanks.push(currentRank);
+  if (scored && currentRank != null) myHistoryRanks.push(currentRank);
 
-  const bestRank = myHistoryRanks.length ? Math.min(...myHistoryRanks) : currentRank;
+  const bestRank = myHistoryRanks.length ? Math.min(...myHistoryRanks) : scored ? currentRank : null;
 
   return {
     currentRank,
@@ -153,6 +190,7 @@ export function getProfileRankingSummary(userId, rankedList, allHistoryRows) {
     bestRank,
     currentPoints,
     movement,
-    hasHistory: (allHistoryRows ?? []).some((h) => h.profile_id === userId),
+    hasHistory: scored && (allHistoryRows ?? []).some((h) => h.profile_id === userId),
+    movementActive: scored,
   };
 }
