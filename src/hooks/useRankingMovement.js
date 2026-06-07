@@ -18,7 +18,7 @@ async function fetchLeaderboard() {
     .order('points', { ascending: false });
 }
 
-/** Un solo canal realtime compartido entre HomeDashboard y RankingMovement. */
+/** Canal realtime compartido para RankingMovement en la pestaña Ranking. */
 const rankingRealtime = {
   channel: null,
   userId: null,

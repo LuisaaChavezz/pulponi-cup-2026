@@ -32,7 +32,6 @@ import { resolveAvatarUrl } from './lib/avatars';
 import AvatarSelector from './components/AvatarSelector';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
-import RankingMovement from './components/RankingMovement';
 import { normalizeStoredHighlightList } from './lib/highlightsMapper';
 import { pullAndPersistHighlightEvents } from './lib/matchHighlightSync';
 
@@ -652,8 +651,6 @@ export default function App() {
               </div>
             )}
           </article>
-
-          <RankingMovement session={session} className="dash-ranking pulponi-card" />
 
           <article className="phone phone--chat-wide dash-chat pulponi-card" id="chat">
             <div className="phone-header">

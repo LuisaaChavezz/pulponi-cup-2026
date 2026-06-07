@@ -3,7 +3,6 @@ import { useMobileViewport } from '../hooks/useMobileViewport';
 import TeamLogo from './TeamLogo';
 import UserAvatar from './UserAvatar';
 import MatchSchedule from './MatchSchedule';
-import RankingMovement from './RankingMovement';
 import MatchChat from './MatchChat';
 import HomeMobileRankingSummary from './HomeMobileRankingSummary';
 import HomeMobileMatchesCarousel from './HomeMobileMatchesCarousel';
@@ -190,17 +189,6 @@ export default function HomeDashboard({
       </article>
   );
 
-  const rankingBlock = (
-    <RankingMovement
-      session={session}
-      compact
-      maxRest={5}
-      showYouHint={false}
-      className="home-dash-ranking-movement pulponi-card"
-      onViewFull={onViewRanking}
-    />
-  );
-
   const profilesBlock = (
     <article className="home-dash-sidebar-card home-dash-sidebar-card--profiles pulponi-card">
       <header className="home-dash-sidebar-card__head">
@@ -364,15 +352,13 @@ export default function HomeDashboard({
       <div className={`home-dash-stack${isMobileHome ? ' home-dash-stack--mobile' : ''}`}>
         <div className="home-dash-stack__center">
           <section className="home-dash-stack__section home-dash-stack__section--hero">{heroBlock}</section>
-          {isMobileHome ? (
-            <section className="home-dash-stack__section home-dash-stack__section--mobile-ranking">
-              <HomeMobileRankingSummary ranking={ranking} onViewRanking={onViewRanking} />
-            </section>
-          ) : (
-            <section className="home-dash-stack__section home-dash-stack__section--ranking">
-              {rankingBlock}
-            </section>
-          )}
+          <section
+            className={`home-dash-stack__section${
+              isMobileHome ? ' home-dash-stack__section--mobile-ranking' : ' home-dash-stack__section--ranking'
+            }`}
+          >
+            <HomeMobileRankingSummary ranking={ranking} onViewRanking={onViewRanking} />
+          </section>
         </div>
         {isMobileHome ? (
           <section className="home-dash-stack__section home-dash-stack__section--mobile-carousel">

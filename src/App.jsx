@@ -449,8 +449,6 @@ export default function App() {
   const myRankIndex = sortedRanking.findIndex((r) => r.id === session?.user?.id);
   const myCurrentRank =
     myRankIndex >= 0 ? myRankIndex + 1 : myProfileView.data?.rankingSummary?.currentRank ?? null;
-  const myPulpoIndex =
-    Number(profile?.pulpo_index ?? myProfileView.data?.stats?.pulpoIndex ?? 0) || 0;
   const myProfileExtras = myProfileView.data ?? {};
   const myBadgesFromCatalog = achievementCatalog.filter((a) =>
     isAchievementUnlockedById(unlockedAchievementIds, a.id)
@@ -822,7 +820,6 @@ export default function App() {
                 rank={myCurrentRank}
                 points={profile?.points ?? 0}
                 exacts={profile?.exacts ?? 0}
-                pulpoIndex={myPulpoIndex}
                 streak={profile?.streak ?? 0}
                 verified
                 uploadLabel="Subir foto"
@@ -846,16 +843,6 @@ export default function App() {
               ) : null}
 
               <div className="profile-page__cards profile-page__cards--own">
-                <ProfilePageCard title="Índice Pulpo">
-                  <PulpoIndexCard
-                    profile={profile}
-                    picks={data.picks}
-                    matches={worldCupMatches}
-                    communityPickProfiles={data.communityPickProfiles}
-                    userId={session?.user?.id}
-                  />
-                </ProfilePageCard>
-
                 <ProfilePageCard title="Tu ranking">
                   <ProfileRankingSummary userId={session?.user?.id} />
                 </ProfilePageCard>

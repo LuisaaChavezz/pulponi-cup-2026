@@ -16,6 +16,7 @@ export default function Profile({
   points = 0,
   exacts = 0,
   pulpoIndex = 0,
+  showPulpoIndex = false,
   streak = 0,
   verified = false,
   uploadLabel = null,
@@ -29,7 +30,9 @@ export default function Profile({
     { key: 'rank', value: rank != null ? `#${rank}` : '—', label: 'Ranking' },
     { key: 'pts', value: Number(points ?? 0), label: 'Puntos' },
     { key: 'ex', value: Number(exacts ?? 0), label: 'Exactos' },
-    { key: 'pulpo', value: `${Number(pulpoIndex ?? 0)}%`, label: 'Índice Pulpo', accent: true },
+    ...(showPulpoIndex
+      ? [{ key: 'pulpo', value: `${Number(pulpoIndex ?? 0)}%`, label: 'Índice Pulpo', accent: true }]
+      : []),
     { key: 'streak', value: Number(streak ?? 0), label: 'Racha' },
   ];
 

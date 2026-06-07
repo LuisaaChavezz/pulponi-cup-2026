@@ -91,6 +91,7 @@ export default function UserPublicProfile({
         points={safeStats.points}
         exacts={safeStats.exacts}
         pulpoIndex={safeStats.pulpoIndex}
+        showPulpoIndex
         streak={safeStats.currentStreak}
       />
 

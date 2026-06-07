@@ -11,7 +11,7 @@ export default function HomeMobileRankingSummary({ ranking = [], onViewRanking }
 
   return (
     <article className="home-dash-mobile-ranking pulponi-card">
-      <h3 className="home-dash-mobile-ranking__title">Top ranking</h3>
+      <h3 className="home-dash-mobile-ranking__title">TOP RANKING</h3>
       {topFive.length === 0 ? (
         <p className="home-dash-empty home-dash-mobile-ranking__empty">Sin datos todavía</p>
       ) : (
