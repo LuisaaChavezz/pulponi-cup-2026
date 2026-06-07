@@ -12,10 +12,11 @@ import {
   resolvePredictionExportContext,
 } from '../lib/predictionActivity';
 import {
-  downloadCSV,
+  downloadAllPredictionsPdf,
   downloadMatchPredictionsPdf,
-  mapExportRowsToCsv,
 } from '../lib/exportPredictions';
+
+const PDF_ERROR_MSG = 'No se pudo generar el PDF.';
 
 const PREDICTION_FEED_RECENT_COUNT = 5;
 
@@ -141,28 +142,7 @@ export default function DashboardNotifications({
     }
   }
 
-  function handleDownloadCsv() {
-    if (exportBusy) return;
-    const partido = matchLabel || 'Partido';
-    const data = mapExportRowsToCsv(exportRows, partido);
-    console.log('[EXPORT DATA]', data);
-    if (!data.length) {
-      window.alert('No hay predicciones para descargar.');
-      return;
-    }
-    setExportBusy(true);
-    try {
-      console.log('[EXPORT CSV START]');
-      downloadCSV(`pulponi-predicciones-${Date.now()}.csv`, data);
-    } catch (error) {
-      console.log('[EXPORT ERROR]', error);
-      window.alert('No se pudo generar la descarga.');
-    } finally {
-      setExportBusy(false);
-    }
-  }
-
-  function handleDownloadPdf() {
+  function handleDownloadMatchPdf() {
     if (exportBusy) return;
     console.log('[EXPORT DATA]', exportRows);
     if (!exportRows.length) {
@@ -171,35 +151,28 @@ export default function DashboardNotifications({
     }
     setExportBusy(true);
     try {
-      console.log('[EXPORT PDF START]');
       downloadMatchPredictionsPdf(downloadMatch, exportRows);
     } catch (error) {
       console.log('[EXPORT ERROR]', error);
-      window.alert('No se pudo generar la descarga.');
+      window.alert(PDF_ERROR_MSG);
     } finally {
       setExportBusy(false);
     }
   }
 
-  function handleDownloadAllCsv() {
+  function handleDownloadAllPdf() {
     if (exportBusy) return;
-    const flat = [];
-    for (const g of allExportGroups) {
-      const partido = formatMatchVersusLabel(g.match);
-      flat.push(...mapExportRowsToCsv(g.rows, partido));
-    }
-    console.log('[EXPORT DATA]', flat);
-    if (!flat.length) {
+    console.log('[EXPORT DATA]', allExportGroups);
+    if (!allExportGroups.length) {
       window.alert('No hay predicciones para descargar.');
       return;
     }
     setExportBusy(true);
     try {
-      console.log('[EXPORT CSV START]');
-      downloadCSV(`pulponi-todas-predicciones-${Date.now()}.csv`, flat);
+      downloadAllPredictionsPdf(allExportGroups);
     } catch (error) {
       console.log('[EXPORT ERROR]', error);
-      window.alert('No se pudo generar la descarga.');
+      window.alert(PDF_ERROR_MSG);
     } finally {
       setExportBusy(false);
     }
@@ -221,7 +194,7 @@ export default function DashboardNotifications({
           </h3>
           <p className="dash-notifications__hint dash-notifications-community-mobile-hide">
             Actividad pública sin marcadores, porcentajes ni picks. Tras el cierre de cada partido,
-            cualquier usuario registrado puede descargar CSV o PDF (marcador visible tras el cierre).
+            cualquier usuario registrado puede descargar PDF (marcador visible tras el cierre).
           </p>
         </div>
 
@@ -255,26 +228,18 @@ export default function DashboardNotifications({
             <button
               type="button"
               className="dash-notifications__export-toggle"
-              onClick={handleDownloadCsv}
+              onClick={handleDownloadMatchPdf}
               disabled={exportBusy}
             >
-              {exportBusy ? 'Generando…' : 'Descargar CSV'}
-            </button>
-            <button
-              type="button"
-              className="dash-notifications__export-toggle"
-              onClick={handleDownloadPdf}
-              disabled={exportBusy}
-            >
-              Descargar PDF
+              {exportBusy ? 'Generando…' : 'Descargar predicciones del partido'}
             </button>
             <button
               type="button"
               className="dash-notifications__export-toggle dash-notifications__export-toggle--secondary"
-              onClick={handleDownloadAllCsv}
+              onClick={handleDownloadAllPdf}
               disabled={exportBusy}
             >
-              Descargar todas las predicciones
+              {exportBusy ? 'Generando…' : 'Descargar todas las predicciones'}
             </button>
           </div>
         </div>

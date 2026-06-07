@@ -212,7 +212,7 @@ function profileMatchActivityTimes(activityRows, matchId, profileId) {
 }
 
 /**
- * Filas para descarga (CSV/PDF). Marcador oculto si el partido sigue abierto.
+ * Filas para descarga PDF. Marcador oculto si el partido sigue abierto.
  */
 export function buildMatchDownloadRows(
   profileRows,
