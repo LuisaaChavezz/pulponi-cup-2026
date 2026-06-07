@@ -10,7 +10,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "seed:fifa": "node scripts/seed-fifa-provisional.mjs"
+    "seed:fifa": "node scripts/seed-fifa-provisional.mjs",
+    "sync:matches": "npx vite-node scripts/sync-matches-api.mjs",
+    "sync:worldcup": "npx vite-node scripts/sync-worldcup.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0",

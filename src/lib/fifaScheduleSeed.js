@@ -1,5 +1,4 @@
 import {
-  FIFA_FALLBACK_MATCHES,
   OFFICIAL_WORLD_CUP_SCHEDULE,
   getAllOfficialScheduleEntries,
   officialIdToFixtureKey,
@@ -65,7 +64,7 @@ export function buildOfficialMatchRow(match) {
     venue: cleanText(match.venue),
     venue_city: cleanText(match.venue_city),
     group_name: cleanText(match.group_name) ?? 'Mundial 2026',
-    is_knockout: false,
+    is_knockout: Boolean(match.is_knockout),
     status: cleanText(match.status) ?? 'scheduled',
     api_status: 'NS',
     provisional: true,
@@ -151,7 +150,7 @@ export async function deleteProvisionalMatches(client) {
   return ids.length;
 }
 
-/** Elimina provisionales cuyo official_id ya no está en el calendario (o sin official_id). */
+/** Elimina provisionales cuyo official_id ya no está en el calendario (conserva filas con picks si tienen official_id válido). */
 export async function deleteOrphanProvisionalMatches(client, scheduleOfficialIds) {
   const { data, error } = await client.from('matches').select('id, official_id').eq('provisional', true);
   if (error) {
@@ -179,13 +178,17 @@ export async function deleteOrphanProvisionalMatches(client, scheduleOfficialIds
   return ids.length;
 }
 
-
 /**
- * Inserta o actualiza filas provisionales por official_id (sin depender de ON CONFLICT en Postgres).
+ * Inserta o actualiza filas por official_id.
+ * - insert: fila nueva
+ * - update: fila provisional existente (conserva id → picks intactos)
+ * - skip: fila no provisional (enriquecida por API) o error
  */
-async function upsertProvisionalRowsByOfficialId(client, rows) {
+async function upsertOfficialRowsByOfficialId(client, rows) {
   const errors = [];
-  let upserted = 0;
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
 
   for (const row of rows) {
     const { data: existing, error: selErr } = await client
@@ -196,42 +199,55 @@ async function upsertProvisionalRowsByOfficialId(client, rows) {
 
     if (selErr) {
       errors.push(selErr);
+      skipped += 1;
       console.warn('[FIFA SCHEDULE] select', row.official_id, selErr.message);
       continue;
     }
 
     if (existing?.id) {
       if (existing.provisional === false) {
+        skipped += 1;
         continue;
       }
       const { error } = await client.from('matches').update(row).eq('id', existing.id);
       if (error) {
         errors.push(error);
+        skipped += 1;
         console.warn('[FIFA SCHEDULE] update', row.official_id, error.message);
         continue;
       }
-      upserted += 1;
+      updated += 1;
     } else {
       const { error } = await client.from('matches').insert(row);
       if (error) {
         errors.push(error);
+        skipped += 1;
         console.warn('[FIFA SCHEDULE] insert', row.official_id, error.message);
         continue;
       }
-      upserted += 1;
+      inserted += 1;
     }
   }
 
-  return { upserted, errors };
+  return { inserted, updated, skipped, errors };
 }
 
-export async function insertOfficialProvisionalFixtures(client) {
+/**
+ * Sincronizador principal del calendario FIFA → public.matches.
+ * Lee officialWorldCupSchedule.js, upsert por official_id, orden cronológico.
+ */
+export async function syncOfficialWorldCupSchedule(client) {
   const nEntries = verifyOfficialScheduleModule();
-  if (!nEntries) console.warn('[FIFA SCHEDULE] calendario oficial vacío');
+  if (!nEntries) {
+    throw new Error('Calendario FIFA vacío — revisa officialWorldCupSchedule.js');
+  }
 
   await deleteMatchesMissingTeams(client);
 
-  const schedule = getAllOfficialScheduleEntries();
+  const schedule = getAllOfficialScheduleEntries().slice().sort((a, b) => {
+    return new Date(a.kickoff ?? 0) - new Date(b.kickoff ?? 0);
+  });
+
   const scheduleOfficialIds = new Set(
     schedule.map((m) => cleanText(m.official_id)).filter(Boolean)
   );
@@ -248,7 +264,7 @@ export async function insertOfficialProvisionalFixtures(client) {
       .eq('provisional', false);
 
     if (error) {
-      console.warn('[FIFA SCHEDULE] No se pudo listar partidos ya enlazados API:', error.message);
+      console.warn('[FIFA SCHEDULE] No se pudo listar partidos enlazados API:', error.message);
     } else {
       lockedRows = data ?? [];
     }
@@ -267,41 +283,61 @@ export async function insertOfficialProvisionalFixtures(client) {
   }
 
   if (!rows.length) {
-    const err = new Error(
+    throw new Error(
       lockedRows.length
         ? 'Calendario FIFA: todos los official_id ya existen como partidos no provisionales (API)'
         : 'Calendario FIFA: ningún partido válido para insertar/actualizar'
     );
-    console.warn('[FIFA SCHEDULE]', err.message);
-    throw err;
   }
 
-  const { upserted, errors: rowErrors } = await upsertProvisionalRowsByOfficialId(client, rows);
+  const { inserted, updated, skipped: upsertSkipped, errors: rowErrors } =
+    await upsertOfficialRowsByOfficialId(client, rows);
 
-  if (upserted === 0) {
+  const skipped = upsertSkipped + skipOfficialIds.size;
+
+  if (inserted === 0 && updated === 0 && rowErrors.length === 0 && skipOfficialIds.size === rows.length) {
+    return {
+      inserted: 0,
+      updated: 0,
+      skipped,
+      total: nEntries,
+      provisional: true,
+      source: 'fifa',
+      unchanged: true,
+    };
+  }
+
+  if (inserted === 0 && updated === 0 && rowErrors.length) {
     const first = rowErrors[0];
-    const err = new Error(
+    throw new Error(
       first ? `Calendario FIFA: ningún upsert exitoso — ${first.message}` : 'Calendario FIFA: upsert vacío'
     );
-    console.warn('[FIFA SCHEDULE]', err.message);
-    throw err;
   }
 
   if (rowErrors.length) {
     console.warn(`[FIFA SCHEDULE] ${rowErrors.length} filas con error (${rows.length} intentadas)`);
   }
 
-  console.log('[FIFA SCHEDULE UPSERT OK]', { upserted, skippedLocked: skipOfficialIds.size });
   return {
-    imported: upserted,
+    inserted,
+    updated,
+    skipped,
+    imported: inserted + updated,
+    total: nEntries,
     provisional: true,
     source: 'fifa',
     failed: rowErrors.length,
-    skippedLocked: skipOfficialIds.size,
   };
+}
+
+/** @deprecated Usar syncOfficialWorldCupSchedule */
+export async function insertOfficialProvisionalFixtures(client) {
+  return syncOfficialWorldCupSchedule(client);
 }
 
 /** Compatibilidad con imports antiguos. */
 export function officialScheduleToMatchRow(match) {
   return buildOfficialMatchRow(match);
 }
+
+export { OFFICIAL_WORLD_CUP_SCHEDULE };

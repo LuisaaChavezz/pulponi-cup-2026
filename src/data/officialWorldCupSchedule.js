@@ -1,8 +1,11 @@
 /**
  * Calendario oficial FIFA — Mundial 2026 (Canadá · México · USA)
- * Fuente: https://www.fifa.com/es/tournaments/mens/worldcup/canadamexicousa2026/articles/calendario-fixture-mundial-2026-partidos-fechas
+ * Fuente: https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/match-schedule-fixtures-results-teams-stadiums
+ *
+ * 104 partidos — fuente primaria de Pulponi Cup (no API-Football para calendario).
  */
-import { flagEmojiForTeam, flagLogoUrlForTeam } from '../lib/teamFlags.js';
+import { flagLogoUrlForTeam } from '../lib/teamFlags.js';
+import { WORLD_CUP_2026_RAW_FIXTURES } from './worldCup2026FixturesRaw.js';
 
 /** 3:00 p.m. ET (EDT, junio 2026) → UTC */
 export function kickoffEt(y, m, d, hourEt, minute = 0) {
@@ -10,179 +13,42 @@ export function kickoffEt(y, m, d, hourEt, minute = 0) {
 }
 
 export const OFFICIAL_SCHEDULE_SOURCE =
-  'https://www.fifa.com/es/tournaments/mens/worldcup/canadamexicousa2026/articles/calendario-fixture-mundial-2026-partidos-fechas';
+  'https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/match-schedule-fixtures-results-teams-stadiums';
 
-/** Partidos hardcoded para validar UI de inmediato. */
-export const FIFA_FALLBACK_MATCHES = [
-  {
-    official_id: 'fifa-fallback-001',
-    home_team: 'México',
-    away_team: 'Argentina',
-    home_flag: '🇲🇽',
-    away_flag: '🇦🇷',
-    home_logo: flagLogoUrlForTeam('México'),
-    away_logo: flagLogoUrlForTeam('Argentina'),
-    kickoff: kickoffEt(2026, 6, 11, 15),
-    venue: 'Estadio Azteca',
-    venue_city: 'Ciudad de México',
-    group_name: 'Mundial 2026 — Prueba Pulponi',
-    status: 'scheduled',
-    provisional: true,
-  },
-  {
-    official_id: 'fifa-fallback-002',
-    home_team: 'Brasil',
-    away_team: 'Francia',
-    home_flag: '🇧🇷',
-    away_flag: '🇫🇷',
-    home_logo: flagLogoUrlForTeam('Brasil'),
-    away_logo: flagLogoUrlForTeam('Francia'),
-    kickoff: kickoffEt(2026, 6, 13, 18),
-    venue: 'MetLife Stadium',
-    venue_city: 'Nueva York / Nueva Jersey',
-    group_name: 'Mundial 2026 — Prueba Pulponi',
-    status: 'scheduled',
-    provisional: true,
-  },
-];
+function phaseLabel(raw) {
+  const n = raw.n;
+  if (!raw.knockout) return `Grupo ${raw.group} — Fase de grupos`;
+  if (n === 104) return 'Final';
+  if (n === 103) return 'Tercer puesto';
+  if (n >= 101) return `Semifinal — Partido ${n}`;
+  if (n >= 97) return `Cuartos de final — Partido ${n}`;
+  if (n >= 89) return `Octavos de final — Partido ${n}`;
+  return `Dieciseisavos de final — Partido ${n}`;
+}
 
-export const OFFICIAL_WORLD_CUP_SCHEDULE = [
-  {
-    official_id: 'fifa-wc26-001',
-    home_team: 'México',
-    away_team: 'Sudáfrica',
-    home_flag: '🇲🇽',
-    away_flag: '🇿🇦',
-    home_logo: flagLogoUrlForTeam('México'),
-    away_logo: flagLogoUrlForTeam('Sudáfrica'),
-    kickoff: kickoffEt(2026, 6, 11, 15),
-    venue: 'Estadio Azteca',
-    venue_city: 'Ciudad de México',
-    group_name: 'Grupo A — Fase de grupos',
+function rawToScheduleEntry(raw) {
+  const official_id = `fifa-wc26-${String(raw.n).padStart(3, '0')}`;
+  return {
+    official_id,
+    match_number: raw.n,
+    home_team: raw.home,
+    away_team: raw.away,
+    home_logo: flagLogoUrlForTeam(raw.home),
+    away_logo: flagLogoUrlForTeam(raw.away),
+    kickoff: kickoffEt(raw.y, raw.m, raw.d, raw.hourEt, raw.minute ?? 0),
+    venue: raw.venue,
+    venue_city: raw.city,
+    group_name: phaseLabel(raw),
+    is_knockout: Boolean(raw.knockout),
     status: 'scheduled',
     provisional: true,
-  },
-  {
-    official_id: 'fifa-wc26-002',
-    home_team: 'Canadá',
-    away_team: 'Bosnia y Herzegovina',
-    home_flag: '🇨🇦',
-    away_flag: '🇧🇦',
-    home_logo: flagLogoUrlForTeam('Canadá'),
-    away_logo: flagLogoUrlForTeam('Bosnia y Herzegovina'),
-    kickoff: kickoffEt(2026, 6, 12, 15),
-    venue: 'BMO Field',
-    venue_city: 'Toronto',
-    group_name: 'Grupo B — Fase de grupos',
-    status: 'scheduled',
-    provisional: true,
-  },
-  {
-    official_id: 'fifa-wc26-003',
-    home_team: 'Estados Unidos',
-    away_team: 'Paraguay',
-    home_flag: '🇺🇸',
-    away_flag: '🇵🇾',
-    home_logo: flagLogoUrlForTeam('Estados Unidos'),
-    away_logo: flagLogoUrlForTeam('Paraguay'),
-    kickoff: kickoffEt(2026, 6, 12, 21),
-    venue: 'SoFi Stadium',
-    venue_city: 'Los Ángeles (Inglewood)',
-    group_name: 'Grupo D — Fase de grupos',
-    status: 'scheduled',
-    provisional: true,
-  },
-  {
-    official_id: 'fifa-wc26-004',
-    home_team: 'Argentina',
-    away_team: 'Argelia',
-    home_flag: '🇦🇷',
-    away_flag: '🇩🇿',
-    home_logo: flagLogoUrlForTeam('Argentina'),
-    away_logo: flagLogoUrlForTeam('Argelia'),
-    kickoff: kickoffEt(2026, 6, 16, 21),
-    venue: 'Arrowhead Stadium',
-    venue_city: 'Kansas City',
-    group_name: 'Grupo J — Fase de grupos',
-    status: 'scheduled',
-    provisional: true,
-  },
-  {
-    official_id: 'fifa-wc26-005',
-    home_team: 'Brasil',
-    away_team: 'Marruecos',
-    home_flag: '🇧🇷',
-    away_flag: '🇲🇦',
-    home_logo: flagLogoUrlForTeam('Brasil'),
-    away_logo: flagLogoUrlForTeam('Marruecos'),
-    kickoff: kickoffEt(2026, 6, 13, 18),
-    venue: 'MetLife Stadium',
-    venue_city: 'Nueva York / Nueva Jersey',
-    group_name: 'Grupo C — Fase de grupos',
-    status: 'scheduled',
-    provisional: true,
-  },
-  {
-    official_id: 'fifa-wc26-006',
-    home_team: 'Francia',
-    away_team: 'Irak',
-    home_flag: '🇫🇷',
-    away_flag: '🇮🇶',
-    home_logo: flagLogoUrlForTeam('Francia'),
-    away_logo: flagLogoUrlForTeam('Irak'),
-    kickoff: kickoffEt(2026, 6, 22, 17),
-    venue: 'Lincoln Financial Field',
-    venue_city: 'Filadelfia',
-    group_name: 'Grupo I — Fase de grupos',
-    status: 'scheduled',
-    provisional: true,
-  },
-  {
-    official_id: 'fifa-wc26-007',
-    home_team: 'Portugal',
-    away_team: 'Uzbekistán',
-    home_flag: '🇵🇹',
-    away_flag: '🇺🇿',
-    home_logo: flagLogoUrlForTeam('Portugal'),
-    away_logo: flagLogoUrlForTeam('Uzbekistán'),
-    kickoff: kickoffEt(2026, 6, 23, 13),
-    venue: 'NRG Stadium',
-    venue_city: 'Houston',
-    group_name: 'Grupo K — Fase de grupos',
-    status: 'scheduled',
-    provisional: true,
-  },
-  {
-    official_id: 'fifa-wc26-008',
-    home_team: 'España',
-    away_team: 'Inglaterra',
-    home_flag: '🇪🇸',
-    away_flag: '🏴',
-    home_logo: flagLogoUrlForTeam('España'),
-    away_logo: flagLogoUrlForTeam('Inglaterra'),
-    kickoff: kickoffEt(2026, 6, 17, 16),
-    venue: 'AT&T Stadium',
-    venue_city: 'Dallas (Arlington)',
-    group_name: 'Grupos H / L — Fecha 1',
-    status: 'scheduled',
-    provisional: true,
-  },
-  {
-    official_id: 'fifa-wc26-009',
-    home_team: 'Alemania',
-    away_team: 'Curaçao',
-    home_flag: '🇩🇪',
-    away_flag: '🇨🇼',
-    home_logo: flagLogoUrlForTeam('Alemania'),
-    away_logo: null,
-    kickoff: kickoffEt(2026, 6, 14, 13),
-    venue: 'NRG Stadium',
-    venue_city: 'Houston',
-    group_name: 'Grupo E — Fase de grupos',
-    status: 'scheduled',
-    provisional: true,
-  },
-];
+  };
+}
+
+/** Calendario completo oficial (104 partidos), ordenado por fecha. */
+export const OFFICIAL_WORLD_CUP_SCHEDULE = WORLD_CUP_2026_RAW_FIXTURES.map(rawToScheduleEntry).sort(
+  (a, b) => new Date(a.kickoff ?? 0) - new Date(b.kickoff ?? 0)
+);
 
 /** ID estable → api_fixture_id negativo (único en Supabase). */
 export function officialIdToFixtureKey(officialId) {
@@ -191,9 +57,8 @@ export function officialIdToFixtureKey(officialId) {
 }
 
 export function getAllOfficialScheduleEntries() {
-  const merged = [...FIFA_FALLBACK_MATCHES, ...OFFICIAL_WORLD_CUP_SCHEDULE];
   const seen = new Set();
-  return merged.filter((m) => {
+  return OFFICIAL_WORLD_CUP_SCHEDULE.filter((m) => {
     const id = m.official_id;
     if (!id || seen.has(id)) return false;
     seen.add(id);

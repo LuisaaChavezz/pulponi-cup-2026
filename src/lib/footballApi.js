@@ -1,7 +1,6 @@
-import { supabase } from './supabase';
 import {
   deleteMatchesMissingTeams,
-  insertOfficialProvisionalFixtures,
+  syncOfficialWorldCupSchedule,
   isMissingTeamsRow,
 } from './fifaScheduleSeed';
 import { WORLD_CUP_DEMO_FIXTURES, demoFixtureToMatchRow } from '../data/worldCupDemoFixtures';
@@ -11,17 +10,37 @@ import { mapApiEventsToHighlights } from './highlightsMapper';
 import { isWorldCupMatch, wcLeagueIdFromEnv, wcSeasonFromEnv } from './worldCupScope';
 
 const API_BASE = 'https://v3.football.api-sports.io';
+let lastApiFootballError = null;
+
+export function getLastApiFootballError() {
+  return lastApiFootballError;
+}
+
+function envVar(name) {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.[name]) {
+    return String(import.meta.env[name]);
+  }
+  if (typeof process !== 'undefined' && process.env?.[name]) {
+    return String(process.env[name]);
+  }
+  return '';
+}
+
+async function getDefaultSupabaseClient() {
+  const { supabase } = await import('./supabase.js');
+  return supabase;
+}
 
 function getApiKey() {
-  return import.meta.env.VITE_FOOTBALL_API_KEY?.trim() || '';
+  return envVar('VITE_FOOTBALL_API_KEY').trim();
 }
 
 export function getLeagueId() {
-  return import.meta.env.VITE_FOOTBALL_LEAGUE_ID?.trim() || '1';
+  return envVar('VITE_FOOTBALL_LEAGUE_ID').trim() || '1';
 }
 
 export function getSeason() {
-  return import.meta.env.VITE_FOOTBALL_SEASON?.trim() || '2026';
+  return envVar('VITE_FOOTBALL_SEASON').trim() || '2026';
 }
 
 export function isFootballApiConfigured() {
@@ -71,6 +90,7 @@ async function apiFetchPage(path, params = {}, { requireKey = true } = {}) {
   }
 
   if (json.errors && Object.keys(json.errors).length) {
+    lastApiFootballError = Object.values(json.errors).join(' ') || JSON.stringify(json.errors);
     console.warn('[API-FOOTBALL FALLBACK]', json.errors);
     return { response: [], paging: { current: 1, total: 1 } };
   }
@@ -367,7 +387,7 @@ async function deleteDemoMatches(client) {
   const { data: demoRows, error: selectError } = await client
     .from('matches')
     .select('id')
-    .or('is_demo.eq.true,api_fixture_id.lt.0');
+    .eq('is_demo', true);
 
   if (selectError) {
     logSupabaseWarn('deleteDemoMatches', selectError);
@@ -440,217 +460,200 @@ async function insertWorldCupDemoFixtures(client) {
   return { imported, demo: true, source: 'demo' };
 }
 
-async function upsertApiFixtures(client, fixtures) {
-  const leagueId = getLeagueId();
-  const season = getSeason();
-  let upserted = 0;
-  let mergedProvisional = 0;
-  const upsertErrors = [];
+async function planApiFixturesSync(client, fixtures) {
+  const { data: existingRows, error: listError } = await client
+    .from('matches')
+    .select('id, api_fixture_id, provisional, home_team, away_team')
+    .order('kickoff', { ascending: true });
+
+  if (listError) {
+    throw new Error(listError.message ?? 'No se pudo leer public.matches');
+  }
+
+  const rows = existingRows ?? [];
+  const existingByApiId = new Map();
+  for (const row of rows) {
+    if (row.api_fixture_id != null) {
+      existingByApiId.set(String(row.api_fixture_id), row);
+    }
+  }
+
+  const provisionals = rows.filter((r) => r.provisional === true);
   const seen = new Set();
+  const plans = [];
+  let toInsert = 0;
+  let toUpdate = 0;
 
-  const { data: provisionalRows } = await client.from('matches').select('*').eq('provisional', true);
-  const provisionals = provisionalRows ?? [];
+  const sortedFixtures = [...(fixtures ?? [])].sort((a, b) => {
+    const ta = new Date(a?.fixture?.date ?? 0).getTime();
+    const tb = new Date(b?.fixture?.date ?? 0).getTime();
+    return ta - tb;
+  });
 
-  for (const fixture of fixtures) {
+  for (const fixture of sortedFixtures) {
     const fid = fixture?.fixture?.id;
     if (!fid || seen.has(fid)) continue;
     seen.add(fid);
 
-    const apiStatus = fixture.fixture?.status?.short ?? 'NS';
-    const needsEvents = LIVE_API.has(apiStatus) || FINISHED_API.has(apiStatus);
-    const events = needsEvents ? await fetchFixtureEvents(fid) : [];
-    const row = {
-      ...(await buildMatchUpdateFromFixture(fixture, events)),
-      is_demo: false,
-      provisional: false,
-    };
+    const existing = existingByApiId.get(String(fid));
+    const matchedProvisional =
+      !existing && provisionals.find((p) => teamsMatchFixture(p, fixture));
 
-    const matched = provisionals.find((p) => teamsMatchFixture(p, fixture));
-    let error;
-
-    if (matched) {
-      ({ error } = await client.from('matches').update(row).eq('id', matched.id));
-      if (!error) mergedProvisional += 1;
+    if (existing || matchedProvisional) {
+      toUpdate += 1;
+      plans.push({
+        fixture,
+        mode: matchedProvisional ? 'merge_provisional' : 'update',
+        targetId: matchedProvisional?.id ?? existing?.id ?? null,
+      });
     } else {
-      ({ error } = await client.from('matches').upsert(row, { onConflict: 'api_fixture_id' }));
+      toInsert += 1;
+      plans.push({ fixture, mode: 'insert' });
     }
+  }
 
-    if (error) {
+  return {
+    apiTotal: seen.size,
+    existingInDb: rows.length,
+    toInsert,
+    toUpdate,
+    plans,
+  };
+}
+
+async function applyApiFixturesSync(client, plan) {
+  const leagueId = getLeagueId();
+  const season = getSeason();
+  let inserted = 0;
+  let updated = 0;
+  let mergedProvisional = 0;
+  const errors = [];
+
+  for (const item of plan.plans) {
+    const fid = item.fixture?.fixture?.id;
+    if (!fid) continue;
+
+    try {
+      const apiStatus = item.fixture.fixture?.status?.short ?? 'NS';
+      const needsEvents = LIVE_API.has(apiStatus) || FINISHED_API.has(apiStatus);
+      const events = needsEvents ? await fetchFixtureEvents(fid) : [];
+      const row = {
+        ...(await buildMatchUpdateFromFixture(item.fixture, events)),
+        is_demo: false,
+        provisional: false,
+      };
+
+      if (item.mode === 'merge_provisional' && item.targetId) {
+        const { error } = await client.from('matches').update(row).eq('id', item.targetId);
+        if (error) throw error;
+        updated += 1;
+        mergedProvisional += 1;
+        continue;
+      }
+
+      const { error } = await client.from('matches').upsert(row, { onConflict: 'api_fixture_id' });
+      if (error) throw error;
+
+      if (item.mode === 'insert') inserted += 1;
+      else updated += 1;
+    } catch (error) {
       logSupabaseWarn(`upsertApiFixtures ${fid}`, error);
-      upsertErrors.push(error);
-      continue;
+      errors.push(error);
     }
-    upserted += 1;
   }
 
-  if (upserted === 0 && fixtures.length > 0) {
-    const first = upsertErrors[0];
-    console.warn('[API-FOOTBALL FALLBACK]', first?.message ?? '0 partidos guardados desde API', {
-      upsertErrors: upsertErrors.length,
-    });
-    return {
-      imported: 0,
-      mergedProvisional,
-      demo: false,
-      source: 'api_failed',
-      total: fixtures.length,
-      leagueId,
-      season,
-    };
-  }
-
-  if (upserted === 0) {
-    return {
-      imported: 0,
-      mergedProvisional,
-      demo: false,
-      source: 'api',
-      total: fixtures.length,
-      leagueId,
-      season,
-    };
+  if (errors.length) {
+    const first = errors[0];
+    const message = first?.message ?? String(first);
+    throw new Error(message);
   }
 
   console.info(
-    `[syncWorldCupFixtures] OK — ${upserted} partidos API (${mergedProvisional} reemplazaron calendario FIFA provisional; liga ${leagueId}, temporada ${season})`
+    `[syncWorldCupFixtures] OK — ${inserted} nuevos, ${updated} actualizados (${mergedProvisional} fusionaron calendario provisional; liga ${leagueId}, temporada ${season})`
   );
+
+  return { inserted, updated, mergedProvisional, errors };
+}
+
+async function upsertApiFixtures(client, fixtures, { logPreview = false } = {}) {
+  const leagueId = getLeagueId();
+  const season = getSeason();
+  const plan = await planApiFixturesSync(client, fixtures);
+
+  if (logPreview) {
+    console.log(`API devolvió: ${plan.apiTotal} partidos`);
+    console.log(`En Supabase: ${plan.existingInDb} partidos`);
+    console.log(`Nuevos a insertar: ${plan.toInsert}`);
+    console.log(`A actualizar: ${plan.toUpdate}`);
+  }
+
+  const result = await applyApiFixturesSync(client, plan);
+
+  if (logPreview) {
+    console.log(`Sync completado: ${result.inserted} nuevos, ${result.updated} actualizados.`);
+  }
+
   return {
-    imported: upserted,
-    updated: upserted,
-    mergedProvisional,
+    apiTotal: plan.apiTotal,
+    existingInDb: plan.existingInDb,
+    plannedInsert: plan.toInsert,
+    plannedUpdate: plan.toUpdate,
+    inserted: result.inserted,
+    updated: result.updated,
+    mergedProvisional: result.mergedProvisional,
+    imported: result.inserted + result.updated,
     demo: false,
     source: 'api',
-    total: fixtures.length,
+    total: plan.apiTotal,
     leagueId,
     season,
   };
 }
 
-/**
- * Importa / actualiza fixtures reales (league=1, season=2026).
- * Nunca lanza: ante fallo API o Supabase usa calendario FIFA provisional o demo.
- */
-export async function syncWorldCupFixtures(client = supabase) {
-  try {
-    const out = await syncWorldCupFixturesBody(client);
-    console.log('[SYNC DONE]', out?.skipped ? 'skipped' : 'ok', out?.source ?? '', out);
-    return out;
-  } catch (e) {
-    console.warn('[syncWorldCupFixtures] error — recuperando con FIFA/demo', e);
-    try {
-      const fifa = await insertOfficialProvisionalFixtures(client);
-      console.log('[SYNC DONE]', 'fifa-recover', fifa);
-      return fifa;
-    } catch (fifaErr) {
-      console.warn('[Supabase] insertOfficialProvisionalFixtures', fifaErr);
-      const demo = await insertWorldCupDemoFixtures(client);
-      console.log('[SYNC DONE]', 'demo-recover', demo);
-      return demo;
-    }
+/** Sincroniza partidos API → Supabase con reporte previo y mensaje final. */
+export async function syncMatchesFromApi(client) {
+  if (!client) client = await getDefaultSupabaseClient();
+  if (!getApiKey()) {
+    throw new Error('Falta VITE_FOOTBALL_API_KEY en el entorno.');
   }
+
+  lastApiFootballError = null;
+  const fixtures = await fetchFixturesWithLiveMerge();
+  if (!fixtures.length) {
+    const detail = getLastApiFootballError();
+    throw new Error(
+      detail ?? 'La API no devolvió partidos para la liga/temporada configurada.'
+    );
+  }
+
+  return upsertApiFixtures(client, fixtures, { logPreview: true });
 }
 
-async function syncWorldCupFixturesBody(client = supabase) {
-  const leagueId = getLeagueId();
-  const season = getSeason();
+function printWorldCupSyncReport(result) {
+  console.log('Sync completado:');
+  console.log(`${result.inserted ?? 0} insertados`);
+  console.log(`${result.updated ?? 0} actualizados`);
+  console.log(`${result.skipped ?? 0} omitidos`);
+}
+
+/**
+ * Sincronizador principal del calendario Pulponi Cup.
+ * Fuente: officialWorldCupSchedule.js (FIFA). API-Football solo en syncMatchesToSupabase.
+ */
+export async function syncWorldCupFixtures(client) {
+  if (!client) client = await getDefaultSupabaseClient();
 
   await deleteMatchesMissingTeams(client);
   await deleteNonWorldCupMatches(client);
-
-  let state = await getMatchesSyncStateSafe(client);
-  let validMatchCount = await countMatchesWithBothTeams(client);
-
-  let fixtures = [];
-  let apiError = null;
-
-  if (getApiKey()) {
-    try {
-      fixtures = await fetchFixturesWithLiveMerge();
-    } catch (err) {
-      apiError = err;
-      console.warn('[API-FOOTBALL FALLBACK]', err);
-    }
-  } else {
-    console.warn('[API-FOOTBALL FALLBACK]', 'Sin VITE_FOOTBALL_API_KEY');
-  }
-
-  async function seedFifaOrDemo() {
-    try {
-      return await insertOfficialProvisionalFixtures(client);
-    } catch (fifaErr) {
-      console.warn('[Supabase] FIFA provisional insert', fifaErr);
-      return insertWorldCupDemoFixtures(client);
-    }
-  }
-
-  /** Intenta upsert API (p. ej. sustituir demo o enriquecer filas existentes). */
-  async function tryUpsertApiFixtures() {
-    let replacedDemo = false;
-    if (state.hasDemo) {
-      try {
-        replacedDemo = (await deleteDemoMatches(client)) > 0;
-      } catch (e) {
-        logSupabaseWarn('deleteDemoMatches', e);
-      }
-    }
-    return upsertApiFixtures(client, fixtures).then((result) => ({ ...result, replacedDemo }));
-  }
-
-  // Ya hay calendario en Supabase → refrescar/insertar todos los fixtures API disponibles
-  if (validMatchCount > 0) {
-    if (fixtures.length > 0) {
-      try {
-        const result = await tryUpsertApiFixtures();
-        return {
-          ...result,
-          existing: validMatchCount,
-          skipped: result.imported === 0 && result.mergedProvisional === 0,
-          source: result.imported > 0 || result.mergedProvisional > 0 ? 'api_refresh' : 'existing',
-        };
-      } catch (e) {
-        console.warn('[API-FOOTBALL FALLBACK]', e);
-      }
-    }
-    return {
-      skipped: true,
-      imported: 0,
-      existing: validMatchCount,
-      source: 'existing',
-      provisional: state.provisionalOnly,
-      demo: state.demoOnly,
-    };
-  }
-
-  // Sin filas válidas: API vacía → calendario FIFA provisional (o demo)
-  if (fixtures.length === 0) {
-    if (apiError) {
-      console.warn('[API-FOOTBALL FALLBACK]', apiError);
-    } else if (getApiKey()) {
-      console.warn(
-        '[API-FOOTBALL FALLBACK]',
-        `0 fixtures (liga ${leagueId}, temporada ${season}) — usando calendario FIFA provisional`
-      );
-    }
-    return seedFifaOrDemo();
-  }
-
-  // API devolvió fixtures y aún no hay filas válidas: poblar desde API
   try {
-    const result = await tryUpsertApiFixtures();
-    if (result.imported > 0) {
-      return result;
-    }
-    console.warn('[API-FOOTBALL FALLBACK] API devolvió datos pero 0 inserts — FIFA provisional');
+    await deleteDemoMatches(client);
   } catch (e) {
-    console.warn('[API-FOOTBALL FALLBACK]', e);
+    logSupabaseWarn('deleteDemoMatches', e);
   }
 
-  state = await getMatchesSyncStateSafe(client);
-  validMatchCount = await countMatchesWithBothTeams(client);
-  if (validMatchCount === 0 || state.hasDemo) {
-    return seedFifaOrDemo();
-  }
-  return { skipped: true, imported: 0, existing: validMatchCount, source: 'api_failed_persist' };
+  const result = await syncOfficialWorldCupSchedule(client);
+  printWorldCupSyncReport(result);
+  return result;
 }
 
 async function fetchAllFixturesForSync(dbMatches) {
@@ -704,7 +707,8 @@ export async function buildMatchUpdateFromFixture(fixture, events) {
   return fixtureToMatchRow(fixture, events);
 }
 
-export async function syncMatchesToSupabase(client = supabase) {
+export async function syncMatchesToSupabase(client) {
+  if (!client) client = await getDefaultSupabaseClient();
   if (!getApiKey()) return { skipped: true, updated: 0 };
 
   const { data: dbMatches, error } = await client.from('matches').select('*');
@@ -744,7 +748,8 @@ export async function syncMatchesToSupabase(client = supabase) {
 }
 
 /** Importa calendario FIFA y/o fixtures API; funciona con o sin API key. */
-export async function ensureFootballDataSynced(client = supabase) {
+export async function ensureFootballDataSynced(client) {
+  if (!client) client = await getDefaultSupabaseClient();
   let result;
   try {
     result = await syncWorldCupFixtures(client);
@@ -766,7 +771,11 @@ export async function ensureFootballDataSynced(client = supabase) {
   return { ...result, reloadMatches: true };
 }
 
-export { insertOfficialProvisionalFixtures, deleteBrokenMatches } from './fifaScheduleSeed';
+export {
+  syncOfficialWorldCupSchedule,
+  insertOfficialProvisionalFixtures,
+  deleteBrokenMatches,
+} from './fifaScheduleSeed';
 
 export function hasAnyLiveMatch(matches) {
   return matches?.some((m) => {

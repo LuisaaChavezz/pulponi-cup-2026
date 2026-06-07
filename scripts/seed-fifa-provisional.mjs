@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { existsSync, readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { insertOfficialProvisionalFixtures } from '../src/lib/fifaScheduleSeed.js';
+import { syncOfficialWorldCupSchedule } from '../src/lib/fifaScheduleSeed.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -70,8 +70,12 @@ const client = createClient(url, key, {
 });
 
 try {
-  const result = await insertOfficialProvisionalFixtures(client);
-  console.log('[seed:fifa] Listo:', result);
+  const result = await syncOfficialWorldCupSchedule(client);
+  console.log('Sync completado:');
+  console.log(`${result.inserted ?? 0} insertados`);
+  console.log(`${result.updated ?? 0} actualizados`);
+  console.log(`${result.skipped ?? 0} omitidos`);
+  console.log('[seed:fifa] Total calendario oficial:', result.total ?? '—');
   console.log(
     'Clientes abiertos: la app recarga partidos vía Realtime (`matches`) o al pulsar sincronizar / recargar.'
   );

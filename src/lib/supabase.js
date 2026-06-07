@@ -1,7 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+function readEnv(key) {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.[key]) {
+    return import.meta.env[key];
+  }
+  if (typeof process !== 'undefined' && process.env?.[key]) {
+    return process.env[key];
+  }
+  return undefined;
+}
+
+const supabaseUrl = readEnv('VITE_SUPABASE_URL');
+const supabaseAnonKey = readEnv('VITE_SUPABASE_ANON_KEY');
 
 if (!supabaseUrl?.startsWith('https://')) {
   throw new Error('VITE_SUPABASE_URL inválida: ' + supabaseUrl);
