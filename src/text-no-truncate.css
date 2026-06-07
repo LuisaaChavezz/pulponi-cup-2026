@@ -1,0 +1,131 @@
+/**
+ * Sin truncamiento con "..." en textos visibles (Pulponi).
+ * Carga al final para ganar a index.css legacy.
+ */
+
+/* ——— Navegación ——— */
+.topbar-nav.desktop-nav a.desktop-nav__item .desktop-nav__label,
+.bottom-nav a.bottom-nav__item .bottom-nav__label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.08;
+  hyphens: manual;
+}
+
+@media (max-width: 767px) {
+  .bottom-nav__inner {
+    gap: 1px;
+    padding: 6px 4px;
+  }
+
+  .bottom-nav a.bottom-nav__item {
+    gap: 2px;
+    padding: 3px 1px;
+  }
+
+  .bottom-nav a.bottom-nav__item .bottom-nav__icon {
+    width: 20px;
+    height: 20px;
+    font-size: 0.85rem;
+  }
+
+  .bottom-nav a.bottom-nav__item .bottom-nav__label {
+    font-size: 7.5px;
+    letter-spacing: 0;
+    padding-inline: 0;
+    line-height: 1.05;
+  }
+}
+
+/* ——— Tabs ——— */
+.tabs button,
+.dash-chat .tabs button {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  line-height: 1.15;
+  text-align: center;
+}
+
+/* ——— Nombres de equipos ——— */
+.match-team-name,
+.match-teams-inline__home,
+.match-teams-inline__away,
+.dash-proximos .match-team-name,
+.home-dash-mobile-carousel__team span,
+.home-dash-team strong,
+.parlay-match-card__team {
+  display: block;
+  white-space: normal !important;
+  overflow: hidden;
+  text-overflow: clip !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  -webkit-box-orient: unset !important;
+  text-align: center;
+  line-height: 1.2;
+  max-height: calc(1.2em * 2);
+  font-size: clamp(8px, 2.4vw, 11px);
+}
+
+#partidos .match-teams-inline__center {
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+#partidos .match-teams-inline__home,
+#partidos .match-teams-inline__away {
+  max-width: 100%;
+  width: 100%;
+}
+
+.home-dash-mobile-carousel__team span {
+  font-size: clamp(0.62rem, 2.8vw, 0.72rem);
+  max-height: calc(1.2em * 2);
+}
+
+/* ——— Ranking / perfiles / títulos ——— */
+.ranking-leaderboard .rank-row__name,
+.rank-user-cell b,
+.rm-username,
+.rm-rest-name,
+.rm-top-title,
+.rm-rest-title,
+.rm-rank-name,
+.home-dash-profile-row__name,
+.home-dash-mobile-ranking__name,
+.pulponi-social__bar-label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.phone--rank-movement--compact .rm-movement,
+.phone--rank-movement--compact .rm-rank-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none;
+}
+
+/* ——— Botones (partidos móvil) ——— */
+#partidos .match-card__pick-row .pick-submit-btn {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  line-height: 1.15;
+  font-size: 9px;
+  hyphens: manual;
+}

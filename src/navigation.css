@@ -45,9 +45,10 @@
   font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 1.15;
-  white-space: nowrap;
+  white-space: normal;
   overflow: visible;
   text-overflow: clip;
+  word-break: break-word;
 }
 
 .topbar-nav.desktop-nav a.desktop-nav__item:hover {
@@ -158,9 +159,10 @@
   font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
   padding-inline: 1px;
 }
 
@@ -244,10 +246,12 @@ body {
   }
 
   .bottom-nav a.bottom-nav__item .bottom-nav__label {
-    font-size: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 8px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+    line-height: 1.05;
     width: 100%;
     max-width: 100%;
   }

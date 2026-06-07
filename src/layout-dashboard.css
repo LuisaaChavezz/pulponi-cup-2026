@@ -907,7 +907,15 @@
 
 .dash-proximos .match-team-name {
   font-size: clamp(9px, 2.5vw, 12px);
-  line-height: 1.15;
+  line-height: 1.2;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  max-height: calc(1.2em * 2);
+  text-align: center;
 }
 
 @media (min-width: 1100px) {
@@ -1312,15 +1320,11 @@
   height: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  object-position: center center;
+  object-position: center;
   display: block;
   border-radius: 9999px;
 }
 
-.dash-perfil .avatar-option-frame--logo img {
-  padding: 4px;
-  object-fit: contain;
-}
 
 .dash-perfil .avatar-option-label {
   flex: 0 0 auto;
@@ -2069,9 +2073,11 @@
   font-size: 11px;
   font-weight: 800;
   color: #e4e4e7;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.2;
 }
 
 .pulponi-social__bar-track {
@@ -2538,9 +2544,10 @@
   font-weight: 950;
   letter-spacing: 0.02em;
   line-height: 1.25;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .rm-rank-num {

@@ -123,10 +123,12 @@
 .home-dash-profile-row__name {
   font-size: 0.78rem;
   font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
   min-width: 0;
+  line-height: 1.2;
 }
 
 .home-dash-profile-row__pts {
@@ -658,16 +660,20 @@
 .phone--rank-movement--compact .rm-movement {
   font-size: 0.58rem;
   padding: 3px 6px;
-  max-width: 46%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.15;
 }
 
 .phone--rank-movement--compact .rm-rank-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.2;
 }
 
 .rm-view-full {
@@ -873,10 +879,12 @@
 .home-dash-mobile-ranking__name {
   font-size: 0.8rem;
   font-weight: 800;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
   min-width: 0;
+  line-height: 1.2;
 }
 
 .home-dash-mobile-ranking__pts {
@@ -963,14 +971,18 @@
 }
 
 .home-dash-mobile-carousel__team span {
-  font-size: 0.72rem;
+  font-size: clamp(0.62rem, 2.8vw, 0.72rem);
   font-weight: 800;
   line-height: 1.2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  max-height: calc(1.2em * 2);
+  display: block;
+  width: 100%;
 }
 
 .home-dash-mobile-carousel__vs {
