@@ -152,6 +152,11 @@ export default function App() {
     [worldCupMatches, matchSearch, matchStatusFilter, matchDayFilter]
   );
 
+  const sortedPartidos = useMemo(
+    () => sortMatchesByKickoffAsc(filteredPartidos),
+    [filteredPartidos]
+  );
+
   const achievementCatalog = useMemo(
     () => (data.achievementCatalog?.length ? data.achievementCatalog : ACHIEVEMENT_CATALOG),
     [data.achievementCatalog]
@@ -528,7 +533,7 @@ export default function App() {
             {status}
           </span>
         </header>
-        <MatchSchedule match={m} />
+        <MatchSchedule match={m} showWeekday={false} />
         <div className="match-teams">
           <div className="match-team-cell">
             <TeamLogo logo={m.home_logo} flag={m.home_flag} alt={m.home_team ?? ''} size="sm" />
@@ -782,8 +787,8 @@ export default function App() {
           {!data.matchesLoading && filteredPartidos.length === 0 ? (
             <p className="muted sync-footnote">No hay partidos que coincidan con los filtros.</p>
           ) : (
-            <div className="matches-grid">
-              {filteredPartidos.map((m) => renderMatchCard(m))}
+            <div className="matches-grid matches-grid--continuous">
+              {sortedPartidos.map((m) => renderMatchCard(m))}
             </div>
           )}
         </section>

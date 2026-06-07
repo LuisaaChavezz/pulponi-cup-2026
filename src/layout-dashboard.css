@@ -4268,7 +4268,7 @@
   }
 }
 
-/* ——— Partidos: filtros y agrupación por día ——— */
+/* ——— Partidos: filtros ——— */
 .matches-toolbar {
   display: flex;
   flex-direction: column;

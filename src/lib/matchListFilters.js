@@ -7,17 +7,6 @@ export function getMatchDayKey(match) {
   return d.toISOString().slice(0, 10);
 }
 
-export function formatMatchDayHeading(dayKey) {
-  if (dayKey === 'sin-fecha') return 'Sin fecha programada';
-  const d = new Date(`${dayKey}T12:00:00`);
-  return d.toLocaleDateString('es-MX', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
-
 export function listMatchDayFilterOptions(matches) {
   const keys = new Set();
   for (const m of matches ?? []) {
@@ -58,25 +47,4 @@ export function filterMatchesForList(matches, { search = '', status = 'all', day
 
     return hay.includes(q);
   });
-}
-
-export function groupMatchesByDay(matches) {
-  const map = new Map();
-  for (const m of matches ?? []) {
-    const key = getMatchDayKey(m);
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(m);
-  }
-
-  const keys = [...map.keys()].sort((a, b) => {
-    if (a === 'sin-fecha') return 1;
-    if (b === 'sin-fecha') return -1;
-    return a.localeCompare(b);
-  });
-
-  return keys.map((dayKey) => ({
-    dayKey,
-    heading: formatMatchDayHeading(dayKey),
-    matches: map.get(dayKey),
-  }));
 }

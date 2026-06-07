@@ -175,6 +175,15 @@ export function formatMatchDate(kickoff) {
   });
 }
 
+export function formatMatchDateShort(kickoff) {
+  if (!kickoff) return null;
+  return new Date(kickoff).toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 export function formatMatchTime(kickoff) {
   if (!kickoff) return null;
   return new Date(kickoff).toLocaleTimeString('es-MX', {

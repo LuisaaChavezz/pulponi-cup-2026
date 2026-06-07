@@ -1,14 +1,17 @@
 import {
   formatGroupLabel,
   formatMatchDate,
+  formatMatchDateShort,
   formatMatchTime,
   formatVenue,
   formatVenueCity,
 } from '../lib/matchUtils';
 
 /** Estadio, ciudad, fecha y hora del partido. */
-export default function MatchSchedule({ match, showGroup = true }) {
-  const date = formatMatchDate(match?.kickoff);
+export default function MatchSchedule({ match, showGroup = true, showWeekday = true }) {
+  const date = showWeekday
+    ? formatMatchDate(match?.kickoff)
+    : formatMatchDateShort(match?.kickoff);
   const time = formatMatchTime(match?.kickoff);
   const venue = formatVenue(match);
   const city = formatVenueCity(match);
