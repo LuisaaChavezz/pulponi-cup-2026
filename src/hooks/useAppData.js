@@ -77,6 +77,10 @@ async function ensureOwnProfileRow(client, uid) {
   console.log('QUERY RESULT ensureOwnProfileRow profiles.select id', existing, readErr);
 
   if (readErr) {
+    if (readErr.code === '42501' || readErr.message?.includes('permission')) {
+      console.warn('[ensureOwnProfileRow] RLS bloqueó lectura, no insertar', readErr);
+      return { ok: false, error: readErr };
+    }
     console.warn('[ensureOwnProfileRow] read', readErr);
     return { ok: false, error: readErr };
   }
@@ -387,7 +391,7 @@ export function useAppData(session) {
         return;
       }
 
-      const matchList = Array.isArray(matches) ? matches : [];
+      const matchList = Array.isArray(matchesRef.current) ? matchesRef.current : [];
       const matchById = new Map(matchList.map((m) => [String(m.id), m]));
 
       if (data?.length) {
@@ -404,7 +408,7 @@ export function useAppData(session) {
       console.warn('[loadActivity]', e?.message ?? e);
       setActivity([]);
     }
-  }, [matches]);
+  }, []);
 
   const loadBadges = useCallback(async () => {
     try {
@@ -804,6 +808,7 @@ export function useAppData(session) {
         timedQuery('profile', () => loadProfileRef.current()),
         timedQuery('ranking', () => loadRankingRef.current()),
         timedQuery('comments', () => loadCommentsRef.current()),
+        timedQuery('communityProfiles', () => loadCommunityProfiles()),
         timedQuery('matches:initial', () =>
           loadMatchesChunkRef.current({
             offset: 0,
