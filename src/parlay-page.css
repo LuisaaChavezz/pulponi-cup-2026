@@ -260,6 +260,13 @@
   font-size: 0.95rem;
 }
 
+.parlay-page__stake-error {
+  margin: -6px 0 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fca5a5;
+}
+
 .parlay-page__calc {
   margin: 0 0 12px;
   display: flex;
@@ -308,6 +315,10 @@
   font-size: 0.8rem;
   color: #86efac;
   font-weight: 700;
+}
+
+.parlay-page__save-msg--error {
+  color: #fca5a5;
 }
 
 .parlay-page__saved {

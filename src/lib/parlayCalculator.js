@@ -2,6 +2,8 @@
 
 export const PARLAY_MIN_SELECTIONS = 5;
 export const PARLAY_MAX_SELECTIONS = 25;
+export const PARLAY_MIN_STAKE = 200;
+export const PARLAY_MIN_STAKE_MESSAGE = 'El mínimo para crear una combinada es 200.';
 export const PULPONI_GAIN_FACTOR = 0.7;
 export const PULPONI_COMMISSION_RATE = 1 - PULPONI_GAIN_FACTOR;
 
@@ -74,4 +76,16 @@ export function parlaySelectionCountLabel(count) {
     return `Máximo ${PARLAY_MAX_SELECTIONS} selecciones`;
   }
   return `${count} selección${count === 1 ? '' : 'es'}`;
+}
+
+/** Monto efectivo para cálculo: vacío → mínimo 200. */
+export function resolveParlayStake(rawStake) {
+  if (rawStake === '' || rawStake == null) return PARLAY_MIN_STAKE;
+  const n = Math.round(Number(rawStake));
+  if (!Number.isFinite(n)) return PARLAY_MIN_STAKE;
+  return Math.max(0, n);
+}
+
+export function isParlayStakeValid(rawStake) {
+  return resolveParlayStake(rawStake) >= PARLAY_MIN_STAKE;
 }

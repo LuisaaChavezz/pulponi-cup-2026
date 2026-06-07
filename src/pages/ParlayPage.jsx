@@ -5,10 +5,14 @@ import { useParlayOdds } from '../hooks/useParlayOdds';
 import {
   PARLAY_MIN_SELECTIONS,
   PARLAY_MAX_SELECTIONS,
+  PARLAY_MIN_STAKE,
+  PARLAY_MIN_STAKE_MESSAGE,
   calculateVirtualParlayPayout,
   formatAmericanOdd,
+  isParlayStakeValid,
   multiplySelectionOdds,
   parlaySelectionCountLabel,
+  resolveParlayStake,
 } from '../lib/parlayCalculator';
 import { getOutcomeOdds } from '../lib/parlayOdds';
 import { createParlayId, loadUserParlays, saveUserParlay } from '../lib/parlayStorage';
@@ -39,17 +43,20 @@ function outcomePickLabel(outcome, homeLabel, awayLabel) {
 export default function ParlayPage({ matches = [], userId, communityProfiles = [] }) {
   const oddsState = useParlayOdds(matches, communityProfiles);
   const [selections, setSelections] = useState([]);
-  const [stake, setStake] = useState(100);
+  const [stakeInput, setStakeInput] = useState(String(PARLAY_MIN_STAKE));
   const [savedParlays, setSavedParlays] = useState(() => (userId ? loadUserParlays(userId) : []));
   const [saveMsg, setSaveMsg] = useState('');
 
+  const effectiveStake = useMemo(() => resolveParlayStake(stakeInput), [stakeInput]);
+  const stakeError = isParlayStakeValid(stakeInput) ? '' : PARLAY_MIN_STAKE_MESSAGE;
+
   const totalOdds = useMemo(() => multiplySelectionOdds(selections), [selections]);
-  const payout = useMemo(() => calculateVirtualParlayPayout(stake, totalOdds), [stake, totalOdds]);
+  const payout = useMemo(() => calculateVirtualParlayPayout(effectiveStake, totalOdds), [effectiveStake, totalOdds]);
 
   const canSubmit =
     selections.length >= PARLAY_MIN_SELECTIONS &&
     selections.length <= PARLAY_MAX_SELECTIONS &&
-    payout.stake > 0;
+    isParlayStakeValid(stakeInput);
 
   const toggleSelection = useCallback(
     (match, outcome, pickLabel) => {
@@ -94,7 +101,12 @@ export default function ParlayPage({ matches = [], userId, communityProfiles = [
   }, []);
 
   const handleSaveParlay = useCallback(() => {
-    if (!userId || !canSubmit) return;
+    if (!userId) return;
+    if (!isParlayStakeValid(stakeInput)) {
+      setSaveMsg(PARLAY_MIN_STAKE_MESSAGE);
+      return;
+    }
+    if (!canSubmit) return;
     const parlay = {
       id: createParlayId(),
       createdAt: new Date().toISOString(),
@@ -110,7 +122,7 @@ export default function ParlayPage({ matches = [], userId, communityProfiles = [
     setSavedParlays(rows);
     setSaveMsg('Parlay guardado.');
     setSelections([]);
-  }, [userId, canSubmit, selections, payout, oddsState.mode]);
+  }, [userId, canSubmit, selections, payout, oddsState.mode, stakeInput]);
 
   return (
     <div className="parlay-page">
@@ -236,15 +248,29 @@ export default function ParlayPage({ matches = [], userId, communityProfiles = [
           )}
 
           <label className="parlay-page__stake">
-            <span>Monto virtual</span>
+            <span>Monto virtual (mín. {PARLAY_MIN_STAKE})</span>
             <input
               type="number"
-              min="1"
+              min={PARLAY_MIN_STAKE}
               step="1"
-              value={stake}
-              onChange={(e) => setStake(Math.max(0, Number(e.target.value) || 0))}
+              value={stakeInput}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next === '') {
+                  setStakeInput('');
+                  setSaveMsg('');
+                  return;
+                }
+                const n = Math.round(Number(next));
+                setStakeInput(Number.isFinite(n) ? String(Math.max(0, n)) : '');
+                setSaveMsg('');
+              }}
+              onBlur={() => {
+                if (stakeInput === '') setStakeInput(String(PARLAY_MIN_STAKE));
+              }}
             />
           </label>
+          {stakeError ? <p className="parlay-page__stake-error">{stakeError}</p> : null}
 
           <dl className="parlay-page__calc">
             <div>
@@ -272,7 +298,11 @@ export default function ParlayPage({ matches = [], userId, communityProfiles = [
             ) : null}
           </div>
 
-          {saveMsg ? <p className="parlay-page__save-msg">{saveMsg}</p> : null}
+          {saveMsg ? (
+            <p className={`parlay-page__save-msg${saveMsg === PARLAY_MIN_STAKE_MESSAGE ? ' parlay-page__save-msg--error' : ''}`}>
+              {saveMsg}
+            </p>
+          ) : null}
 
           {savedParlays.length > 0 ? (
             <div className="parlay-page__saved">
