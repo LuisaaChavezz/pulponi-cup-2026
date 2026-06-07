@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import TeamLogo from '../components/TeamLogo';
 import { displayTeamName, formatMatchDateShort, formatMatchTime } from '../lib/matchUtils';
+import { useMobileViewport } from '../hooks/useMobileViewport';
 import { useParlayOdds } from '../hooks/useParlayOdds';
 import {
   PARLAY_MIN_SELECTIONS,
@@ -20,6 +21,12 @@ import { exportParlayPdf } from '../lib/exportParlayPdf';
 
 const PDF_ERROR_MSG = 'No se pudo generar el PDF.';
 const PDF_MIN_SELECTIONS_MSG = 'Necesitas mínimo 5 selecciones para descargar tu parlay.';
+const PARLAY_COMPLETE_MSG = 'Ya completaste las selecciones de tu combinada.';
+const PARLAY_REDUCE_MSG = 'Reduce tus selecciones para continuar.';
+const PARLAY_TARGET_OPTIONS = Array.from(
+  { length: PARLAY_MAX_SELECTIONS - PARLAY_MIN_SELECTIONS + 1 },
+  (_, index) => PARLAY_MIN_SELECTIONS + index
+);
 
 const OUTCOMES = ['home', 'draw', 'away'];
 
@@ -41,12 +48,15 @@ function outcomePickLabel(outcome, homeLabel, awayLabel) {
 }
 
 export default function ParlayPage({ matches = [], userId, username = '', communityProfiles = [] }) {
+  const isMobileParlayFlow = useMobileViewport(767);
   const oddsState = useParlayOdds(matches, communityProfiles);
   const [selections, setSelections] = useState([]);
+  const [targetSelectionCount, setTargetSelectionCount] = useState(PARLAY_MIN_SELECTIONS);
   const [stakeInput, setStakeInput] = useState(String(PARLAY_MIN_STAKE));
   const [savedParlays, setSavedParlays] = useState(() => (userId ? loadUserParlays(userId) : []));
   const [saveMsg, setSaveMsg] = useState('');
   const [pdfError, setPdfError] = useState('');
+  const [flowMsg, setFlowMsg] = useState('');
 
   const effectiveStake = useMemo(() => resolveParlayStake(stakeInput), [stakeInput]);
   const stakeError = isParlayStakeValid(stakeInput) ? '' : PARLAY_MIN_STAKE_MESSAGE;
@@ -54,12 +64,44 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
   const totalOdds = useMemo(() => multiplySelectionOdds(selections), [selections]);
   const payout = useMemo(() => calculateVirtualParlayPayout(effectiveStake, totalOdds), [effectiveStake, totalOdds]);
 
-  const canSubmit =
-    selections.length >= PARLAY_MIN_SELECTIONS &&
-    selections.length <= PARLAY_MAX_SELECTIONS &&
-    isParlayStakeValid(stakeInput);
+  const needsReduceSelections = isMobileParlayFlow && selections.length > targetSelectionCount;
 
-  const canExportPdf = selections.length >= PARLAY_MIN_SELECTIONS;
+  const canSubmit = isMobileParlayFlow
+    ? selections.length === targetSelectionCount &&
+      !needsReduceSelections &&
+      isParlayStakeValid(stakeInput)
+    : selections.length >= PARLAY_MIN_SELECTIONS &&
+      selections.length <= PARLAY_MAX_SELECTIONS &&
+      isParlayStakeValid(stakeInput);
+
+  const canExportPdf = isMobileParlayFlow
+    ? selections.length === targetSelectionCount && !needsReduceSelections
+    : selections.length >= PARLAY_MIN_SELECTIONS;
+
+  const showParlayActions = isMobileParlayFlow
+    ? selections.length === targetSelectionCount && !needsReduceSelections
+    : true;
+
+  const selectionCountLabel = isMobileParlayFlow
+    ? `Selecciones: ${selections.length} / ${targetSelectionCount}`
+    : parlaySelectionCountLabel(selections.length);
+
+  const handleTargetSelectionCountChange = useCallback(
+    (event) => {
+      const next = Number(event.target.value);
+      if (!Number.isFinite(next)) return;
+      const clamped = Math.min(PARLAY_MAX_SELECTIONS, Math.max(PARLAY_MIN_SELECTIONS, Math.round(next)));
+      setTargetSelectionCount(clamped);
+      if (clamped < selections.length) {
+        setFlowMsg(PARLAY_REDUCE_MSG);
+      } else {
+        setFlowMsg('');
+      }
+      setSaveMsg('');
+      setPdfError('');
+    },
+    [selections.length]
+  );
 
   const toggleSelection = useCallback(
     (match, outcome, pickLabel) => {
@@ -68,13 +110,24 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
       if (!decimalOdds) return;
 
       const key = selectionKey(match.id, outcome);
+      const maxAllowed = isMobileParlayFlow ? targetSelectionCount : PARLAY_MAX_SELECTIONS;
+
       setSelections((prev) => {
         const existing = prev.find((s) => s.key === key);
-        if (existing) return prev.filter((s) => s.key !== key);
+        if (existing) {
+          setFlowMsg((msg) => (msg === PARLAY_COMPLETE_MSG ? '' : msg));
+          return prev.filter((s) => s.key !== key);
+        }
 
         const withoutSameMatch = prev.filter((s) => s.matchId !== String(match.id));
-        if (withoutSameMatch.length >= PARLAY_MAX_SELECTIONS) return prev;
+        if (withoutSameMatch.length >= maxAllowed) {
+          if (isMobileParlayFlow) {
+            setFlowMsg(PARLAY_COMPLETE_MSG);
+          }
+          return prev;
+        }
 
+        setFlowMsg('');
         return [
           ...withoutSameMatch,
           {
@@ -91,7 +144,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
       setSaveMsg('');
       setPdfError('');
     },
-    [oddsState.byMatchId]
+    [oddsState.byMatchId, isMobileParlayFlow, targetSelectionCount]
   );
 
   const handleExportPdf = useCallback(() => {
@@ -115,12 +168,14 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
     setSelections((prev) => prev.filter((s) => s.key !== key));
     setSaveMsg('');
     setPdfError('');
+    setFlowMsg('');
   }, []);
 
   const clearSelections = useCallback(() => {
     setSelections([]);
     setSaveMsg('');
     setPdfError('');
+    setFlowMsg('');
   }, []);
 
   const handleSaveParlay = useCallback(() => {
@@ -158,6 +213,35 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
           </p>
         </div>
       </div>
+
+      {isMobileParlayFlow ? (
+        <div className="parlay-page__target-setup pulponi-card">
+          <label className="parlay-page__target-label">
+            <span>¿Cuántas selecciones tendrá tu combinada?</span>
+            <select
+              className="parlay-page__target-select"
+              value={targetSelectionCount}
+              onChange={handleTargetSelectionCountChange}
+              aria-label="Cantidad de selecciones de la combinada"
+            >
+              {PARLAY_TARGET_OPTIONS.map((count) => (
+                <option key={count} value={count}>
+                  {count}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p
+            className={`parlay-page__target-progress${selections.length === targetSelectionCount && !needsReduceSelections ? ' is-complete' : ''}`}
+          >
+            Selecciones: {selections.length} / {targetSelectionCount}
+          </p>
+          {flowMsg ? <p className="parlay-page__flow-msg">{flowMsg}</p> : null}
+          {needsReduceSelections && flowMsg !== PARLAY_REDUCE_MSG ? (
+            <p className="parlay-page__flow-msg parlay-page__flow-msg--warn">{PARLAY_REDUCE_MSG}</p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="parlay-page__layout">
         <div className="parlay-page__matches">
@@ -253,14 +337,24 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
         <aside className="parlay-page__slip pulponi-card">
           <div className="parlay-page__slip-head">
             <h3>Combinada</h3>
-            <span className={`parlay-page__count${selections.length >= PARLAY_MIN_SELECTIONS ? ' is-ok' : ''}`}>
-              {parlaySelectionCountLabel(selections.length)}
+            <span
+              className={`parlay-page__count${
+                (isMobileParlayFlow
+                  ? selections.length === targetSelectionCount && !needsReduceSelections
+                  : selections.length >= PARLAY_MIN_SELECTIONS)
+                  ? ' is-ok'
+                  : ''
+              }`}
+            >
+              {selectionCountLabel}
             </span>
           </div>
 
           {selections.length === 0 ? (
             <p className="muted parlay-page__empty-slip">
-              Elige {PARLAY_MIN_SELECTIONS} a {PARLAY_MAX_SELECTIONS} resultados.
+              {isMobileParlayFlow
+                ? `Elige ${targetSelectionCount} resultados para tu combinada.`
+                : `Elige ${PARLAY_MIN_SELECTIONS} a ${PARLAY_MAX_SELECTIONS} resultados.`}
             </p>
           ) : (
             <ul className="parlay-page__selections">
@@ -327,18 +421,22 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
           </dl>
 
           <div className="parlay-page__actions">
-            <button type="button" className="primary full" disabled={!canSubmit} onClick={handleSaveParlay}>
-              Guardar combinada
-            </button>
-            <button
-              type="button"
-              className="parlay-page__export-btn full"
-              disabled={!canExportPdf}
-              onClick={handleExportPdf}
-            >
-              Descargar parlay en PDF
-            </button>
-            {!canExportPdf ? (
+            {showParlayActions ? (
+              <>
+                <button type="button" className="primary full" disabled={!canSubmit} onClick={handleSaveParlay}>
+                  Guardar combinada
+                </button>
+                <button
+                  type="button"
+                  className="parlay-page__export-btn full"
+                  disabled={!canExportPdf}
+                  onClick={handleExportPdf}
+                >
+                  Descargar parlay en PDF
+                </button>
+              </>
+            ) : null}
+            {!isMobileParlayFlow && !canExportPdf ? (
               <p className="parlay-page__export-hint">{PDF_MIN_SELECTIONS_MSG}</p>
             ) : null}
             {pdfError ? <p className="parlay-page__export-error">{pdfError}</p> : null}

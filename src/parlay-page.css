@@ -11,6 +11,72 @@
   max-width: 32rem;
 }
 
+.parlay-page__target-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-radius: 16px;
+}
+
+.parlay-page__target-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.parlay-page__target-label > span {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.35;
+}
+
+.parlay-page__target-select {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text, #f6f6f6);
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-family: inherit;
+}
+
+.parlay-page__target-select:focus {
+  outline: none;
+  border-color: rgba(255, 30, 39, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 30, 39, 0.25);
+}
+
+.parlay-page__target-progress {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.parlay-page__target-progress.is-complete {
+  color: #86efac;
+}
+
+.parlay-page__flow-msg {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #fecaca;
+  text-align: center;
+}
+
+.parlay-page__flow-msg--warn {
+  color: #fcd34d;
+}
+
 .parlay-page__layout {
   display: grid;
   grid-template-columns: 1fr;
