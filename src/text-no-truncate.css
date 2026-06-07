@@ -57,8 +57,7 @@
 .match-teams-inline__away,
 .dash-proximos .match-team-name,
 .home-dash-mobile-carousel__team span,
-.home-dash-team strong,
-.parlay-match-card__team {
+.home-dash-team strong {
   display: block;
   white-space: normal !important;
   overflow: hidden;
@@ -73,6 +72,32 @@
   line-height: 1.2;
   max-height: calc(1.2em * 2);
   font-size: clamp(8px, 2.4vw, 11px);
+}
+
+/* Parlay: bandera junto al nombre, bloque centrado */
+.parlay-match-card__team {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  max-height: none !important;
+  font-size: inherit !important;
+  overflow: visible !important;
+}
+
+.parlay-match-card__team-name {
+  display: block;
+  white-space: normal !important;
+  overflow: hidden;
+  text-overflow: clip !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  text-align: center;
+  line-height: 1.25;
+  max-height: calc(1.25em * 2);
+  font-size: clamp(0.72rem, 2.8vw, 0.86rem) !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
 }
 
 #partidos .match-teams-inline__center {

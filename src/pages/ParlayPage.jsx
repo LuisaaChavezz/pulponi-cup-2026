@@ -30,7 +30,7 @@ function selectionKey(matchId, outcome) {
 function formatKickoff(kickoff) {
   const date = formatMatchDateShort(kickoff);
   const time = formatMatchTime(kickoff);
-  if (date && time) return `${date} · ${time}`;
+  if (date && time) return `${date} • ${time}`;
   return date || time || '';
 }
 
@@ -182,7 +182,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
                     ) : null}
 
                     <div className="parlay-match-card__matchup">
-                      <div className="parlay-match-card__team">
+                      <div className="parlay-match-card__team parlay-match-card__team--home">
                         <TeamLogo
                           logo={match.home_logo}
                           flag={match.home_flag}
@@ -196,14 +196,14 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
                         VS
                       </span>
 
-                      <div className="parlay-match-card__team">
+                      <div className="parlay-match-card__team parlay-match-card__team--away">
+                        <span className="parlay-match-card__team-name">{awayLabel}</span>
                         <TeamLogo
                           logo={match.away_logo}
                           flag={match.away_flag}
                           alt={match.away_team ?? ''}
                           size="sm"
                         />
-                        <span className="parlay-match-card__team-name">{awayLabel}</span>
                       </div>
                     </div>
 
