@@ -84,7 +84,6 @@ export default function HomeDashboard({
 }) {
   const now = useKickoffClock(1000);
   const isMobileHome = useMobileViewport(767);
-  const showTopRankingSummary = useMobileViewport(1023);
 
   const heroPick = useMemo(() => {
     const upcoming = listCarouselUpcomingMatches(matches)[0];
@@ -359,7 +358,7 @@ export default function HomeDashboard({
               isMobileHome ? ' home-dash-stack__section--mobile-ranking' : ' home-dash-stack__section--ranking'
             }`}
           >
-            {showTopRankingSummary ? (
+            {isMobileHome ? (
               <HomeMobileRankingSummary ranking={ranking} onViewRanking={onViewRanking} />
             ) : (
               <RankingMovement

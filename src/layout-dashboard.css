@@ -4106,6 +4106,11 @@
 
 .ranking-section-pulpo {
   margin-top: 14px;
+  padding: 12px 14px;
+}
+
+.ranking-section-pulpo .pulpo-index {
+  margin: 0;
 }
 
 .section-lead {

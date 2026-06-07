@@ -34,6 +34,8 @@ import { resolveAvatarUrl } from './lib/avatars';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
 import RankingLeaderboard from './components/RankingLeaderboard';
+import RankingMovement from './components/RankingMovement';
+import PulpoIndexCard from './components/PulpoIndexCard';
 import MatchCommunityPrediction from './components/MatchCommunityPrediction';
 import PickScoreInput from './components/PickScoreInput';
 import { collectMatchPickScores, parsePickScore } from './lib/communityPicks';
@@ -945,6 +947,19 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+                <section className="ranking-section-pulpo pulponi-card phone" aria-label="Índice Pulpo">
+                  <PulpoIndexCard
+                    profile={profile}
+                    picks={profile?.picks}
+                    matches={worldCupMatches}
+                    communityPickProfiles={data.communityPickProfiles ?? []}
+                    userId={session?.user?.id}
+                  />
+                </section>
+                <RankingMovement
+                  session={session}
+                  className="dash-ranking pulponi-card ranking-section-movement"
+                />
                 <RankingLeaderboard
                   rows={sortedRanking}
                   currentUserId={session?.user?.id}
