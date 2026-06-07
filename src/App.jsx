@@ -116,6 +116,7 @@ export default function App() {
   const pickFeedbackTimersRef = useRef({});
 
   const [pickSaveFeedback, setPickSaveFeedback] = useState({});
+  const [matchSearchInput, setMatchSearchInput] = useState('');
   const [matchSearch, setMatchSearch] = useState('');
   const [matchStatusFilter, setMatchStatusFilter] = useState('all');
   const [matchDayFilter, setMatchDayFilter] = useState('all');
@@ -124,6 +125,22 @@ export default function App() {
   const data = useAppData(session);
   const appRenderCountRef = useRef(0);
   appRenderCountRef.current += 1;
+
+  function applyMatchSearch(value = matchSearchInput) {
+    const trimmed = String(value ?? '').trim();
+    setMatchSearchInput(trimmed);
+    setMatchSearch(trimmed);
+  }
+
+  function handleMatchSearchInputChange(value) {
+    setMatchSearchInput(value);
+    setMatchSearch(value);
+  }
+
+  function handleMatchSearchSubmit(event) {
+    event.preventDefault();
+    applyMatchSearch();
+  }
 
   const sortedRanking = useMemo(
     () => buildRankedLeaderboard(data.ranking ?? []),
@@ -838,13 +855,19 @@ export default function App() {
                 {predictionStats.closed}
               </p>
             </div>
-            <div className="matches-toolbar__filters">
+            <form className="matches-toolbar__filters" onSubmit={handleMatchSearchSubmit} role="search">
               <input
                 type="search"
                 className="matches-toolbar__search"
                 placeholder="Buscar equipo, sede o grupo…"
-                value={matchSearch}
-                onChange={(e) => setMatchSearch(e.target.value)}
+                value={matchSearchInput}
+                onChange={(e) => handleMatchSearchInputChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyMatchSearch();
+                  }
+                }}
                 aria-label="Buscar partidos"
               />
               <select
@@ -888,13 +911,17 @@ export default function App() {
                   </option>
                 ))}
               </select>
-            </div>
+            </form>
           </div>
           {data.matchesLoading && !worldCupMatches.length ? (
             <MatchesGridSkeleton rows={6} />
           ) : null}
           {!data.matchesLoading && filteredPartidos.length === 0 ? (
-            <p className="muted sync-footnote">No hay partidos que coincidan con los filtros.</p>
+            <p className="muted sync-footnote">
+              {matchSearch.trim()
+                ? 'No encontramos partidos con esa búsqueda.'
+                : 'No hay partidos que coincidan con los filtros.'}
+            </p>
           ) : (
             <div className="matches-grid matches-grid--continuous">
               {sortedPartidos.map((m) => renderMatchCard(m))}

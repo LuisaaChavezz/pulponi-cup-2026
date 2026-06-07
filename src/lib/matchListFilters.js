@@ -1,6 +1,37 @@
 import { displayMatchStatus, isMatchFinished, isMatchLive, isPickLocked } from './matchUtils';
 import { parsePickScore } from './communityPicks';
 
+/** Texto de búsqueda: minúsculas, sin acentos, espacios colapsados. */
+export function normalizeMatchSearchText(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildMatchSearchHaystack(match) {
+  return [
+    match?.home_team,
+    match?.away_team,
+    match?.venue,
+    match?.stadium,
+    match?.venue_city,
+    match?.group_name,
+    displayMatchStatus(match),
+  ]
+    .filter(Boolean)
+    .map(normalizeMatchSearchText)
+    .join(' ');
+}
+
+export function matchMatchesSearchQuery(match, rawQuery) {
+  const q = normalizeMatchSearchText(rawQuery);
+  if (!q) return true;
+  return buildMatchSearchHaystack(match).includes(q);
+}
+
 export function getMatchDayKey(match) {
   if (!match?.kickoff) return 'sin-fecha';
   const d = new Date(match.kickoff);
@@ -47,7 +78,7 @@ export function filterMatchesForList(
   matches,
   { search = '', status = 'all', day = 'all', predictionStatus = 'all', picks = {} } = {}
 ) {
-  const q = search.trim().toLowerCase();
+  const q = normalizeMatchSearchText(search);
 
   return (matches ?? []).filter((m) => {
     if (status === 'upcoming') {
@@ -70,18 +101,6 @@ export function filterMatchesForList(
 
     if (!q) return true;
 
-    const hay = [
-      m.home_team,
-      m.away_team,
-      m.venue,
-      m.venue_city,
-      m.group_name,
-      displayMatchStatus(m),
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
-
-    return hay.includes(q);
+    return buildMatchSearchHaystack(m).includes(q);
   });
 }
