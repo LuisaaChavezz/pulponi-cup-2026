@@ -16,7 +16,12 @@ import {
   sortMatchesByKickoffAsc,
 } from './lib/matchUtils';
 import { filterWorldCupMatches } from './lib/worldCupScope';
-import { filterMatchesForList, listMatchDayFilterOptions } from './lib/matchListFilters';
+import {
+  countMatchPredictionStatuses,
+  filterMatchesForList,
+  getMatchPredictionUiState,
+  listMatchDayFilterOptions,
+} from './lib/matchListFilters';
 import { useMatchSync } from './hooks/useMatchSync';
 import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
@@ -45,7 +50,7 @@ import HighlightsModal from './components/HighlightsModal';
 import ProfileRankingSummary from './components/ProfileRankingSummary';
 import RankingLeaderboard from './components/RankingLeaderboard';
 import MatchCommunityPrediction from './components/MatchCommunityPrediction';
-import { collectMatchPickScores } from './lib/communityPicks';
+import { collectMatchPickScores, parsePickScore } from './lib/communityPicks';
 import { normalizeStoredHighlightList } from './lib/highlightsMapper';
 import { buildRankedLeaderboard } from './lib/rankingHistory';
 import { exportRankingPdf } from './lib/exportRankingPdf';
@@ -115,6 +120,7 @@ export default function App() {
   const [matchSearch, setMatchSearch] = useState('');
   const [matchStatusFilter, setMatchStatusFilter] = useState('all');
   const [matchDayFilter, setMatchDayFilter] = useState('all');
+  const [matchPredictionFilter, setMatchPredictionFilter] = useState('all');
 
   const data = useAppData(session);
 
@@ -140,14 +146,32 @@ export default function App() {
     [worldCupMatches]
   );
 
+  const partidosBaseFiltered = useMemo(
+    () =>
+      filterMatchesForList(worldCupMatches, {
+        search: matchSearch,
+        status: matchStatusFilter,
+        day: matchDayFilter,
+        picks: data.picks,
+      }),
+    [worldCupMatches, matchSearch, matchStatusFilter, matchDayFilter, data.picks]
+  );
+
   const filteredPartidos = useMemo(
     () =>
       filterMatchesForList(worldCupMatches, {
         search: matchSearch,
         status: matchStatusFilter,
         day: matchDayFilter,
+        predictionStatus: matchPredictionFilter,
+        picks: data.picks,
       }),
-    [worldCupMatches, matchSearch, matchStatusFilter, matchDayFilter]
+    [worldCupMatches, matchSearch, matchStatusFilter, matchDayFilter, matchPredictionFilter, data.picks]
+  );
+
+  const predictionStats = useMemo(
+    () => countMatchPredictionStatuses(partidosBaseFiltered, data.picks),
+    [partidosBaseFiltered, data.picks]
   );
 
   const sortedPartidos = useMemo(
@@ -506,14 +530,27 @@ export default function App() {
     const communityScores = collectMatchPickScores(data.communityPickProfiles, m.id);
     const pickFeedback = pickSaveFeedback[m.id];
     const pickSaving = pickFeedback?.type === 'saving';
-    const hasSavedPick = pick != null;
+    const hasSavedPick = pick != null && parsePickScore(pick) != null;
+    const predictionUiState = getMatchPredictionUiState(m, data.picks);
+    const predictionBadge =
+      predictionUiState === 'closed'
+        ? { className: 'match-pick-badge match-pick-badge--closed', label: '🔒 Predicciones cerradas' }
+        : predictionUiState === 'sent'
+          ? { className: 'match-pick-badge match-pick-badge--sent', label: '✅ Predicción enviada' }
+          : { className: 'match-pick-badge match-pick-badge--pending', label: '⚠️ Falta predicción' };
 
     const scoreLine = formatScoreLine(m);
     const homeLabel = displayTeamName(m.home_team) ?? '—';
     const awayLabel = displayTeamName(m.away_team) ?? '—';
 
     return (
-      <article key={m.id} className="match-card match-card--partidos">
+      <article
+        key={m.id}
+        className={`match-card match-card--partidos match-card--pick-${predictionUiState}`}
+      >
+        <p className={predictionBadge.className} role="status">
+          {predictionBadge.label}
+        </p>
         <div className="match-card__meta">
           <header>
             <span className="match-card-header-left">
@@ -599,9 +636,13 @@ export default function App() {
             />
           </div>
           {locked ? (
-            <p className="pick-locked">
-              {status === 'Final' ? 'Predicción cerrada · Resultado final' : 'Predicción cerrada'}
-            </p>
+            <button
+              type="button"
+              className="primary full pick-submit-btn pick-submit-btn--closed"
+              disabled
+            >
+              Predicción cerrada
+            </button>
           ) : (
             <div className="pick-submit-wrap">
               <button
@@ -755,12 +796,19 @@ export default function App() {
             regular (90&apos; + compensación).
           </p>
           <div className="matches-toolbar">
-            <p className="matches-toolbar__count">
-              Mostrando {filteredPartidos.length} partido{filteredPartidos.length === 1 ? '' : 's'}
-              {filteredPartidos.length !== worldCupMatches.length
-                ? ` de ${worldCupMatches.length}`
-                : ''}
-            </p>
+            <div className="matches-toolbar__count-wrap">
+              <p className="matches-toolbar__count">
+                Mostrando {filteredPartidos.length} partido
+                {filteredPartidos.length === 1 ? '' : 's'}
+                {filteredPartidos.length !== worldCupMatches.length
+                  ? ` de ${worldCupMatches.length}`
+                  : ''}
+              </p>
+              <p className="matches-toolbar__stats">
+                Pendientes: {predictionStats.pending} · Enviadas: {predictionStats.sent} · Cerradas:{' '}
+                {predictionStats.closed}
+              </p>
+            </div>
             <div className="matches-toolbar__filters">
               <input
                 type="search"
@@ -780,6 +828,17 @@ export default function App() {
                 <option value="upcoming">Próximos</option>
                 <option value="live">En vivo</option>
                 <option value="finished">Finalizados</option>
+              </select>
+              <select
+                className="matches-toolbar__select"
+                value={matchPredictionFilter}
+                onChange={(e) => setMatchPredictionFilter(e.target.value)}
+                aria-label="Filtrar por estado de predicción"
+              >
+                <option value="all">Todas las predicciones</option>
+                <option value="pending">Pendientes</option>
+                <option value="sent">Enviadas</option>
+                <option value="closed">Cerradas</option>
               </select>
               <select
                 className="matches-toolbar__select"
