@@ -16,11 +16,7 @@ import {
   sortMatchesByKickoffAsc,
 } from './lib/matchUtils';
 import { filterWorldCupMatches } from './lib/worldCupScope';
-import {
-  filterMatchesForList,
-  groupMatchesByDay,
-  listMatchDayFilterOptions,
-} from './lib/matchListFilters';
+import { filterMatchesForList, listMatchDayFilterOptions } from './lib/matchListFilters';
 import { useMatchSync } from './hooks/useMatchSync';
 import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
@@ -154,11 +150,6 @@ export default function App() {
         day: matchDayFilter,
       }),
     [worldCupMatches, matchSearch, matchStatusFilter, matchDayFilter]
-  );
-
-  const groupedPartidos = useMemo(
-    () => groupMatchesByDay(filteredPartidos),
-    [filteredPartidos]
   );
 
   const achievementCatalog = useMemo(
@@ -791,12 +782,9 @@ export default function App() {
           {!data.matchesLoading && filteredPartidos.length === 0 ? (
             <p className="muted sync-footnote">No hay partidos que coincidan con los filtros.</p>
           ) : (
-            groupedPartidos.map((group) => (
-              <section key={group.dayKey} className="matches-day-group">
-                <h3 className="matches-day-group__title">{group.heading}</h3>
-                <div className="matches-grid">{group.matches.map((m) => renderMatchCard(m))}</div>
-              </section>
-            ))
+            <div className="matches-grid">
+              {filteredPartidos.map((m) => renderMatchCard(m))}
+            </div>
           )}
         </section>
 
