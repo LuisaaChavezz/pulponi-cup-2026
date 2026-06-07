@@ -13,8 +13,14 @@ import {
   isMatchLive,
   isPickLocked,
   pickInicioMatch,
+  sortMatchesByKickoffAsc,
 } from './lib/matchUtils';
 import { filterWorldCupMatches } from './lib/worldCupScope';
+import {
+  filterMatchesForList,
+  groupMatchesByDay,
+  listMatchDayFilterOptions,
+} from './lib/matchListFilters';
 import { useMatchSync } from './hooks/useMatchSync';
 import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
@@ -112,6 +118,9 @@ export default function App() {
   const pickFeedbackTimersRef = useRef({});
 
   const [pickSaveFeedback, setPickSaveFeedback] = useState({});
+  const [matchSearch, setMatchSearch] = useState('');
+  const [matchStatusFilter, setMatchStatusFilter] = useState('all');
+  const [matchDayFilter, setMatchDayFilter] = useState('all');
 
   const data = useAppData(session);
 
@@ -127,9 +136,29 @@ export default function App() {
     }
   }, [activeNav, session?.user?.id, data.loadCommunityPicks, data.loadPredictionFeeds]);
 
-  const worldCupMatches = useMemo(
-    () => filterWorldCupMatches(data.matches ?? []),
-    [data.matches]
+  const worldCupMatches = useMemo(() => {
+    const list = filterWorldCupMatches(data.matches ?? []);
+    return sortMatchesByKickoffAsc(list);
+  }, [data.matches]);
+
+  const matchDayOptions = useMemo(
+    () => listMatchDayFilterOptions(worldCupMatches),
+    [worldCupMatches]
+  );
+
+  const filteredPartidos = useMemo(
+    () =>
+      filterMatchesForList(worldCupMatches, {
+        search: matchSearch,
+        status: matchStatusFilter,
+        day: matchDayFilter,
+      }),
+    [worldCupMatches, matchSearch, matchStatusFilter, matchDayFilter]
+  );
+
+  const groupedPartidos = useMemo(
+    () => groupMatchesByDay(filteredPartidos),
+    [filteredPartidos]
   );
 
   const achievementCatalog = useMemo(
@@ -474,6 +503,135 @@ export default function App() {
     setActiveNav('ranking');
   }
 
+  function renderMatchCard(m) {
+    const locked = isPickLocked(m);
+    const pick = data.picks[m.id];
+    const draft = pickDrafts[m.id] ?? {};
+    const status = displayMatchStatus(m);
+    const finalLabel = finalScoreLabel(m);
+    const communityScores = collectMatchPickScores(data.communityPickProfiles, m.id);
+    const pickFeedback = pickSaveFeedback[m.id];
+    const pickSaving = pickFeedback?.type === 'saving';
+    const hasSavedPick = pick != null;
+
+    return (
+      <article key={m.id} className="match-card">
+        <header>
+          <span className="match-card-header-left">
+            {m.provisional ? (
+              <span className="fifa-pill" title="Calendario publicado por FIFA">
+                Calendario oficial FIFA
+              </span>
+            ) : null}
+            {m.is_demo ? (
+              <span className="demo-pill" title="Partido de demostración">
+                DEMO
+              </span>
+            ) : null}
+          </span>
+          <span
+            className={
+              status === 'En vivo' || status === 'Medio tiempo' ? 'live-pill' : 'match-status-code'
+            }
+          >
+            {status}
+          </span>
+        </header>
+        <MatchSchedule match={m} />
+        <div className="match-teams">
+          <div className="match-team-cell">
+            <TeamLogo logo={m.home_logo} flag={m.home_flag} alt={m.home_team ?? ''} size="sm" />
+            {displayTeamName(m.home_team) ? (
+              <span className="match-team-name">{m.home_team}</span>
+            ) : null}
+          </div>
+          <strong className="match-score-center">{formatScoreLine(m)}</strong>
+          <div className="match-team-cell">
+            <TeamLogo logo={m.away_logo} flag={m.away_flag} alt={m.away_team ?? ''} size="sm" />
+            {displayTeamName(m.away_team) ? (
+              <span className="match-team-name">{m.away_team}</span>
+            ) : null}
+          </div>
+        </div>
+        <MatchCommunityPrediction scores={communityScores} match={m} />
+        <div className="pick-inputs">
+          <input
+            type="number"
+            min="0"
+            placeholder="0"
+            disabled={locked}
+            value={draft.home ?? pick?.home_pick ?? ''}
+            onChange={(e) =>
+              setPickDrafts((d) => ({
+                ...d,
+                [m.id]: { ...d[m.id], home: e.target.value },
+              }))
+            }
+          />
+          <input
+            type="number"
+            min="0"
+            placeholder="0"
+            disabled={locked}
+            value={draft.away ?? pick?.away_pick ?? ''}
+            onChange={(e) =>
+              setPickDrafts((d) => ({
+                ...d,
+                [m.id]: { ...d[m.id], away: e.target.value },
+              }))
+            }
+          />
+        </div>
+        {m.is_knockout ? (
+          <select
+            disabled={locked}
+            value={draft.advances ?? pick?.advances_team ?? ''}
+            onChange={(e) =>
+              setPickDrafts((d) => ({
+                ...d,
+                [m.id]: { ...d[m.id], advances: e.target.value },
+              }))
+            }
+            style={{ marginTop: 8 }}
+          >
+            <option value="">¿Quién avanza en penales?</option>
+            <option value={m.home_team}>{m.home_team}</option>
+            <option value={m.away_team}>{m.away_team}</option>
+          </select>
+        ) : null}
+        {finalLabel ? <p className="match-final">{finalLabel}</p> : null}
+        {locked ? (
+          <p className="pick-locked">
+            {status === 'Final' ? 'Predicción cerrada · Resultado final' : 'Predicción cerrada'}
+          </p>
+        ) : (
+          <div className="pick-submit-wrap">
+            <button
+              type="button"
+              className="primary full pick-submit-btn"
+              disabled={pickSaving}
+              onClick={() => submitPick(m)}
+            >
+              {pickSaving
+                ? 'Guardando...'
+                : hasSavedPick
+                  ? 'Actualizar predicción'
+                  : 'Enviar predicción'}
+            </button>
+            {pickFeedback?.message ? (
+              <p
+                className={`pick-save-feedback pick-save-feedback--${pickFeedback.type}`}
+                role={pickFeedback.type === 'error' ? 'alert' : 'status'}
+              >
+                {pickFeedback.message}
+              </p>
+            ) : null}
+          </div>
+        )}
+      </article>
+    );
+  }
+
   function sectionClass(id, extra = '') {
     return `app-section${extra ? ` ${extra}` : ''}${activeNav === id ? ' is-active' : ''}`;
   }
@@ -579,140 +737,67 @@ export default function App() {
             Los penales cuentan como empate para la quiniela. Solo cuenta el marcador al final del tiempo
             regular (90&apos; + compensación).
           </p>
-          <div className="matches-grid">
-            {data.matchesLoading && !worldCupMatches.length ? (
-              <p className="muted sync-footnote">Cargando calendario…</p>
-            ) : null}
-            {worldCupMatches.map((m) => {
-              const locked = isPickLocked(m);
-              const pick = data.picks[m.id];
-              const draft = pickDrafts[m.id] ?? {};
-              const status = displayMatchStatus(m);
-              const finalLabel = finalScoreLabel(m);
-              const communityScores = collectMatchPickScores(data.communityPickProfiles, m.id);
-              const pickFeedback = pickSaveFeedback[m.id];
-              const pickSaving = pickFeedback?.type === 'saving';
-              const hasSavedPick = pick != null;
-              return (
-                <article key={m.id} className="match-card">
-                  <header>
-                    <span className="match-card-header-left">
-                      {m.provisional ? (
-                        <span className="fifa-pill" title="Calendario publicado por FIFA">
-                          Calendario oficial FIFA
-                        </span>
-                      ) : null}
-                      {m.is_demo ? (
-                        <span className="demo-pill" title="Partido de demostración">
-                          DEMO
-                        </span>
-                      ) : null}
-                    </span>
-                    <span
-                      className={
-                        status === 'En vivo' || status === 'Medio tiempo'
-                          ? 'live-pill'
-                          : 'match-status-code'
-                      }
-                    >
-                      {status}
-                    </span>
-                  </header>
-                  <MatchSchedule match={m} />
-                  <div className="match-teams">
-                    <div className="match-team-cell">
-                      <TeamLogo logo={m.home_logo} flag={m.home_flag} alt={m.home_team ?? ''} size="sm" />
-                      {displayTeamName(m.home_team) ? (
-                        <span className="match-team-name">{m.home_team}</span>
-                      ) : null}
-                    </div>
-                    <strong className="match-score-center">{formatScoreLine(m)}</strong>
-                    <div className="match-team-cell">
-                      <TeamLogo logo={m.away_logo} flag={m.away_flag} alt={m.away_team ?? ''} size="sm" />
-                      {displayTeamName(m.away_team) ? (
-                        <span className="match-team-name">{m.away_team}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                  <MatchCommunityPrediction scores={communityScores} match={m} />
-                  <div className="pick-inputs">
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      disabled={locked}
-                      value={draft.home ?? pick?.home_pick ?? ''}
-                      onChange={(e) =>
-                        setPickDrafts((d) => ({
-                          ...d,
-                          [m.id]: { ...d[m.id], home: e.target.value },
-                        }))
-                      }
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      disabled={locked}
-                      value={draft.away ?? pick?.away_pick ?? ''}
-                      onChange={(e) =>
-                        setPickDrafts((d) => ({
-                          ...d,
-                          [m.id]: { ...d[m.id], away: e.target.value },
-                        }))
-                      }
-                    />
-                  </div>
-                  {m.is_knockout ? (
-                    <select
-                      disabled={locked}
-                      value={draft.advances ?? pick?.advances_team ?? ''}
-                      onChange={(e) =>
-                        setPickDrafts((d) => ({
-                          ...d,
-                          [m.id]: { ...d[m.id], advances: e.target.value },
-                        }))
-                      }
-                      style={{ marginTop: 8 }}
-                    >
-                      <option value="">¿Quién avanza en penales?</option>
-                      <option value={m.home_team}>{m.home_team}</option>
-                      <option value={m.away_team}>{m.away_team}</option>
-                    </select>
-                  ) : null}
-                  {finalLabel ? <p className="match-final">{finalLabel}</p> : null}
-                  {locked ? (
-                    <p className="pick-locked">
-                      {status === 'Final' ? 'Predicción cerrada · Resultado final' : 'Predicción cerrada'}
-                    </p>
-                  ) : (
-                    <div className="pick-submit-wrap">
-                      <button
-                        type="button"
-                        className="primary full pick-submit-btn"
-                        disabled={pickSaving}
-                        onClick={() => submitPick(m)}
-                      >
-                        {pickSaving
-                          ? 'Guardando...'
-                          : hasSavedPick
-                            ? 'Actualizar predicción'
-                            : 'Enviar predicción'}
-                      </button>
-                      {pickFeedback?.message ? (
-                        <p
-                          className={`pick-save-feedback pick-save-feedback--${pickFeedback.type}`}
-                          role={pickFeedback.type === 'error' ? 'alert' : 'status'}
-                        >
-                          {pickFeedback.message}
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
+          <div className="matches-toolbar">
+            <p className="matches-toolbar__count">
+              Mostrando {filteredPartidos.length} partido{filteredPartidos.length === 1 ? '' : 's'}
+              {filteredPartidos.length !== worldCupMatches.length
+                ? ` de ${worldCupMatches.length}`
+                : ''}
+            </p>
+            <div className="matches-toolbar__filters">
+              <input
+                type="search"
+                className="matches-toolbar__search"
+                placeholder="Buscar equipo, sede o grupo…"
+                value={matchSearch}
+                onChange={(e) => setMatchSearch(e.target.value)}
+                aria-label="Buscar partidos"
+              />
+              <select
+                className="matches-toolbar__select"
+                value={matchStatusFilter}
+                onChange={(e) => setMatchStatusFilter(e.target.value)}
+                aria-label="Filtrar por estado"
+              >
+                <option value="all">Todos los estados</option>
+                <option value="upcoming">Próximos</option>
+                <option value="live">En vivo</option>
+                <option value="finished">Finalizados</option>
+              </select>
+              <select
+                className="matches-toolbar__select"
+                value={matchDayFilter}
+                onChange={(e) => setMatchDayFilter(e.target.value)}
+                aria-label="Filtrar por fecha"
+              >
+                <option value="all">Todas las fechas</option>
+                {matchDayOptions.map((dayKey) => (
+                  <option key={dayKey} value={dayKey}>
+                    {dayKey === 'sin-fecha'
+                      ? 'Sin fecha'
+                      : new Date(`${dayKey}T12:00:00`).toLocaleDateString('es-MX', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                        })}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+          {data.matchesLoading && !worldCupMatches.length ? (
+            <p className="muted sync-footnote">Cargando calendario…</p>
+          ) : null}
+          {!data.matchesLoading && filteredPartidos.length === 0 ? (
+            <p className="muted sync-footnote">No hay partidos que coincidan con los filtros.</p>
+          ) : (
+            groupedPartidos.map((group) => (
+              <section key={group.dayKey} className="matches-day-group">
+                <h3 className="matches-day-group__title">{group.heading}</h3>
+                <div className="matches-grid">{group.matches.map((m) => renderMatchCard(m))}</div>
+              </section>
+            ))
+          )}
         </section>
 
         <section id="ranking" className={sectionClass('ranking', 'panel')}>

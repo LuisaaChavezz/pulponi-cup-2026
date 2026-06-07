@@ -14,10 +14,8 @@ export default function HomeMobileMatchesCarousel({ matches = [], excludeMatchId
   const carouselMatches = (() => {
     const upcoming = listCarouselUpcomingMatches(matches);
     if (!upcoming.length) return [];
-    if (excludeMatchId != null) {
-      return upcoming.filter((m) => String(m.id) !== String(excludeMatchId));
-    }
-    return upcoming.slice(1);
+    if (excludeMatchId == null) return upcoming;
+    return upcoming.filter((m) => String(m.id) !== String(excludeMatchId));
   })();
 
   return (

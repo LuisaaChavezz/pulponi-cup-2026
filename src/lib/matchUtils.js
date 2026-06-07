@@ -69,7 +69,7 @@ function kickoffMs(m) {
   return Number.isNaN(t) ? null : t;
 }
 
-function sortMatchesByKickoffAsc(matches) {
+export function sortMatchesByKickoffAsc(matches) {
   return matches.slice().sort((a, b) => {
     const ta = kickoffMs(a);
     const tb = kickoffMs(b);

@@ -22,6 +22,15 @@ export function isWorldCupMatch(match) {
 
   if (match.is_demo === true && Number(match.api_fixture_id) < 0) return true;
 
+  const apiId = Number(match.api_fixture_id);
+  if (Number.isFinite(apiId) && apiId > 0) {
+    const el = wcLeagueIdFromEnv();
+    const es = wcSeasonFromEnv();
+    if (match.league_id == null && match.season == null) return true;
+    if (String(match.league_id) === String(el) && String(match.season) === String(es)) return true;
+    if (String(match.league_id) === '1' && String(match.season) === '2026') return true;
+  }
+
   const lid = match.league_id;
   const sea = match.season;
   const el = wcLeagueIdFromEnv();

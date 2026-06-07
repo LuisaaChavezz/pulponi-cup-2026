@@ -61,7 +61,11 @@ export function useAppData(session) {
   }, [userId]);
 
   const loadMatches = useCallback(async ({ finishLoading = true } = {}) => {
-    const { data, error } = await supabase.from('matches').select('*').order('kickoff', { ascending: true });
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .order('kickoff', { ascending: true })
+      .range(0, 4999);
     if (error) {
       console.warn('[loadMatches]', error?.message ?? error);
       if (finishLoading) setMatchesLoading(false);

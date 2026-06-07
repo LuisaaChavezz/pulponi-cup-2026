@@ -32,13 +32,13 @@ function logSupabaseWarn(context, error) {
   console.warn(`[Supabase] ${context}:`, error?.message ?? error);
 }
 
-async function apiFetch(path, params = {}, { requireKey = true } = {}) {
+async function apiFetchPage(path, params = {}, { requireKey = true } = {}) {
   const key = getApiKey();
   if (!key) {
     if (requireKey) {
       console.warn('[API-FOOTBALL FALLBACK]', 'Sin VITE_FOOTBALL_API_KEY');
     }
-    return [];
+    return { response: [], paging: { current: 1, total: 1 } };
   }
 
   const url = new URL(`${API_BASE}${path}`);
@@ -53,7 +53,7 @@ async function apiFetch(path, params = {}, { requireKey = true } = {}) {
     });
   } catch (err) {
     console.warn('[API-FOOTBALL FALLBACK]', err);
-    return [];
+    return { response: [], paging: { current: 1, total: 1 } };
   }
 
   const bodyText = await res.text();
@@ -62,20 +62,45 @@ async function apiFetch(path, params = {}, { requireKey = true } = {}) {
     json = bodyText ? JSON.parse(bodyText) : {};
   } catch {
     console.warn('[API-FOOTBALL FALLBACK]', `Respuesta no JSON (${res.status})`);
-    return [];
+    return { response: [], paging: { current: 1, total: 1 } };
   }
 
   if (!res.ok) {
     console.warn('[API-FOOTBALL FALLBACK]', `HTTP ${res.status}`, bodyText.slice(0, 160));
-    return [];
+    return { response: [], paging: { current: 1, total: 1 } };
   }
 
   if (json.errors && Object.keys(json.errors).length) {
     console.warn('[API-FOOTBALL FALLBACK]', json.errors);
-    return [];
+    return { response: [], paging: { current: 1, total: 1 } };
   }
 
-  return json.response ?? [];
+  return {
+    response: json.response ?? [],
+    paging: json.paging ?? { current: 1, total: 1 },
+  };
+}
+
+async function apiFetch(path, params = {}, options = {}) {
+  const { response } = await apiFetchPage(path, params, options);
+  return response;
+}
+
+/** Recorre todas las páginas de la API (paging.total) y fusiona resultados. */
+async function apiFetchAllPages(path, params = {}, options = {}) {
+  const merged = [];
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages) {
+    const { response, paging } = await apiFetchPage(path, { ...params, page }, options);
+    if (response?.length) merged.push(...response);
+    totalPages = Math.max(1, Number(paging?.total) || 1);
+    if (page >= totalPages) break;
+    page += 1;
+  }
+
+  return merged;
 }
 
 function normalizeName(value) {
@@ -248,7 +273,7 @@ export async function fetchFixtureEvents(fixtureId) {
 export async function fetchWorldCupFixtures() {
   const leagueId = getLeagueId();
   const season = getSeason();
-  const fixtures = (await apiFetch('/fixtures', { league: leagueId, season })) ?? [];
+  const fixtures = (await apiFetchAllPages('/fixtures', { league: leagueId, season })) ?? [];
   if (fixtures.length) {
     console.log('[API-FOOTBALL]', fixtures.length, 'fixtures', { leagueId, season });
   }
@@ -571,15 +596,17 @@ async function syncWorldCupFixturesBody(client = supabase) {
     return upsertApiFixtures(client, fixtures).then((result) => ({ ...result, replacedDemo }));
   }
 
-  // Ya hay calendario en Supabase → no reinsertar FIFA; solo refrescar vía API si hay datos
+  // Ya hay calendario en Supabase → refrescar/insertar todos los fixtures API disponibles
   if (validMatchCount > 0) {
     if (fixtures.length > 0) {
       try {
         const result = await tryUpsertApiFixtures();
-        if (result.imported > 0) {
-          return { ...result, existing: validMatchCount };
-        }
-        console.warn('[API-FOOTBALL FALLBACK] API devolvió datos pero 0 inserts');
+        return {
+          ...result,
+          existing: validMatchCount,
+          skipped: result.imported === 0 && result.mergedProvisional === 0,
+          source: result.imported > 0 || result.mergedProvisional > 0 ? 'api_refresh' : 'existing',
+        };
       } catch (e) {
         console.warn('[API-FOOTBALL FALLBACK]', e);
       }
@@ -726,7 +753,7 @@ export async function ensureFootballDataSynced(client = supabase) {
     result = { skipped: true, imported: 0 };
   }
 
-  if (getApiKey() && result.skipped && !result.demo && !result.provisional && result.existing > 0) {
+  if (getApiKey()) {
     try {
       const syncResult = await syncMatchesToSupabase(client);
       return { ...result, ...syncResult, reloadMatches: true };

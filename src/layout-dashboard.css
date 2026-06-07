@@ -4267,3 +4267,60 @@
     display: none;
   }
 }
+
+/* ——— Partidos: filtros y agrupación por día ——— */
+.matches-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.matches-toolbar__count {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--muted, #a1a1aa);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.matches-toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.matches-toolbar__search,
+.matches-toolbar__select {
+  flex: 1 1 180px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text, #f6f6f6);
+  padding: 10px 12px;
+  font-size: 0.88rem;
+}
+
+.matches-toolbar__search:focus,
+.matches-toolbar__select:focus {
+  outline: none;
+  border-color: rgba(255, 30, 39, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 30, 39, 0.25);
+}
+
+.matches-day-group {
+  margin-bottom: 18px;
+}
+
+.matches-day-group__title {
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 30, 39, 0.22);
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fecaca;
+}
