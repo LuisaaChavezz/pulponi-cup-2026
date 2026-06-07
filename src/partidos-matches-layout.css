@@ -41,6 +41,13 @@
     box-sizing: border-box;
   }
 
+  #partidos .match-pick-badge {
+    margin: 0 0 4px;
+    padding: 4px 6px;
+    font-size: 8px;
+    border-radius: 8px;
+  }
+
   /* Meta: fecha/hora + estado */
   #partidos .match-card__meta {
     display: flex;
