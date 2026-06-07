@@ -6,7 +6,7 @@ import {
   PARLAY_MIN_SELECTIONS,
   PARLAY_MAX_SELECTIONS,
   calculateVirtualParlayPayout,
-  formatDecimalOdds,
+  formatAmericanOdd,
   multiplySelectionOdds,
   parlaySelectionCountLabel,
 } from '../lib/parlayCalculator';
@@ -30,8 +30,14 @@ function formatKickoff(kickoff) {
   return date || time || '';
 }
 
-export default function ParlayPage({ matches = [], userId }) {
-  const oddsState = useParlayOdds(matches);
+function outcomePickLabel(outcome, homeLabel, awayLabel) {
+  if (outcome === 'home') return `${homeLabel} gana`;
+  if (outcome === 'away') return `${awayLabel} gana`;
+  return 'Empate';
+}
+
+export default function ParlayPage({ matches = [], userId, communityProfiles = [] }) {
+  const oddsState = useParlayOdds(matches, communityProfiles);
   const [selections, setSelections] = useState([]);
   const [stake, setStake] = useState(100);
   const [savedParlays, setSavedParlays] = useState(() => (userId ? loadUserParlays(userId) : []));
@@ -46,7 +52,7 @@ export default function ParlayPage({ matches = [], userId }) {
     payout.stake > 0;
 
   const toggleSelection = useCallback(
-    (match, outcome) => {
+    (match, outcome, pickLabel) => {
       const oddsRow = oddsState.byMatchId[String(match.id)];
       const decimalOdds = getOutcomeOdds(oddsRow, outcome);
       if (!decimalOdds) return;
@@ -67,7 +73,7 @@ export default function ParlayPage({ matches = [], userId }) {
             homeTeam: match.home_team,
             awayTeam: match.away_team,
             outcome,
-            outcomeLabel: OUTCOMES.find((o) => o.id === outcome)?.label ?? outcome,
+            outcomeLabel: pickLabel,
             decimalOdds,
           },
         ];
@@ -95,7 +101,8 @@ export default function ParlayPage({ matches = [], userId }) {
       selections,
       stake: payout.stake,
       totalOdds: payout.totalOdds,
-      possibleGain: payout.pulponiGain,
+      possibleGain: payout.grossGain,
+      estimatedReturn: payout.estimatedReturn,
       oddsMode: oddsState.mode,
       status: 'pending',
     };
@@ -154,16 +161,23 @@ export default function ParlayPage({ matches = [], userId }) {
                         const odd = getOutcomeOdds(oddsRow, o.id);
                         const key = selectionKey(match.id, o.id);
                         const active = selections.some((s) => s.key === key);
+                        const pickLabel = outcomePickLabel(o.id, homeLabel, awayLabel);
+                        const american = formatAmericanOdd(odd);
+                        const isFavorite = american.startsWith('-');
                         return (
                           <button
                             key={key}
                             type="button"
                             className={`parlay-odd-btn${active ? ' is-active' : ''}`}
-                            onClick={() => toggleSelection(match, o.id)}
+                            onClick={() => toggleSelection(match, o.id, pickLabel)}
                             aria-pressed={active}
                           >
-                            <span className="parlay-odd-btn__label">{o.label}</span>
-                            <span className="parlay-odd-btn__value">{formatDecimalOdds(odd)}</span>
+                            <span className="parlay-odd-btn__label">{pickLabel}</span>
+                            <span
+                              className={`parlay-odd-btn__value${isFavorite ? ' parlay-odd-btn__value--favorite' : ''}`}
+                            >
+                              {american}
+                            </span>
                             <span className="parlay-odd-btn__action">{active ? 'Quitar' : 'Agregar'}</span>
                           </button>
                         );
@@ -172,7 +186,10 @@ export default function ParlayPage({ matches = [], userId }) {
 
                     {selectedForMatch ? (
                       <p className="parlay-match-card__picked">
-                        Selección: {selectedForMatch.outcomeLabel} · {formatDecimalOdds(selectedForMatch.decimalOdds)}
+                        {selectedForMatch.outcomeLabel}
+                        <span className="parlay-match-card__picked-odd">
+                          {formatAmericanOdd(selectedForMatch.decimalOdds)}
+                        </span>
                       </p>
                     ) : null}
                   </article>
@@ -199,11 +216,10 @@ export default function ParlayPage({ matches = [], userId }) {
               {selections.map((sel) => (
                 <li key={sel.key} className="parlay-page__selection">
                   <div>
-                    <strong>
-                      {displayTeamName(sel.homeTeam)} vs {displayTeamName(sel.awayTeam)}
-                    </strong>
+                    <strong>{sel.outcomeLabel}</strong>
+                    <span className="parlay-page__selection-odd">{formatAmericanOdd(sel.decimalOdds)}</span>
                     <span className="muted">
-                      {sel.outcomeLabel} · {formatDecimalOdds(sel.decimalOdds)}
+                      {displayTeamName(sel.homeTeam)} vs {displayTeamName(sel.awayTeam)}
                     </span>
                   </div>
                   <button
@@ -232,12 +248,16 @@ export default function ParlayPage({ matches = [], userId }) {
 
           <dl className="parlay-page__calc">
             <div>
+              <dt>Monto</dt>
+              <dd>{payout.stake.toFixed(0)} pts</dd>
+            </div>
+            <div>
               <dt>Momio total</dt>
-              <dd>{formatDecimalOdds(totalOdds)}</dd>
+              <dd>{formatAmericanOdd(totalOdds)}</dd>
             </div>
             <div className="parlay-page__calc-total">
               <dt>Posible ganancia</dt>
-              <dd>{payout.pulponiGain.toFixed(1)} pts</dd>
+              <dd>{payout.grossGain.toFixed(0)} pts</dd>
             </div>
           </dl>
 
@@ -261,8 +281,8 @@ export default function ParlayPage({ matches = [], userId }) {
                 {savedParlays.slice(0, 5).map((p) => (
                   <li key={p.id}>
                     <span>
-                      {p.selections.length} picks · {formatDecimalOdds(p.totalOdds)} ·{' '}
-                      {(p.possibleGain ?? p.pulponiGain ?? 0).toFixed(1)} pts
+                      {p.selections.length} picks · {formatAmericanOdd(p.totalOdds)} ·{' '}
+                      {(p.possibleGain ?? Math.max(0, (p.estimatedReturn ?? 0) - (p.stake ?? 0))).toFixed(0)} pts
                     </span>
                     <span className="muted">{new Date(p.createdAt).toLocaleString('es-MX')}</span>
                   </li>

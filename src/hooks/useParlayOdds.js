@@ -2,10 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { isPickLocked } from '../lib/matchUtils';
 import { resolveParlayOddsForMatches, isAuthorizedOddsApiConfigured } from '../lib/parlayOdds';
 
-export function useParlayOdds(matches) {
+export function useParlayOdds(matches, communityProfiles = []) {
   const openMatches = useMemo(
     () => (matches ?? []).filter((m) => m && !isPickLocked(m)),
     [matches]
+  );
+
+  const communityKey = useMemo(
+    () => (communityProfiles ?? []).map((p) => `${p.id}:${Object.keys(p.picks ?? {}).length}`).join('|'),
+    [communityProfiles]
   );
 
   const [state, setState] = useState({
@@ -23,7 +28,7 @@ export function useParlayOdds(matches) {
 
     (async () => {
       setState((prev) => ({ ...prev, loading: true }));
-      const result = await resolveParlayOddsForMatches(openMatches);
+      const result = await resolveParlayOddsForMatches(openMatches, { communityProfiles });
       if (cancelled) return;
       setState({
         loading: false,
@@ -39,7 +44,7 @@ export function useParlayOdds(matches) {
     return () => {
       cancelled = true;
     };
-  }, [openMatches]);
+  }, [openMatches, communityKey, communityProfiles]);
 
   return {
     ...state,

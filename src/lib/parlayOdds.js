@@ -4,6 +4,8 @@
  * - Fallback: momios Pulponi simulados, claramente etiquetados.
  */
 
+import { buildCommunityTrendOdds } from './parlayCommunityOdds';
+
 const ODDS_API_SPORT = 'soccer_fifa_world_cup';
 
 function envVar(name) {
@@ -37,23 +39,9 @@ function hashSeed(str) {
   return Math.abs(h);
 }
 
-/** Momios Pulponi determinísticos — no son cotizaciones de casas de apuestas. */
+/** @deprecated Usar buildCommunityTrendOdds — conservado como alias interno. */
 export function buildPulponiSimulatedOdds(match) {
-  const id = String(match?.id ?? `${match?.home_team}-${match?.away_team}`);
-  const h = hashSeed(id);
-  const home = 1.18 + (h % 260) / 100;
-  const draw = 2.75 + ((h >> 6) % 130) / 100;
-  const away = 1.22 + ((h >> 12) % 320) / 100;
-
-  return {
-    matchId: id,
-    source: 'pulponi_simulated',
-    sourceLabel: 'Momio Pulponi (simulado)',
-    bookmaker: null,
-    home: roundOdd(home),
-    draw: roundOdd(draw),
-    away: roundOdd(away),
-  };
+  return buildCommunityTrendOdds(match, []);
 }
 
 function roundOdd(n) {
@@ -134,7 +122,10 @@ async function fetchAuthorizedOddsEvents() {
  * Resuelve momios para una lista de partidos.
  * Usa API autorizada si está habilitada y responde; si no, momios Pulponi simulados.
  */
-export async function resolveParlayOddsForMatches(matches, { preferAuthorized = true } = {}) {
+export async function resolveParlayOddsForMatches(
+  matches,
+  { preferAuthorized = true, communityProfiles = [] } = {}
+) {
   const list = (matches ?? []).filter(Boolean);
   let authorizedEvents = null;
   let authorizedError = null;
@@ -160,7 +151,7 @@ export async function resolveParlayOddsForMatches(matches, { preferAuthorized = 
       byMatchId[String(match.id)] = fromApi;
       authorizedCount += 1;
     } else {
-      byMatchId[String(match.id)] = buildPulponiSimulatedOdds(match);
+      byMatchId[String(match.id)] = buildCommunityTrendOdds(match, communityProfiles);
       simulatedCount += 1;
     }
   }
@@ -195,5 +186,8 @@ export function oddsSourceBadge(oddsRow) {
       ? `${oddsRow.sourceLabel} · ${oddsRow.bookmaker}`
       : oddsRow.sourceLabel;
   }
-  return oddsRow.sourceLabel ?? 'Momio Pulponi (simulado)';
+  if (oddsRow.source === 'pulponi_community') {
+    return oddsRow.sourceLabel ?? 'Momio Pulponi (tendencia comunidad)';
+  }
+  return oddsRow.sourceLabel ?? 'Momio Pulponi (estimado)';
 }

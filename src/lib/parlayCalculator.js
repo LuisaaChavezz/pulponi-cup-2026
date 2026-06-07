@@ -11,6 +11,23 @@ export function formatDecimalOdds(value) {
   return n.toFixed(2);
 }
 
+export function decimalToAmerican(decimalOdd) {
+  const n = Number(decimalOdd);
+  if (!n || n <= 1) return null;
+
+  if (n < 2) {
+    return Math.round(-100 / (n - 1));
+  }
+
+  return Math.round((n - 1) * 100);
+}
+
+export function formatAmericanOdd(decimalOdd) {
+  const american = decimalToAmerican(decimalOdd);
+  if (american === null) return 'N/A';
+  return american > 0 ? `+${american}` : `${american}`;
+}
+
 /** Momio total = producto de selecciones (formato decimal). */
 export function multiplySelectionOdds(selections) {
   if (!selections?.length) return 1;
@@ -22,14 +39,15 @@ export function multiplySelectionOdds(selections) {
 }
 
 /**
- * Ganancia estimada con factor Pulponi sobre la utilidad (no sobre el stake).
- * grossGain = stake * (totalOdds - 1)
- * pulponiGain = grossGain * 0.70
+ * Ganancia / retorno estimado.
+ * - estimatedReturn: estilo casa (monto × momio total)
+ * - pulponiReturn: stake + ganancia con factor interno Pulponi
  */
 export function calculateVirtualParlayPayout(stake, totalOdds, gainFactor = PULPONI_GAIN_FACTOR) {
   const safeStake = Math.max(0, Number(stake) || 0);
   const safeOdds = Math.max(1, Number(totalOdds) || 1);
-  const grossReturn = safeStake * safeOdds;
+  const estimatedReturn = safeStake * safeOdds;
+  const grossReturn = estimatedReturn;
   const grossGain = Math.max(0, grossReturn - safeStake);
   const commissionRate = 1 - gainFactor;
   const pulponiGain = grossGain * gainFactor;
@@ -38,6 +56,7 @@ export function calculateVirtualParlayPayout(stake, totalOdds, gainFactor = PULP
   return {
     stake: safeStake,
     totalOdds: safeOdds,
+    estimatedReturn,
     grossReturn,
     grossGain,
     commissionRate,

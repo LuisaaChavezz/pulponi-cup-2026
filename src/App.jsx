@@ -904,7 +904,11 @@ export default function App() {
         <section id="parlay" className={sectionClass('parlay', 'panel')}>
           {activeNav === 'parlay' ? (
             <Suspense fallback={<PanelFallback label="Cargando parlay…" />}>
-              <ParlayPage matches={worldCupMatches} userId={session?.user?.id} />
+              <ParlayPage
+                matches={worldCupMatches}
+                userId={session?.user?.id}
+                communityProfiles={data.communityPickProfiles ?? []}
+              />
             </Suspense>
           ) : null}
         </section>

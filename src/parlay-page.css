@@ -117,6 +117,11 @@
 .parlay-odd-btn__value {
   font-size: 0.92rem;
   font-weight: 800;
+  color: #86efac;
+  letter-spacing: 0.02em;
+}
+
+.parlay-odd-btn__value--favorite {
   color: #fecaca;
 }
 
@@ -134,9 +139,19 @@
 
 .parlay-match-card__picked {
   margin: 8px 0 0;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: #86efac;
   font-weight: 700;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.parlay-match-card__picked-odd {
+  font-size: 0.92rem;
+  color: #fecaca;
+  letter-spacing: 0.02em;
 }
 
 .parlay-page__slip {
@@ -201,7 +216,16 @@
 
 .parlay-page__selection .muted {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+  margin-top: 2px;
+}
+
+.parlay-page__selection-odd {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #fecaca;
+  letter-spacing: 0.02em;
 }
 
 .parlay-page__remove {
