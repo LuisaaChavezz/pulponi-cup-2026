@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { resolveAvatarUrl } from '../lib/avatars';
 import { runScoringAndPulpoPipeline } from '../lib/pulpoSync';
 import { isMatchFinished } from '../lib/matchUtils';
-import { isFootballApiConfigured, syncWorldCupFixtures } from '../lib/footballApi';
+import { syncWorldCupFixtures } from '../lib/footballApi';
 import { filterWorldCupMatches } from '../lib/worldCupScope';
 import { normalizeMatchRow, normalizeMatches } from '../lib/normalizeMatch';
 import { formatActivityLogMessage } from '../lib/activityMessages';
@@ -11,7 +11,6 @@ import {
   buildPredictionPublicMessage,
   formatActivityDisplayName,
   formatPredictionActivityMessage,
-  isPredictionActivityAction,
 } from '../lib/predictionActivity';
 
 /** Máximo de filas cargadas desde activity_log (recientes + historial en UI). */
@@ -23,6 +22,27 @@ import {
   loadUserAchievementIds,
   syncAllAchievements,
 } from '../lib/achievementSync';
+import { cacheGet, cacheSet, cacheInvalidate } from '../lib/appCache';
+import {
+  markBootstrapStart,
+  markBootstrapPhase,
+  reportBootstrapDiagnostics,
+  scheduleIdleWork,
+  timedQuery,
+} from '../lib/bootstrapPerf';
+
+const MATCHES_CHUNK = 20;
+const MATCHES_HARD_LIMIT = 4999;
+
+function mergeMatchesSorted(prev, incoming) {
+  const map = new Map((prev ?? []).map((m) => [m.id, m]));
+  for (const m of incoming ?? []) map.set(m.id, m);
+  return [...map.values()].sort((a, b) => {
+    const ta = a.kickoff ? new Date(a.kickoff).getTime() : 0;
+    const tb = b.kickoff ? new Date(b.kickoff).getTime() : 0;
+    return ta - tb;
+  });
+}
 
 export function useAppData(session) {
   const userId = session?.user?.id;
@@ -30,6 +50,10 @@ export function useAppData(session) {
   const [profile, setProfile] = useState(null);
   const [matches, setMatches] = useState([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
+  const [matchesFullyLoaded, setMatchesFullyLoaded] = useState(false);
+  const [bootstrapReady, setBootstrapReady] = useState(false);
+  const matchesFullyLoadedRef = useRef(false);
+  const loadingMoreMatchesRef = useRef(false);
   const [matchSyncNotice, setMatchSyncNotice] = useState(null);
   const syncInFlightRef = useRef(false);
   const scoringInFlightRef = useRef(false);
@@ -54,61 +78,105 @@ export function useAppData(session) {
 
   const loadProfile = useCallback(async () => {
     if (!userId) return;
+    const cached = cacheGet(`profile:${userId}`);
+    if (cached) {
+      setProfile(cached);
+      if (cached.picks && typeof cached.picks === 'object') setPicks(cached.picks);
+    }
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (data) {
+      cacheSet(`profile:${userId}`, data, 120_000);
       setProfile(data);
       if (data.picks && typeof data.picks === 'object') setPicks(data.picks);
     }
   }, [userId]);
 
-  const loadMatches = useCallback(async ({ finishLoading = true } = {}) => {
-    const { data, error } = await supabase
-      .from('matches')
-      .select('*')
-      .order('kickoff', { ascending: true })
-      .range(0, 4999);
-    if (error) {
-      console.warn('[loadMatches]', error?.message ?? error);
+  const loadMatchesChunk = useCallback(
+    async ({ offset = 0, limit = MATCHES_CHUNK, append = false, finishLoading = true } = {}) => {
+      const cacheKey = `matches:${offset}:${limit}`;
+      let rows = cacheGet(cacheKey);
+
+      if (!rows) {
+        const { data, error } = await timedQuery(`matches[${offset}-${offset + limit - 1}]`, () =>
+          supabase
+            .from('matches')
+            .select('*')
+            .order('kickoff', { ascending: true })
+            .range(offset, offset + limit - 1)
+        );
+        if (error) {
+          console.warn('[loadMatchesChunk]', error?.message ?? error);
+          if (finishLoading) setMatchesLoading(false);
+          return 0;
+        }
+        rows = data?.length ? filterWorldCupMatches(normalizeMatches(data)) : [];
+        cacheSet(cacheKey, rows, 90_000);
+      }
+
+      if (append) {
+        setMatches((prev) => mergeMatchesSorted(prev, rows));
+      } else {
+        setMatches(rows);
+      }
       if (finishLoading) setMatchesLoading(false);
-      return 0;
+      return rows.length;
+    },
+    []
+  );
+
+  const loadRemainingMatches = useCallback(async () => {
+    if (loadingMoreMatchesRef.current || matchesFullyLoadedRef.current) return;
+    loadingMoreMatchesRef.current = true;
+    try {
+      let offset = MATCHES_CHUNK;
+      while (offset <= MATCHES_HARD_LIMIT) {
+        const count = await loadMatchesChunk({
+          offset,
+          limit: MATCHES_CHUNK,
+          append: true,
+          finishLoading: false,
+        });
+        if (count < MATCHES_CHUNK) break;
+        offset += MATCHES_CHUNK;
+        await new Promise((resolve) => window.setTimeout(resolve, 16));
+      }
+      matchesFullyLoadedRef.current = true;
+      setMatchesFullyLoaded(true);
+    } finally {
+      loadingMoreMatchesRef.current = false;
     }
-    let count = 0;
-    if (data?.length) {
-      const normalized = filterWorldCupMatches(normalizeMatches(data));
-      setMatches(normalized);
-      count = normalized.length;
-    } else {
-      setMatches([]);
-    }
-    if (finishLoading || !isFootballApiConfigured()) {
-      setMatchesLoading(false);
-    }
-    return count;
-  }, []);
+  }, [loadMatchesChunk]);
+
+  const ensureAllMatchesLoaded = useCallback(async () => {
+    if (matchesFullyLoadedRef.current) return;
+    await loadRemainingMatches();
+  }, [loadRemainingMatches]);
 
   const reloadMatches = useCallback(async () => {
-    const n = await loadMatches({ finishLoading: true });
-    setMatchesLoading(false);
+    cacheInvalidate('matches:');
+    matchesFullyLoadedRef.current = false;
+    setMatchesFullyLoaded(false);
+    setMatchesLoading(true);
+    const n = await loadMatchesChunk({ offset: 0, limit: MATCHES_CHUNK, append: false, finishLoading: true });
+    void loadRemainingMatches();
     return n;
-  }, [loadMatches]);
+  }, [loadMatchesChunk, loadRemainingMatches]);
 
-  const syncWorldCupAndReload = useCallback(async () => {
+  const syncWorldCupBackground = useCallback(async () => {
     if (!userId || syncInFlightRef.current) return;
 
     syncInFlightRef.current = true;
-    setMatchesLoading(true);
     setMatchSyncNotice(null);
 
     let timeoutId;
     timeoutId = window.setTimeout(() => {
-      setMatchesLoading(false);
       setMatchSyncNotice('No se pudo sincronizar, usando calendario provisional.');
     }, 8000);
 
     try {
       console.log('[SYNC START]');
       try {
-        const result = await syncWorldCupFixtures();
+        const result = await timedQuery('syncWorldCup', () => syncWorldCupFixtures());
         if (result?.skipped) {
           console.log('[SYNC]', 'skipped', result?.source ?? '', result?.existing ?? 0);
         }
@@ -118,16 +186,21 @@ export function useAppData(session) {
     } finally {
       if (timeoutId) window.clearTimeout(timeoutId);
       try {
-        const n = await reloadMatches();
+        cacheInvalidate('matches:');
+        matchesFullyLoadedRef.current = false;
+        setMatchesFullyLoaded(false);
+        const n = await loadMatchesChunk({ offset: 0, limit: MATCHES_CHUNK, append: false, finishLoading: false });
         if (n > 0) setMatchSyncNotice(null);
+        void loadRemainingMatches();
         if (n > 0) await runScoringPipelineRef.current?.();
       } catch (e) {
         console.warn('[reloadMatches]', e?.message ?? e);
       }
-      setMatchesLoading(false);
       syncInFlightRef.current = false;
     }
-  }, [userId, reloadMatches]);
+  }, [userId, loadMatchesChunk, loadRemainingMatches]);
+
+  const syncWorldCupAndReload = syncWorldCupBackground;
 
   const onFootballSynced = useCallback(async () => {
     await reloadMatches();
@@ -153,17 +226,26 @@ export function useAppData(session) {
   }, []);
 
   const loadRanking = useCallback(async () => {
+    const cached = cacheGet('ranking');
+    if (cached) {
+      setRanking(cached);
+      return;
+    }
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username, name, photo_url, points, exacts, streak')
-        .order('points', { ascending: false });
+      const { data, error } = await timedQuery('ranking', () =>
+        supabase
+          .from('profiles')
+          .select('id, username, name, photo_url, points, exacts, streak')
+          .order('points', { ascending: false })
+      );
       if (error) {
         console.warn('[loadRanking]', error.message);
         setRanking([]);
         return;
       }
-      setRanking(data ?? []);
+      const rows = data ?? [];
+      cacheSet('ranking', rows, 120_000);
+      setRanking(rows);
     } catch (e) {
       console.warn('[loadRanking]', e?.message ?? e);
       setRanking([]);
@@ -171,8 +253,16 @@ export function useAppData(session) {
   }, []);
 
   const loadCommunityPicks = useCallback(async () => {
+    const cached = cacheGet('community-picks');
+    if (cached) {
+      setCommunityPickProfiles(cached);
+      communityPickProfilesRef.current = cached;
+      return cached;
+    }
     try {
-      const { data, error } = await supabase.from('profiles').select('id, username, name, photo_url, picks');
+      const { data, error } = await timedQuery('communityPicks', () =>
+        supabase.from('profiles').select('id, username, name, photo_url, picks')
+      );
       if (error) {
         console.warn('[communityPicks]', error?.message ?? error);
         setCommunityPickProfiles([]);
@@ -181,6 +271,7 @@ export function useAppData(session) {
       const rows = (data ?? []).filter(
         (r) => r?.picks && typeof r.picks === 'object' && Object.keys(r.picks).length > 0
       );
+      cacheSet('community-picks', rows, 90_000);
       setCommunityPickProfiles(rows);
       communityPickProfilesRef.current = rows;
       return rows;
@@ -193,11 +284,13 @@ export function useAppData(session) {
 
   const loadActivity = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('activity_log')
-        .select('action, payload, created_at, profiles(username, photo_url)')
-        .order('created_at', { ascending: false })
-        .limit(8);
+      const { data, error } = await timedQuery('activity', () =>
+        supabase
+          .from('activity_log')
+          .select('action, payload, created_at, profiles(username, photo_url)')
+          .order('created_at', { ascending: false })
+          .limit(8)
+      );
 
       if (error) {
         console.warn('[loadActivity]', error.message);
@@ -303,6 +396,7 @@ export function useAppData(session) {
           await loadProfile();
         }
 
+        cacheInvalidate('ranking');
         await loadRanking();
         await syncAchievementsForProfiles(result?.profiles);
         loadActivity();
@@ -388,11 +482,13 @@ export function useAppData(session) {
   reloadReactionsRef.current = reloadReactionsForCommentIds;
 
   const loadComments = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('comments')
-      .select('id, body, created_at, profiles(username, name, photo_url)')
-      .order('created_at', { ascending: true })
-      .limit(80);
+    const { data, error } = await timedQuery('comments', () =>
+      supabase
+        .from('comments')
+        .select('id, body, created_at, profiles(username, name, photo_url)')
+        .order('created_at', { ascending: true })
+        .limit(80)
+    );
 
     if (error) {
       console.error('[loadComments] comments query failed', error);
@@ -451,17 +547,19 @@ export function useAppData(session) {
       return;
     }
     try {
-      const { data, error } = await supabase
-        .from('activity_log')
-        .select('profile_id, action, payload, created_at, profiles ( username, name, photo_url )')
-        .in('action', [
-          'prediction_created',
-          'prediction_updated',
-          'prediction_made',
-          'prediction_changed',
-        ])
-        .order('created_at', { ascending: false })
-        .limit(PREDICTION_ACTIVITY_QUERY_LIMIT);
+      const { data, error } = await timedQuery('predictionFeeds', () =>
+        supabase
+          .from('activity_log')
+          .select('profile_id, action, payload, created_at, profiles ( username, name, photo_url )')
+          .in('action', [
+            'prediction_created',
+            'prediction_updated',
+            'prediction_made',
+            'prediction_changed',
+          ])
+          .order('created_at', { ascending: false })
+          .limit(PREDICTION_ACTIVITY_QUERY_LIMIT)
+      );
 
       if (error) {
         console.warn('[loadPredictionFeeds]', error?.message ?? error);
@@ -526,8 +624,6 @@ export function useAppData(session) {
   const loginBootstrapGenRef = useRef(0);
   const loadProfileRef = useRef(loadProfile);
   loadProfileRef.current = loadProfile;
-  const syncWorldCupAndReloadRef = useRef(syncWorldCupAndReload);
-  syncWorldCupAndReloadRef.current = syncWorldCupAndReload;
   const loadRankingRef = useRef(loadRanking);
   loadRankingRef.current = loadRanking;
   const loadActivityRef = useRef(loadActivity);
@@ -540,79 +636,110 @@ export function useAppData(session) {
   refreshUserAchievementsRef.current = refreshUserAchievements;
   const loadEventsRef = useRef(loadEvents);
   loadEventsRef.current = loadEvents;
+  const loadMatchesChunkRef = useRef(loadMatchesChunk);
+  loadMatchesChunkRef.current = loadMatchesChunk;
+  const loadRemainingMatchesRef = useRef(loadRemainingMatches);
+  loadRemainingMatchesRef.current = loadRemainingMatches;
+  const syncWorldCupBackgroundRef = useRef(syncWorldCupBackground);
+  syncWorldCupBackgroundRef.current = syncWorldCupBackground;
 
-  // Login: una sola pasada por userId (evita re-sync por deps inestables / Strict Mode duplicado)
+  const loadSecondaryData = useCallback(async () => {
+    await Promise.all([
+      loadCommunityPicks(),
+      loadPredictionFeeds(),
+      loadActivity(),
+      loadBadges(),
+      refreshUserAchievements(),
+    ]);
+    markBootstrapPhase('fase2');
+    reportBootstrapDiagnostics('Fase 2 (secundaria)');
+  }, [
+    loadCommunityPicks,
+    loadPredictionFeeds,
+    loadActivity,
+    loadBadges,
+    refreshUserAchievements,
+  ]);
+
+  const loadDeferredData = useCallback(async () => {
+    await loadRemainingMatches();
+    void syncWorldCupBackgroundRef.current?.();
+    loadEventsRef.current?.();
+    markBootstrapPhase('fase3');
+    reportBootstrapDiagnostics('Fase 3 (resto)');
+  }, [loadRemainingMatches]);
+
+  const loadSecondaryDataRef = useRef(loadSecondaryData);
+  loadSecondaryDataRef.current = loadSecondaryData;
+  const loadDeferredDataRef = useRef(loadDeferredData);
+  loadDeferredDataRef.current = loadDeferredData;
+
+  // Login: fase crítica primero; secundaria y resto en idle
   useEffect(() => {
     if (!userId) {
       loginBootstrapGenRef.current = 0;
+      setBootstrapReady(false);
+      matchesFullyLoadedRef.current = false;
+      setMatchesFullyLoaded(false);
       return;
     }
 
     let cancelled = false;
     const gen = ++loginBootstrapGenRef.current;
+    markBootstrapStart();
+    setBootstrapReady(false);
 
     (async () => {
-      await loadProfileRef.current();
+      setMatchesLoading(matchesRef.current.length === 0);
+
+      await Promise.all([
+        timedQuery('profile', () => loadProfileRef.current()),
+        timedQuery('ranking', () => loadRankingRef.current()),
+        timedQuery('comments', () => loadCommentsRef.current()),
+        timedQuery('matches:initial', () =>
+          loadMatchesChunkRef.current({
+            offset: 0,
+            limit: MATCHES_CHUNK,
+            append: false,
+            finishLoading: true,
+          })
+        ),
+      ]);
+
       if (cancelled || gen !== loginBootstrapGenRef.current) return;
-      await syncWorldCupAndReloadRef.current();
-      if (cancelled || gen !== loginBootstrapGenRef.current) return;
-      loadRankingRef.current();
-      loadActivityRef.current();
-      loadCommentsRef.current();
-      loadBadgesRef.current();
-      refreshUserAchievementsRef.current();
-      loadEventsRef.current();
-      await loadCommunityPicks();
-      loadPredictionFeedsRef.current();
-      void runScoringPipelineRef.current?.();
+      setBootstrapReady(true);
+      markBootstrapPhase('fase1');
+      reportBootstrapDiagnostics('Fase 1 (crítica)');
+
+      scheduleIdleWork(() => {
+        if (cancelled || gen !== loginBootstrapGenRef.current) return;
+        void loadSecondaryDataRef.current?.();
+      });
+
+      scheduleIdleWork(() => {
+        if (cancelled || gen !== loginBootstrapGenRef.current) return;
+        void loadDeferredDataRef.current?.();
+      }, { delayMs: 400 });
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [userId, loadCommunityPicks]);
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
 
-    const picksChannel = supabase
-      .channel('profiles-picks-community')
+    const commentsChannel = supabase
+      .channel('comments-realtime')
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles' },
-        async () => {
-          try {
-            await loadCommunityPicks();
-            void loadPredictionFeedsRef.current();
-          } catch (e) {
-            console.warn('[profiles-picks realtime]', e?.message ?? e);
-          }
+        { event: 'INSERT', schema: 'public', table: 'comments' },
+        () => {
+          void loadCommentsRef.current?.();
         }
       )
       .subscribe();
-
-    const activityPredChannel = supabase
-      .channel('activity-log-predictions')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'activity_log' },
-        (payload) => {
-          const action = payload.new?.action;
-          if (isPredictionActivityAction(action)) {
-            void loadPredictionFeedsRef.current();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(picksChannel);
-      supabase.removeChannel(activityPredChannel);
-    };
-  }, [userId, loadCommunityPicks]);
-
-  useEffect(() => {
-    if (!userId) return;
 
     const rxChannel = supabase
       .channel('reactions-realtime')
@@ -639,32 +766,10 @@ export function useAppData(session) {
       });
 
     return () => {
+      supabase.removeChannel(commentsChannel);
       supabase.removeChannel(rxChannel);
     };
   }, [userId]);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const channel = supabase
-      .channel('matches-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'matches' },
-        (payload) => {
-          if (payload.eventType === 'DELETE') {
-            setMatches((prev) => prev.filter((m) => m.id !== payload.old.id));
-            return;
-          }
-          if (payload.new) applyMatchRow(payload.new);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, applyMatchRow]);
 
   async function savePick(matchId, homePick, awayPick, advancesTeam = null) {
     if (!userId) return { ok: false, error: 'Sin sesión' };
@@ -716,6 +821,7 @@ export function useAppData(session) {
       updated_at: entry.updated_at,
     });
     void loadPredictionFeedsRef.current();
+    cacheInvalidate('community-picks');
     void loadCommunityPicks();
     return { ok: true, isUpdate: hadPick };
   }
@@ -819,6 +925,10 @@ export function useAppData(session) {
     profile,
     matches,
     matchesLoading,
+    matchesFullyLoaded,
+    bootstrapReady,
+    ensureAllMatchesLoaded,
+    loadSecondaryData,
     matchSyncNotice,
     applyMatchRow,
     reloadMatches,

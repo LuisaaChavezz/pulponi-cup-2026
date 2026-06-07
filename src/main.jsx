@@ -10,6 +10,7 @@ import './home-dashboard.css';
 import './navigation.css';
 import './partidos-matches-layout.css';
 import './parlay-page.css';
+import './skeleton.css';
 
 class RootErrorBoundary extends Component {
   constructor(props) {

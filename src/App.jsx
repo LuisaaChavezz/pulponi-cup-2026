@@ -1,9 +1,7 @@
-import { Component, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Settings } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import AuthPage from './pages/AuthPage';
-import ParlayPage from './pages/ParlayPage';
 import { useAppData } from './hooks/useAppData';
 import {
   displayMatchStatus,
@@ -26,35 +24,30 @@ import {
 import { useMatchSync } from './hooks/useMatchSync';
 import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
-import MatchChat from './components/MatchChat';
-import RulesBadgesSection from './components/RulesBadgesSection';
-import DashboardNotifications from './components/DashboardNotifications';
 import HomeDashboard from './components/HomeDashboard';
+import { HomeDashboardSkeleton, MatchesGridSkeleton } from './components/PulponiSkeleton';
 import { ACHIEVEMENT_CATALOG, isAchievementUnlockedById, countAchievementsTotal, countAchievementsUnlocked } from './data/achievements';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
-import ProfileAchievementsStrip from './components/ProfileAchievementsStrip';
 import UserPublicProfile from './components/UserPublicProfile';
-import Profile from './components/Profile';
-import {
-  ProfilePageCard,
-  ProfileStatsGrid,
-  ProfileBadgesList,
-  ProfileActivityList,
-  ProfilePickHistory,
-  SHOW_PROFILE_ACTIVITY,
-} from './components/ProfilePageSections';
 import { usePublicProfile } from './hooks/usePublicProfile';
 import { resolveAvatarUrl } from './lib/avatars';
-import AvatarSelector from './components/AvatarSelector';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
-import ProfileRankingSummary from './components/ProfileRankingSummary';
 import RankingLeaderboard from './components/RankingLeaderboard';
 import MatchCommunityPrediction from './components/MatchCommunityPrediction';
 import { collectMatchPickScores, parsePickScore } from './lib/communityPicks';
 import { normalizeStoredHighlightList } from './lib/highlightsMapper';
 import { buildRankedLeaderboard } from './lib/rankingHistory';
 import { exportRankingPdf } from './lib/exportRankingPdf';
+
+const ParlayPage = lazy(() => import('./pages/ParlayPage'));
+const ComunidadPage = lazy(() => import('./pages/ComunidadPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const RulesPage = lazy(() => import('./pages/RulesPage'));
+
+function PanelFallback({ label = 'Cargando…' }) {
+  return <div className="panel-skeleton-fallback">{label}</div>;
+}
 
 const NAV = [
   { id: 'inicio', icon: '⌂', label: 'Inicio' },
@@ -125,6 +118,8 @@ export default function App() {
   const [matchPredictionFilter, setMatchPredictionFilter] = useState('all');
 
   const data = useAppData(session);
+  const appRenderCountRef = useRef(0);
+  appRenderCountRef.current += 1;
 
   const sortedRanking = useMemo(
     () => buildRankedLeaderboard(data.ranking ?? []),
@@ -132,11 +127,22 @@ export default function App() {
   );
 
   useEffect(() => {
-    if ((activeNav === 'comunidad' || activeNav === 'inicio') && session?.user?.id) {
-      void data.loadCommunityPicks?.();
-      void data.loadPredictionFeeds?.();
+    if (data.bootstrapReady) {
+      console.log('[Pulponi Perf] Renders hasta fase 1:', appRenderCountRef.current);
     }
-  }, [activeNav, session?.user?.id, data.loadCommunityPicks, data.loadPredictionFeeds]);
+  }, [data.bootstrapReady]);
+
+  useEffect(() => {
+    if (activeNav === 'comunidad' && session?.user?.id) {
+      void data.loadSecondaryData?.();
+    }
+  }, [activeNav, session?.user?.id, data.loadSecondaryData]);
+
+  useEffect(() => {
+    if ((activeNav === 'partidos' || activeNav === 'parlay') && session?.user?.id) {
+      void data.ensureAllMatchesLoaded?.();
+    }
+  }, [activeNav, session?.user?.id, data.ensureAllMatchesLoaded]);
 
   const worldCupMatches = useMemo(() => {
     const list = filterWorldCupMatches(data.matches ?? []);
@@ -192,7 +198,7 @@ export default function App() {
     achievementCatalog,
   });
 
-  const myProfileView = usePublicProfile(session?.user?.id ?? null, {
+  const myProfileView = usePublicProfile(activeNav === 'perfil' ? session?.user?.id ?? null : null, {
     matches: worldCupMatches,
     communityPickProfiles: data.communityPickProfiles ?? [],
     achievementCatalog,
@@ -511,6 +517,15 @@ export default function App() {
   const myBadges =
     myProfileExtras.badges?.length > 0 ? myProfileExtras.badges : myBadgesFromCatalog;
 
+  const profileActivityRows =
+    myProfileExtras.activity?.length
+      ? myProfileExtras.activity
+      : (data.activity ?? []).map((row, i) => ({
+          id: `feed-${i}`,
+          text: row.text,
+          at: null,
+        }));
+
   function openUserProfile(profileId) {
     if (!profileId) return;
     setViewProfileId(profileId);
@@ -756,32 +771,38 @@ export default function App() {
       <main className="app-shell">
         <section id="inicio" className={sectionClass('inicio', 'layout layout--dashboard')}>
           {activeNav === 'inicio' ? (
-            <HomeDashboard
-              session={session}
-              matches={worldCupMatches}
-              ranking={data.ranking ?? []}
-              profile={profile}
-              myCurrentRank={myCurrentRank}
-              predictionActivityFeed={data.predictionActivityFeed ?? []}
-              communityPickProfiles={data.communityPickProfiles ?? []}
-              matchesLoading={data.matchesLoading}
-              matchSyncNotice={data.matchSyncNotice}
-              chatMessages={data.chatData ?? []}
-              chatInput={chatInput}
-              setChatInput={setChatInput}
-              onSendMessage={handleSendMessage}
-              reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
-              onToggleReaction={data.toggleReaction}
-              memberCount={(data.ranking ?? []).length}
-              onMakePrediction={() => navigateToSection('partidos')}
-              onViewRanking={() => navigateToSection('ranking')}
-              onViewCommunity={() => navigateToSection('comunidad')}
-              onSelectUser={openUserProfile}
-            />
+            !data.bootstrapReady && !worldCupMatches.length ? (
+              <HomeDashboardSkeleton />
+            ) : (
+              <HomeDashboard
+                session={session}
+                matches={worldCupMatches}
+                ranking={data.ranking ?? []}
+                profile={profile}
+                myCurrentRank={myCurrentRank}
+                predictionActivityFeed={data.predictionActivityFeed ?? []}
+                communityPickProfiles={data.communityPickProfiles ?? []}
+                matchesLoading={data.matchesLoading}
+                matchSyncNotice={data.matchSyncNotice}
+                chatMessages={data.chatData ?? []}
+                chatInput={chatInput}
+                setChatInput={setChatInput}
+                onSendMessage={handleSendMessage}
+                reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
+                onToggleReaction={data.toggleReaction}
+                memberCount={(data.ranking ?? []).length}
+                onMakePrediction={() => navigateToSection('partidos')}
+                onViewRanking={() => navigateToSection('ranking')}
+                onViewCommunity={() => navigateToSection('comunidad')}
+                onSelectUser={openUserProfile}
+              />
+            )
           ) : null}
         </section>
 
         <section id="partidos" className={sectionClass('partidos', 'panel')}>
+          {activeNav === 'partidos' ? (
+            <>
           <div className="section-title">
             <div>
               <span className="eyebrow">Predicciones</span>
@@ -864,7 +885,7 @@ export default function App() {
             </div>
           </div>
           {data.matchesLoading && !worldCupMatches.length ? (
-            <p className="muted sync-footnote">Cargando calendario…</p>
+            <MatchesGridSkeleton rows={6} />
           ) : null}
           {!data.matchesLoading && filteredPartidos.length === 0 ? (
             <p className="muted sync-footnote">No hay partidos que coincidan con los filtros.</p>
@@ -873,11 +894,18 @@ export default function App() {
               {sortedPartidos.map((m) => renderMatchCard(m))}
             </div>
           )}
+          {!data.matchesFullyLoaded ? (
+            <p className="muted sync-footnote">Cargando más partidos en segundo plano…</p>
+          ) : null}
+            </>
+          ) : null}
         </section>
 
         <section id="parlay" className={sectionClass('parlay', 'panel')}>
           {activeNav === 'parlay' ? (
-            <ParlayPage matches={worldCupMatches} userId={session?.user?.id} />
+            <Suspense fallback={<PanelFallback label="Cargando parlay…" />}>
+              <ParlayPage matches={worldCupMatches} userId={session?.user?.id} />
+            </Suspense>
           ) : null}
         </section>
 
@@ -920,184 +948,67 @@ export default function App() {
         </section>
 
         <section id="comunidad" className={sectionClass('comunidad', 'panel')}>
-          <div className="section-title">
-            <div>
-              <span className="eyebrow">Comunidad</span>
-              <h2>Comunidad Pulponi</h2>
-            </div>
-          </div>
-          <div className="community-content">
-            <article className="important-messages-panel pulponi-card">
-              <div className="important-messages-panel__scroll chat-list chat-list--notifications">
-                <DashboardNotifications
-                  importantAlerts={data.events ?? []}
-                  predictionActivityFeed={data.predictionActivityFeed ?? []}
-                  predictionActivityLog={data.predictionActivityLog ?? []}
-                  matches={worldCupMatches ?? []}
-                  communityPickProfiles={data.communityPickProfiles ?? []}
-                  isAdmin={Boolean(data.profile?.is_admin)}
-                  onCreateImportantAlert={data.createEvent}
-                />
-              </div>
-            </article>
-            <article className="chat-panel pulponi-card">
-              <header className="phone-header chat-panel__header">
-                <span>CHAT DEL PARTIDO</span>
-                <small>{(data.ranking ?? []).length} miembros</small>
-              </header>
-              <MatchChat
-                messages={data.chatData}
+          {activeNav === 'comunidad' ? (
+            <Suspense fallback={<PanelFallback label="Cargando comunidad…" />}>
+              <ComunidadPage
+                ranking={data.ranking ?? []}
+                chatMessages={data.chatData ?? []}
                 chatInput={chatInput}
                 setChatInput={setChatInput}
-                onSend={handleSendMessage}
-                currentUserId={session?.user?.id ?? null}
-                reactionRowsByMessage={data.reactionRowsByMessage}
+                onSendMessage={handleSendMessage}
+                sessionUserId={session?.user?.id ?? null}
+                reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
                 onToggleReaction={data.toggleReaction}
-                messagesListClassName="chat-messages-list"
-                inputAreaClassName="chat-input-area"
+                events={data.events ?? []}
+                predictionActivityFeed={data.predictionActivityFeed ?? []}
+                predictionActivityLog={data.predictionActivityLog ?? []}
+                matches={worldCupMatches ?? []}
+                communityPickProfiles={data.communityPickProfiles ?? []}
+                isAdmin={Boolean(data.profile?.is_admin)}
+                onCreateImportantAlert={data.createEvent}
               />
-            </article>
-          </div>
+            </Suspense>
+          ) : null}
         </section>
 
         <section id="perfil" className={sectionClass('perfil', 'panel')}>
-          <article className="phone dash-perfil dash-profile pulponi-card profile-page">
-            <div className="phone-header">
-              <span>PERFIL</span>
-              <button type="button" onClick={() => setProfileEdit(!profileEdit)} aria-label="Ajustes">
-                <Settings size={16} />
-              </button>
-            </div>
-
-            <div className="profile-page__body">
-              <Profile
+          {activeNav === 'perfil' ? (
+            <Suspense fallback={<PanelFallback label="Cargando perfil…" />}>
+              <ProfilePage
                 avatarUrl={avatarUrl}
-                username={profile?.username ?? displayUser.replace('@', '')}
+                displayUser={displayUser}
                 displayName={displayName}
-                rank={myCurrentRank}
-                points={profile?.points ?? 0}
-                exacts={profile?.exacts ?? 0}
-                streak={profile?.streak ?? 0}
-                verified
-                uploadLabel="Subir foto"
-                onUpload={handleAvatarUpload}
+                myCurrentRank={myCurrentRank}
+                profile={profile}
+                profileEdit={profileEdit}
+                onToggleProfileEdit={() => setProfileEdit(!profileEdit)}
+                editName={editName}
+                setEditName={setEditName}
+                editUsername={editUsername}
+                setEditUsername={setEditUsername}
+                onSaveProfile={handleSaveProfile}
+                onAvatarUpload={handleAvatarUpload}
+                sessionUserId={session?.user?.id}
+                myProfileExtras={myProfileExtras}
+                unlockedAchievementIds={unlockedAchievementIds}
+                achievementCatalog={achievementCatalog}
+                achievementsTotal={achievementsTotal}
+                unlockedCount={unlockedCount}
+                myBadges={myBadges}
+                activityRows={profileActivityRows}
+                onViewAllAchievements={() => openUserProfile(session.user.id)}
+                onSelectPreset={handleSelectPreset}
               />
-
-              {profileEdit ? (
-                <ProfilePageCard title="Editar perfil" className="profile-page-card--edit">
-                  <div className="profile-page__edit">
-                    <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nombre" />
-                    <input
-                      value={editUsername}
-                      onChange={(e) => setEditUsername(e.target.value)}
-                      placeholder="Username"
-                    />
-                    <button type="button" className="primary" onClick={handleSaveProfile}>
-                      Guardar cambios
-                    </button>
-                  </div>
-                </ProfilePageCard>
-              ) : null}
-
-              <div className="profile-page__cards profile-page__cards--own">
-                <ProfilePageCard title="Tu ranking">
-                  <ProfileRankingSummary userId={session?.user?.id} />
-                </ProfilePageCard>
-
-                <ProfilePageCard title="Estadísticas">
-                  <ProfileStatsGrid stats={myProfileExtras.stats} />
-                </ProfilePageCard>
-
-                <ProfilePageCard
-                  title="Historial de predicciones"
-                  className="profile-page-card--predictions-history"
-                >
-                  <ProfilePickHistory rows={myProfileExtras.pickHistory} />
-                </ProfilePageCard>
-
-                <ProfilePageCard title="Badges" meta={`${unlockedCount} / ${achievementsTotal}`}>
-                  <ProfileAchievementsStrip
-                    unlockedIds={unlockedAchievementIds}
-                    catalog={achievementCatalog}
-                    onViewAll={() => openUserProfile(session.user.id)}
-                  />
-                  <ProfileBadgesList badges={myBadges} />
-                </ProfilePageCard>
-
-                {SHOW_PROFILE_ACTIVITY ? (
-                  <ProfilePageCard title="Actividad reciente">
-                    <ProfileActivityList
-                      items={
-                        myProfileExtras.activity?.length
-                          ? myProfileExtras.activity
-                          : (data.activity ?? []).map((row, i) => ({
-                              id: `feed-${i}`,
-                              text: row.text,
-                              at: null,
-                            }))
-                      }
-                    />
-                  </ProfilePageCard>
-                ) : null}
-
-                <ProfilePageCard title="Elegir avatar" className="profile-page-card--avatars">
-                  <AvatarSelector currentPhotoUrl={profile?.photo_url} onSelect={handleSelectPreset} />
-                </ProfilePageCard>
-              </div>
-            </div>
-          </article>
+            </Suspense>
+          ) : null}
         </section>
 
         <section id="reglas" className={sectionClass('reglas', 'panel')}>
-          <div className="section-title">
-            <div>
-              <span className="eyebrow">Oficial</span>
-              <h2>Reglas</h2>
-            </div>
-          </div>
-          <div className="rules-accordion">
-            <details open>
-              <summary>Sistema de puntos</summary>
-              <p>Marcador exacto (90&apos; + compensación): 3 puntos. Resultado correcto (ganador o empate): 1 punto. Sin predicción: 0 puntos.</p>
-            </details>
-            <details>
-              <summary>Cómo funciona la quiniela</summary>
-              <p>
-                Antes de cada kickoff elige el marcador al 90&apos; (+ compensación). Solo cuenta el tiempo
-                regular: tiempos extra y penales no cambian tu pick de marcador. En eliminatorias puedes
-                indicar quién avanza en penales para un bonus extra.
-              </p>
-            </details>
-            <details>
-              <summary>Parlay virtual Pulponi</summary>
-              <p>
-                En la pestaña PARLAY puedes combinar entre 5 y 25 selecciones 1X2. Si hay API de momios
-                autorizada configurada (The Odds API vía proxy seguro), se muestran cotizaciones reales
-                agregadas. Si no, verás momios Pulponi simulados, claramente etiquetados — sin datos de
-                casas no autorizadas ni scraping. El momio total multiplica cada selección. Sobre la ganancia
-                estimada se aplica una comisión interna Pulponi del 30% (factor usuario 70%).{' '}
-                <strong>El cálculo final usa el sistema interno Pulponi.</strong> No se maneja dinero real:
-                solo puntos virtuales y ranking interno.
-              </p>
-            </details>
-            <details>
-              <summary>Reglamento · Penales</summary>
-              <p>La quiniela se califica solo con el marcador al final del tiempo regular. Tiempos extra no cuentan. Si hay penales, tu marcador regular sigue siendo el del 90&apos;. En eliminatorias indica quién avanza: +1 bonus si aciertas.</p>
-            </details>
-            <details>
-              <summary>Cierre de picks</summary>
-              <p>Puedes editar tu resultado hasta el inicio del partido (kickoff). Cuando el partido está en vivo o terminado, verás &quot;Predicción cerrada&quot;.</p>
-            </details>
-            <details>
-              <summary>Desempates</summary>
-              <p>1) Más puntos 2) Más exactos 3) Mayor racha.</p>
-            </details>
-            <details>
-              <summary>Ranking y logros</summary>
-              <p>El ranking se calcula desde Supabase en tiempo real. Los logros se desbloquean automáticamente según tus exactos, racha, ranking e Índice Pulpo.</p>
-            </details>
-          </div>
-          <RulesBadgesSection />
+          {activeNav === 'reglas' ? (
+            <Suspense fallback={<PanelFallback label="Cargando reglas…" />}>
+              <RulesPage />
+            </Suspense>
+          ) : null}
         </section>
       </main>
 
