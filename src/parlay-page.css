@@ -1,0 +1,62 @@
+/* Pulponi Cup — Parlay placeholder */
+
+.parlay-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+}
+
+.parlay-page__head .section-lead {
+  max-width: 36rem;
+}
+
+.parlay-page__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 240px;
+  padding: 32px 24px;
+  text-align: center;
+  border: 1px solid rgba(255, 30, 39, 0.35);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 30, 39, 0.14), transparent 55%),
+    linear-gradient(165deg, rgba(18, 18, 22, 0.98) 0%, rgba(8, 8, 10, 0.98) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 30, 39, 0.08) inset,
+    0 16px 40px rgba(0, 0, 0, 0.35),
+    0 0 28px rgba(255, 30, 39, 0.1);
+}
+
+.parlay-page__placeholder-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.parlay-page__placeholder-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fecaca;
+}
+
+.parlay-page__placeholder-copy {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--muted, #a1a1aa);
+  font-weight: 600;
+}
+
+@media (min-width: 768px) {
+  .parlay-page__placeholder {
+    min-height: 280px;
+    padding: 40px 32px;
+  }
+}

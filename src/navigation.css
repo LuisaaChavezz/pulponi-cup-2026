@@ -8,7 +8,7 @@
   justify-content: center;
   gap: 3px;
   width: max-content;
-  max-width: min(100%, 980px);
+  max-width: min(100%, 1100px);
   margin-inline: auto;
   padding: 5px;
   border-radius: 22px;
@@ -41,7 +41,7 @@
   width: auto;
   max-width: none;
   text-align: center;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 1.15;
@@ -102,7 +102,7 @@
   max-width: 720px;
   margin-inline: auto;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
   padding: 8px;
   border-radius: 22px 22px 0 0;

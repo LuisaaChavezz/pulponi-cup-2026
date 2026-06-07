@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Settings } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import AuthPage from './pages/AuthPage';
+import ParlayPage from './pages/ParlayPage';
 import { useAppData } from './hooks/useAppData';
 import {
   displayMatchStatus,
@@ -58,6 +59,7 @@ import { exportRankingPdf } from './lib/exportRankingPdf';
 const NAV = [
   { id: 'inicio', icon: '⌂', label: 'Inicio' },
   { id: 'partidos', icon: '⚽', label: 'Partidos' },
+  { id: 'parlay', icon: '🎯', label: 'PARLAY' },
   { id: 'ranking', icon: '🏆', label: 'Ranking' },
   { id: 'comunidad', icon: '💬', label: 'Comunidad' },
   { id: 'perfil', icon: '●', label: 'Perfil' },
@@ -871,6 +873,10 @@ export default function App() {
               {sortedPartidos.map((m) => renderMatchCard(m))}
             </div>
           )}
+        </section>
+
+        <section id="parlay" className={sectionClass('parlay', 'panel')}>
+          {activeNav === 'parlay' ? <ParlayPage /> : null}
         </section>
 
         <section id="ranking" className={sectionClass('ranking', 'panel')}>
