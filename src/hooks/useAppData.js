@@ -4,6 +4,7 @@ import { resolveAvatarUrl } from '../lib/avatars';
 import { runScoringAndPulpoPipeline } from '../lib/pulpoSync';
 import { isMatchFinished } from '../lib/matchUtils';
 import { isFootballApiConfigured, syncWorldCupFixtures } from '../lib/footballApi';
+import { filterWorldCupMatches } from '../lib/worldCupScope';
 import { normalizeMatchRow, normalizeMatches } from '../lib/normalizeMatch';
 import { formatActivityLogMessage } from '../lib/activityMessages';
 import {
@@ -73,7 +74,7 @@ export function useAppData(session) {
     }
     let count = 0;
     if (data?.length) {
-      const normalized = normalizeMatches(data);
+      const normalized = filterWorldCupMatches(normalizeMatches(data));
       setMatches(normalized);
       count = normalized.length;
     } else {

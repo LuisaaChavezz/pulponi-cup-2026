@@ -7,7 +7,14 @@ import { WORLD_CUP_DEMO_FIXTURES, demoFixtureToMatchRow } from '../data/worldCup
 import { FINISHED_API, LIVE_API, normalizeApiStatus } from './footballApiStatus';
 import { flagEmojiForTeam } from './teamFlags';
 import { mapApiEventsToHighlights } from './highlightsMapper';
-import { isWorldCupMatch, wcLeagueIdFromEnv, wcSeasonFromEnv } from './worldCupScope';
+import {
+  isWorldCupMatch,
+  isApiWorldCup2026Fixture,
+  filterApiWorldCup2026Fixtures,
+  isOfficialWorldCupScheduleId,
+  wcLeagueIdFromEnv,
+  wcSeasonFromEnv,
+} from './worldCupScope';
 
 const API_BASE = 'https://v3.football.api-sports.io';
 let lastApiFootballError = null;
@@ -293,25 +300,21 @@ export async function fetchFixtureEvents(fixtureId) {
 export async function fetchWorldCupFixtures() {
   const leagueId = getLeagueId();
   const season = getSeason();
-  const fixtures = (await apiFetchAllPages('/fixtures', { league: leagueId, season })) ?? [];
+  const fixtures = filterApiWorldCup2026Fixtures(
+    (await apiFetchAllPages('/fixtures', { league: leagueId, season })) ?? []
+  );
   if (fixtures.length) {
     console.log('[API-FOOTBALL]', fixtures.length, 'fixtures', { leagueId, season });
   }
   return fixtures;
 }
 
-/** Fixtures del Mundial + merge solo con partidos LIVE de la misma liga/temporada (no otras competiciones). */
 export async function fetchFixturesWithLiveMerge() {
   try {
     let fixtures = await fetchWorldCupFixtures();
     const live = await apiFetch('/fixtures', { live: 'all' }, { requireKey: true }).catch(() => []);
-    const el = wcLeagueIdFromEnv();
-    const es = wcSeasonFromEnv();
-    const liveWc = (live ?? []).filter((f) => {
-      const lid = f?.league?.id;
-      const sea = f?.league?.season;
-      return String(lid) === String(el) && String(sea) === String(es);
-    });
+    fixtures = filterApiWorldCup2026Fixtures(fixtures);
+    const liveWc = filterApiWorldCup2026Fixtures(live ?? []);
     if (liveWc.length) {
       const map = new Map(fixtures.filter((f) => f?.fixture?.id).map((f) => [f.fixture.id, f]));
       liveWc.forEach((f) => {
@@ -463,17 +466,17 @@ async function insertWorldCupDemoFixtures(client) {
 async function planApiFixturesSync(client, fixtures) {
   const { data: existingRows, error: listError } = await client
     .from('matches')
-    .select('id, api_fixture_id, provisional, home_team, away_team')
+    .select('id, api_fixture_id, provisional, official_id, home_team, away_team, league_id, season')
     .order('kickoff', { ascending: true });
 
   if (listError) {
     throw new Error(listError.message ?? 'No se pudo leer public.matches');
   }
 
-  const rows = existingRows ?? [];
+  const rows = (existingRows ?? []).filter(isWorldCupMatch);
   const existingByApiId = new Map();
   for (const row of rows) {
-    if (row.api_fixture_id != null) {
+    if (row.api_fixture_id != null && Number(row.api_fixture_id) > 0) {
       existingByApiId.set(String(row.api_fixture_id), row);
     }
   }
@@ -481,10 +484,10 @@ async function planApiFixturesSync(client, fixtures) {
   const provisionals = rows.filter((r) => r.provisional === true);
   const seen = new Set();
   const plans = [];
-  let toInsert = 0;
   let toUpdate = 0;
+  let ignored = 0;
 
-  const sortedFixtures = [...(fixtures ?? [])].sort((a, b) => {
+  const sortedFixtures = filterApiWorldCup2026Fixtures(fixtures).sort((a, b) => {
     const ta = new Date(a?.fixture?.date ?? 0).getTime();
     const tb = new Date(b?.fixture?.date ?? 0).getTime();
     return ta - tb;
@@ -496,27 +499,35 @@ async function planApiFixturesSync(client, fixtures) {
     seen.add(fid);
 
     const existing = existingByApiId.get(String(fid));
-    const matchedProvisional =
-      !existing && provisionals.find((p) => teamsMatchFixture(p, fixture));
+    const matchedProvisional = !existing
+      ? provisionals.find((p) => apiFixtureAllowedForDbMatch(p, fixture))
+      : null;
 
-    if (existing || matchedProvisional) {
+    if (existing && apiFixtureAllowedForDbMatch(existing, fixture)) {
       toUpdate += 1;
       plans.push({
         fixture,
-        mode: matchedProvisional ? 'merge_provisional' : 'update',
-        targetId: matchedProvisional?.id ?? existing?.id ?? null,
+        mode: 'update',
+        targetId: existing.id,
+      });
+    } else if (matchedProvisional) {
+      toUpdate += 1;
+      plans.push({
+        fixture,
+        mode: 'merge_provisional',
+        targetId: matchedProvisional.id,
       });
     } else {
-      toInsert += 1;
-      plans.push({ fixture, mode: 'insert' });
+      ignored += 1;
     }
   }
 
   return {
     apiTotal: seen.size,
     existingInDb: rows.length,
-    toInsert,
+    toInsert: 0,
     toUpdate,
+    ignored,
     plans,
   };
 }
@@ -527,38 +538,34 @@ async function applyApiFixturesSync(client, plan) {
   let inserted = 0;
   let updated = 0;
   let mergedProvisional = 0;
+  let skipped = plan.ignored ?? 0;
   const errors = [];
 
   for (const item of plan.plans) {
     const fid = item.fixture?.fixture?.id;
-    if (!fid) continue;
+    if (!fid || !item.targetId) continue;
 
     try {
       const apiStatus = item.fixture.fixture?.status?.short ?? 'NS';
       const needsEvents = LIVE_API.has(apiStatus) || FINISHED_API.has(apiStatus);
       const events = needsEvents ? await fetchFixtureEvents(fid) : [];
-      const row = {
-        ...(await buildMatchUpdateFromFixture(item.fixture, events)),
-        is_demo: false,
+      const patch = {
+        ...buildResultsPatchFromFixture(item.fixture, events),
         provisional: false,
+        is_demo: false,
       };
 
-      if (item.mode === 'merge_provisional' && item.targetId) {
-        const { error } = await client.from('matches').update(row).eq('id', item.targetId);
-        if (error) throw error;
-        updated += 1;
-        mergedProvisional += 1;
-        continue;
-      }
-
-      const { error } = await client.from('matches').upsert(row, { onConflict: 'api_fixture_id' });
+      const { error } = await client.from('matches').update(patch).eq('id', item.targetId);
       if (error) throw error;
 
-      if (item.mode === 'insert') inserted += 1;
-      else updated += 1;
+      if (item.mode === 'merge_provisional') {
+        mergedProvisional += 1;
+      }
+      updated += 1;
     } catch (error) {
-      logSupabaseWarn(`upsertApiFixtures ${fid}`, error);
+      logSupabaseWarn(`applyApiResultsSync ${fid}`, error);
       errors.push(error);
+      skipped += 1;
     }
   }
 
@@ -569,10 +576,10 @@ async function applyApiFixturesSync(client, plan) {
   }
 
   console.info(
-    `[syncWorldCupFixtures] OK — ${inserted} nuevos, ${updated} actualizados (${mergedProvisional} fusionaron calendario provisional; liga ${leagueId}, temporada ${season})`
+    `[API results] ${updated} actualizados (${mergedProvisional} enlazados al calendario FIFA; ${skipped} ignorados; liga ${leagueId}, temporada ${season})`
   );
 
-  return { inserted, updated, mergedProvisional, errors };
+  return { inserted, updated, mergedProvisional, skipped, errors };
 }
 
 async function upsertApiFixtures(client, fixtures, { logPreview = false } = {}) {
@@ -581,36 +588,38 @@ async function upsertApiFixtures(client, fixtures, { logPreview = false } = {}) 
   const plan = await planApiFixturesSync(client, fixtures);
 
   if (logPreview) {
-    console.log(`API devolvió: ${plan.apiTotal} partidos`);
-    console.log(`En Supabase: ${plan.existingInDb} partidos`);
-    console.log(`Nuevos a insertar: ${plan.toInsert}`);
+    console.log(`API devolvió (Mundial 2026): ${plan.apiTotal} partidos`);
+    console.log(`En Supabase (Mundial 2026): ${plan.existingInDb} partidos`);
     console.log(`A actualizar: ${plan.toUpdate}`);
+    console.log(`Ignorados (fuera del seed / no enlazables): ${plan.ignored ?? 0}`);
   }
 
   const result = await applyApiFixturesSync(client, plan);
 
   if (logPreview) {
-    console.log(`Sync completado: ${result.inserted} nuevos, ${result.updated} actualizados.`);
+    console.log(`Sync completado: ${result.updated} actualizados, ${result.skipped ?? 0} ignorados.`);
   }
 
   return {
     apiTotal: plan.apiTotal,
     existingInDb: plan.existingInDb,
-    plannedInsert: plan.toInsert,
+    plannedInsert: 0,
     plannedUpdate: plan.toUpdate,
+    ignored: plan.ignored ?? 0,
     inserted: result.inserted,
     updated: result.updated,
+    skipped: result.skipped ?? 0,
     mergedProvisional: result.mergedProvisional,
-    imported: result.inserted + result.updated,
+    imported: result.updated,
     demo: false,
-    source: 'api',
+    source: 'api_results',
     total: plan.apiTotal,
     leagueId,
     season,
   };
 }
 
-/** Sincroniza partidos API → Supabase con reporte previo y mensaje final. */
+/** Actualiza resultados API solo en partidos del seed oficial (no crea filas nuevas). */
 export async function syncMatchesFromApi(client) {
   if (!client) client = await getDefaultSupabaseClient();
   if (!getApiKey()) {
@@ -621,12 +630,18 @@ export async function syncMatchesFromApi(client) {
   const fixtures = await fetchFixturesWithLiveMerge();
   if (!fixtures.length) {
     const detail = getLastApiFootballError();
-    throw new Error(
-      detail ?? 'La API no devolvió partidos para la liga/temporada configurada.'
+    console.warn(
+      '[API results]',
+      detail ?? 'Sin fixtures Mundial 2026 — calendario sigue en officialWorldCupSchedule.js'
     );
+    return syncMatchesToSupabase(client);
   }
 
   return upsertApiFixtures(client, fixtures, { logPreview: true });
+}
+
+export async function buildMatchUpdateFromFixture(fixture, events) {
+  return fixtureToMatchRow(fixture, events);
 }
 
 function printWorldCupSyncReport(result) {
@@ -657,94 +672,147 @@ export async function syncWorldCupFixtures(client) {
 }
 
 async function fetchAllFixturesForSync(dbMatches) {
-  const ids = [...new Set(dbMatches.map((m) => m.api_fixture_id).filter(Boolean))];
+  const wcRows = dbMatches.filter(isWorldCupMatch);
+  const positiveIds = [
+    ...new Set(wcRows.map((m) => m.api_fixture_id).filter((id) => Number(id) > 0)),
+  ];
   const fixtures = [];
 
-  if (ids.length) {
-    for (let i = 0; i < ids.length; i += 20) {
-      const chunk = ids.slice(i, i + 20);
+  if (positiveIds.length) {
+    for (let i = 0; i < positiveIds.length; i += 20) {
+      const chunk = positiveIds.slice(i, i + 20);
       try {
         const batch = await apiFetch('/fixtures', { ids: chunk.join('-') });
-        if (batch?.length) fixtures.push(...batch);
+        if (batch?.length) fixtures.push(...filterApiWorldCup2026Fixtures(batch));
       } catch (e) {
         console.warn('[API-FOOTBALL FALLBACK]', e);
       }
     }
   }
 
-  let leagueFixtures = [];
   try {
-    leagueFixtures = await fetchLeagueFixtures();
+    const live = await apiFetch('/fixtures', { live: 'all' }, { requireKey: true });
+    fixtures.push(...filterApiWorldCup2026Fixtures(live ?? []));
   } catch (e) {
     console.warn('[API-FOOTBALL FALLBACK]', e);
   }
-  if (leagueFixtures?.length) fixtures.push(...leagueFixtures);
+
+  try {
+    const leagueBatch = await fetchWorldCupFixtures();
+    fixtures.push(...filterApiWorldCup2026Fixtures(leagueBatch ?? []));
+  } catch (e) {
+    console.warn('[API-FOOTBALL FALLBACK]', e);
+  }
 
   const unique = new Map();
-  fixtures.forEach((f) => {
+  filterApiWorldCup2026Fixtures(fixtures).forEach((f) => {
     if (f?.fixture?.id) unique.set(f.fixture.id, f);
   });
   return [...unique.values()];
 }
 
 function findMatchingFixture(dbMatch, fixtures) {
-  if (!fixtures?.length) return null;
-  if (dbMatch.api_fixture_id) {
-    const byId = fixtures.find((f) => String(f.fixture?.id) === String(dbMatch.api_fixture_id));
-    if (byId) return byId;
+  if (!fixtures?.length || !isWorldCupMatch(dbMatch)) return null;
+
+  if (Number(dbMatch.api_fixture_id) > 0) {
+    const byId = fixtures.find(
+      (f) =>
+        String(f.fixture?.id) === String(dbMatch.api_fixture_id) &&
+        isApiWorldCup2026Fixture(f)
+    );
+    if (byId && apiFixtureAllowedForDbMatch(dbMatch, byId)) return byId;
   }
 
-  const home = normalizeName(dbMatch.home_team);
-  const away = normalizeName(dbMatch.away_team);
-  return fixtures.find((f) => {
-    const fHome = normalizeName(f.teams?.home?.name);
-    const fAway = normalizeName(f.teams?.away?.name);
-    return (fHome === home && fAway === away) || (fHome === away && fAway === home);
-  });
+  return fixtures.find(
+    (f) => isApiWorldCup2026Fixture(f) && apiFixtureAllowedForDbMatch(dbMatch, f)
+  );
 }
 
-export async function buildMatchUpdateFromFixture(fixture, events) {
-  return fixtureToMatchRow(fixture, events);
+function apiFixtureAllowedForDbMatch(dbMatch, fixture) {
+  if (!isWorldCupMatch(dbMatch)) return false;
+  if (!isApiWorldCup2026Fixture(fixture)) return false;
+
+  const fid = fixture?.fixture?.id;
+  if (!fid) return false;
+
+  const apiId = Number(dbMatch.api_fixture_id);
+  if (Number.isFinite(apiId) && apiId > 0 && String(apiId) === String(fid)) return true;
+
+  if (isOfficialWorldCupScheduleId(dbMatch.official_id)) {
+    return teamsMatchFixture(dbMatch, fixture);
+  }
+
+  return teamsMatchFixture(dbMatch, fixture);
+}
+
+/** Solo actualiza marcador/estado/eventos — no sobrescribe calendario ni id de fila (picks). */
+export function buildResultsPatchFromFixture(fixture, events = []) {
+  const apiStatus = fixture.fixture?.status?.short ?? 'NS';
+  const goals = mapGoals(fixture, events);
+
+  return {
+    api_fixture_id: fixture.fixture?.id,
+    league_id: fixture.league?.id ?? null,
+    season: fixture.league?.season ?? null,
+    api_status: apiStatus,
+    status: normalizeApiStatus(apiStatus),
+    home_score: goals.home ?? 0,
+    away_score: goals.away ?? 0,
+    minute: fixture.fixture?.status?.elapsed ?? null,
+    events: mapTimelineEvents(events),
+    goals: goals.list,
+    cards: mapCards(events),
+    penalties: mapPenalties(fixture),
+    winner: resolveWinner(fixture),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 export async function syncMatchesToSupabase(client) {
   if (!client) client = await getDefaultSupabaseClient();
-  if (!getApiKey()) return { skipped: true, updated: 0 };
+  if (!getApiKey()) return { skipped: true, updated: 0, ignored: 0 };
 
   const { data: dbMatches, error } = await client.from('matches').select('*');
   if (error) {
     logSupabaseWarn('syncMatchesToSupabase', error);
-    return { updated: 0, selectError: true };
+    return { updated: 0, ignored: 0, selectError: true };
   }
-  if (!dbMatches?.length) return { updated: 0, empty: true };
+  if (!dbMatches?.length) return { updated: 0, ignored: 0, empty: true };
 
+  const wcMatches = dbMatches.filter(isWorldCupMatch);
   let fixtures = [];
   try {
-    fixtures = await fetchAllFixturesForSync(dbMatches);
+    fixtures = await fetchAllFixturesForSync(wcMatches);
   } catch (e) {
     console.warn('[API-FOOTBALL FALLBACK] fetchAllFixturesForSync', e);
     fixtures = [];
   }
-  let updated = 0;
 
-  for (const dbMatch of dbMatches) {
+  let updated = 0;
+  let ignored = 0;
+
+  for (const dbMatch of wcMatches) {
     const fixture = findMatchingFixture(dbMatch, fixtures);
-    if (!fixture) continue;
+    if (!fixture) {
+      ignored += 1;
+      continue;
+    }
 
     const apiStatus = fixture.fixture?.status?.short ?? 'NS';
     const needsEvents = LIVE_API.has(apiStatus) || FINISHED_API.has(apiStatus);
     const events = needsEvents ? await fetchFixtureEvents(fixture.fixture.id) : [];
-    const patch = await buildMatchUpdateFromFixture(fixture, events);
+    const patch = buildResultsPatchFromFixture(fixture, events);
 
     const { error: updateError } = await client.from('matches').update(patch).eq('id', dbMatch.id);
     if (updateError) {
       logSupabaseWarn(`syncMatchesToSupabase ${dbMatch.id}`, updateError);
+      ignored += 1;
       continue;
     }
     updated += 1;
   }
 
-  return { updated };
+  return { updated, ignored, source: 'api_results' };
 }
 
 /** Importa calendario FIFA y/o fixtures API; funciona con o sin API key. */

@@ -1,5 +1,6 @@
 /**
- * Sincroniza partidos API-Football → public.matches (upsert por api_fixture_id).
+ * Actualiza resultados API-Football en partidos existentes del Mundial 2026.
+ * NO crea partidos nuevos — el calendario viene de officialWorldCupSchedule.js.
  *
  * Requiere en .env.local:
  *   VITE_SUPABASE_URL
@@ -68,7 +69,7 @@ const client = createClient(url, key, {
 try {
   const { syncMatchesFromApi } = await import('../src/lib/footballApi.js');
   const result = await syncMatchesFromApi(client);
-  console.log('[sync:matches] Resultado:', result);
+  console.log('[sync:matches] Resultado (solo resultados Mundial 2026):', result);
 } catch (error) {
   console.error('[sync:matches] Error:', error?.message ?? error);
   process.exit(1);
