@@ -207,20 +207,25 @@ export default function DashboardNotifications({
 
   return (
     <div className="dash-notifications">
-      <div className="dash-notifications__hub">
+      <div className="dash-notifications__hub dash-notifications-community-mobile-hide">
         <h3 className="dash-notifications__title">Mensajes importantes</h3>
       </div>
 
       <div className="dash-notifications__section dash-notifications__section--predictions">
         <div className="dash-notifications__head">
-          <h3 className="dash-notifications__subtitle">Últimas predicciones enviadas</h3>
-          <p className="dash-notifications__hint">
+          <h3 className="dash-notifications__subtitle dash-notifications-community-mobile-hide">
+            Últimas predicciones enviadas
+          </h3>
+          <h3 className="dash-notifications__subtitle dash-notifications-community-mobile-only">
+            Descargar predicciones
+          </h3>
+          <p className="dash-notifications__hint dash-notifications-community-mobile-hide">
             Actividad pública sin marcadores, porcentajes ni picks. Tras el cierre de cada partido,
             cualquier usuario registrado puede descargar CSV o PDF (marcador visible tras el cierre).
           </p>
         </div>
 
-        <div className="dash-notifications__export-panel">
+        <div className="dash-notifications__export-panel dash-notifications__export-panel--standalone">
           {downloadMatch ? (
             <p className="dash-notifications__export-match-name">{matchLabel}</p>
           ) : (
@@ -275,16 +280,18 @@ export default function DashboardNotifications({
         </div>
 
         {!sortedFeed.length ? (
-          <p className="dash-notifications__empty">Aún no hay predicciones recientes.</p>
+          <p className="dash-notifications__empty dash-notifications-community-mobile-hide">
+            Aún no hay predicciones recientes.
+          </p>
         ) : (
           <>
-            <ul className="dash-notifications__pred-feed dash-notifications__pred-feed--recent">
+            <ul className="dash-notifications__pred-feed dash-notifications__pred-feed--recent dash-notifications-community-mobile-hide">
               {recentFeed.map((item) => (
                 <PredictionActivityItem key={item.id} item={item} />
               ))}
             </ul>
             {historyFeed.length > 0 ? (
-              <div className="dash-notifications__pred-history">
+              <div className="dash-notifications__pred-history dash-notifications-community-mobile-hide">
                 <h4 className="dash-notifications__pred-history-title">Historial anterior</h4>
                 <ul className="dash-notifications__pred-feed dash-notifications__pred-history-scroll">
                   {historyFeed.map((item) => (
@@ -297,7 +304,7 @@ export default function DashboardNotifications({
         )}
       </div>
 
-      <div className="dash-notifications__section dash-notifications__section--community">
+      <div className="dash-notifications__section dash-notifications__section--community dash-notifications__section--community-trends">
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle">Tendencias de la comunidad</h3>
         </div>
@@ -316,7 +323,7 @@ export default function DashboardNotifications({
         )}
       </div>
 
-      <div className="dash-notifications__section dash-notifications__section--announcements">
+      <div className="dash-notifications__section dash-notifications__section--announcements dash-notifications-community-mobile-hide">
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle">Anuncios Pulponi Cup y mensajes del sistema</h3>
         </div>

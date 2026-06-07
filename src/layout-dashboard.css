@@ -4164,15 +4164,80 @@
   }
 }
 
+.dash-notifications-community-mobile-only {
+  display: none;
+}
+
 @media (max-width: 767px) {
-  .important-messages-panel,
-  .chat-panel {
+  #comunidad .community-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  #comunidad .chat-panel {
+    order: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 280px;
+    max-height: min(52vh, 380px);
+    overflow: hidden;
+  }
+
+  #comunidad .important-messages-panel {
+    order: 2;
     height: auto;
     max-height: none;
     overflow: visible;
+    padding: 12px 14px 14px;
   }
 
-  .important-messages-panel__scroll {
+  #comunidad .chat-panel .chat-messages-list {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 0;
+    max-height: none;
+    overflow-y: auto;
+  }
+
+  #comunidad .chat-panel .chat-input-area {
+    flex-shrink: 0;
+  }
+
+  #comunidad .important-messages-panel__scroll {
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+  }
+
+  #comunidad .dash-notifications-community-mobile-hide {
+    display: none !important;
+  }
+
+  #comunidad .dash-notifications-community-mobile-only {
+    display: block;
+  }
+
+  #comunidad .dash-notifications__section--predictions {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  #comunidad .dash-notifications__section--community-trends {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  #comunidad .dash-notifications__export-panel--standalone {
+    margin-top: 0;
+  }
+
+  .important-messages-panel,
+  .chat-panel {
+    height: auto;
     max-height: none;
   }
 }
