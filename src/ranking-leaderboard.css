@@ -7,27 +7,27 @@
     padding-bottom: 110px;
   }
 
-  #ranking.panel {
+  #ranking.panel.is-active {
     display: flex;
     flex-direction: column;
     gap: 12px;
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 110px);
   }
 
-  /* Ranking móvil: solo Índice Pulpo + Ranking en movimiento */
-  #ranking.panel .section-title,
-  #ranking.panel .ranking-leaderboard,
-  #ranking.panel .ranking-section-pulpo .phone-header,
-  #ranking.panel .ranking-section-pulpo .pulpo-index__breakdown {
+  /* Ranking móvil activo: solo Índice Pulpo + Ranking en movimiento */
+  #ranking.panel.is-active .section-title,
+  #ranking.panel.is-active .ranking-leaderboard,
+  #ranking.panel.is-active .ranking-section-pulpo .phone-header,
+  #ranking.panel.is-active .ranking-section-pulpo .pulpo-index__breakdown {
     display: none !important;
   }
 
-  #ranking.panel .ranking-section-pulpo {
+  #ranking.panel.is-active .ranking-section-pulpo {
     order: 1;
     margin-top: 0;
   }
 
-  #ranking.panel .ranking-section-movement {
+  #ranking.panel.is-active .ranking-section-movement {
     order: 2;
     margin-top: 0;
   }
@@ -202,11 +202,6 @@
 }
 
 @media (min-width: 768px) {
-  #ranking.panel .ranking-section-movement,
-  #ranking.panel .ranking-section-pulpo {
-    display: none !important;
-  }
-
   .ranking-leaderboard .rank-row__avatar.avatar-frame {
     width: 36px;
     height: 36px;

@@ -537,28 +537,30 @@ export default function App() {
 
       <main className="app-shell">
         <section id="inicio" className={sectionClass('inicio', 'layout layout--dashboard')}>
-          <HomeDashboard
-            session={session}
-            matches={worldCupMatches}
-            ranking={data.ranking ?? []}
-            profile={profile}
-            myCurrentRank={myCurrentRank}
-            predictionActivityFeed={data.predictionActivityFeed ?? []}
-            communityPickProfiles={data.communityPickProfiles ?? []}
-            matchesLoading={data.matchesLoading}
-            matchSyncNotice={data.matchSyncNotice}
-            chatMessages={data.chatData ?? []}
-            chatInput={chatInput}
-            setChatInput={setChatInput}
-            onSendMessage={handleSendMessage}
-            reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
-            onToggleReaction={data.toggleReaction}
-            memberCount={(data.ranking ?? []).length}
-            onMakePrediction={() => navigateToSection('partidos')}
-            onViewRanking={() => navigateToSection('ranking')}
-            onViewCommunity={() => navigateToSection('comunidad')}
-            onSelectUser={openUserProfile}
-          />
+          {activeNav === 'inicio' ? (
+            <HomeDashboard
+              session={session}
+              matches={worldCupMatches}
+              ranking={data.ranking ?? []}
+              profile={profile}
+              myCurrentRank={myCurrentRank}
+              predictionActivityFeed={data.predictionActivityFeed ?? []}
+              communityPickProfiles={data.communityPickProfiles ?? []}
+              matchesLoading={data.matchesLoading}
+              matchSyncNotice={data.matchSyncNotice}
+              chatMessages={data.chatData ?? []}
+              chatInput={chatInput}
+              setChatInput={setChatInput}
+              onSendMessage={handleSendMessage}
+              reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
+              onToggleReaction={data.toggleReaction}
+              memberCount={(data.ranking ?? []).length}
+              onMakePrediction={() => navigateToSection('partidos')}
+              onViewRanking={() => navigateToSection('ranking')}
+              onViewCommunity={() => navigateToSection('comunidad')}
+              onSelectUser={openUserProfile}
+            />
+          ) : null}
         </section>
 
         <section id="partidos" className={sectionClass('partidos', 'panel')}>
@@ -714,52 +716,54 @@ export default function App() {
         </section>
 
         <section id="ranking" className={sectionClass('ranking', 'panel')}>
-          {viewProfileId ? (
-            <UserPublicProfile
-              data={publicProfile.data}
-              loading={publicProfile.loading}
-              error={publicProfile.error}
-              isOwnProfile={viewProfileId === session.user.id}
-              onEditProfile={() => navigateToSection('perfil')}
-              onBack={closeUserProfile}
-              achievementsTotal={achievementsTotal}
-            />
-          ) : (
-            <>
-              <div className="section-title">
-                <div>
-                  <span className="eyebrow">Leaderboard</span>
-                  <h2>Ranking</h2>
-                  <p className="section-lead muted">
-                    Toca un jugador para abrir su perfil público. Exactos, rachas e Índice Pulpo incluidos.
-                  </p>
-                </div>
-                <div className="export-actions ranking-export-actions">
-                  <button type="button" onClick={() => exportRankingPdf(sortedRanking)}>
-                    Exportar ranking
-                  </button>
-                </div>
-              </div>
-              <RankingLeaderboard
-                rows={sortedRanking}
-                currentUserId={session?.user?.id}
-                onSelectUser={openUserProfile}
+          {activeNav === 'ranking' ? (
+            viewProfileId ? (
+              <UserPublicProfile
+                data={publicProfile.data}
+                loading={publicProfile.loading}
+                error={publicProfile.error}
+                isOwnProfile={viewProfileId === session.user.id}
+                onEditProfile={() => navigateToSection('perfil')}
+                onBack={closeUserProfile}
+                achievementsTotal={achievementsTotal}
               />
-              <RankingMovement session={session} className="dash-ranking pulponi-card ranking-section-movement" />
-              <article className="phone pulponi-card ranking-section-pulpo">
-                <div className="phone-header phone-header--center">
-                  <span>ÍNDICE PULPO</span>
+            ) : (
+              <>
+                <div className="section-title">
+                  <div>
+                    <span className="eyebrow">Leaderboard</span>
+                    <h2>Ranking</h2>
+                    <p className="section-lead muted">
+                      Toca un jugador para abrir su perfil público. Exactos, rachas e Índice Pulpo incluidos.
+                    </p>
+                  </div>
+                  <div className="export-actions ranking-export-actions">
+                    <button type="button" onClick={() => exportRankingPdf(sortedRanking)}>
+                      Exportar ranking
+                    </button>
+                  </div>
                 </div>
-                <PulpoIndexCard
-                  profile={profile}
-                  picks={data.picks}
-                  matches={worldCupMatches}
-                  communityPickProfiles={data.communityPickProfiles}
-                  userId={session?.user?.id}
+                <RankingLeaderboard
+                  rows={sortedRanking}
+                  currentUserId={session?.user?.id}
+                  onSelectUser={openUserProfile}
                 />
-              </article>
-            </>
-          )}
+                <RankingMovement session={session} className="dash-ranking pulponi-card ranking-section-movement" />
+                <article className="phone pulponi-card ranking-section-pulpo">
+                  <div className="phone-header phone-header--center">
+                    <span>ÍNDICE PULPO</span>
+                  </div>
+                  <PulpoIndexCard
+                    profile={profile}
+                    picks={data.picks}
+                    matches={worldCupMatches}
+                    communityPickProfiles={data.communityPickProfiles}
+                    userId={session?.user?.id}
+                  />
+                </article>
+              </>
+            )
+          ) : null}
         </section>
 
         <section id="comunidad" className={sectionClass('comunidad', 'panel')}>

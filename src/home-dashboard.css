@@ -1011,13 +1011,8 @@
 
 /* ——— Responsive ——— */
 @media (max-width: 767px) {
-  #inicio .home-dash-ranking-movement,
-  #inicio .phone--rank-movement,
   #inicio .home-dash-insights,
-  #inicio .home-dash-sidebar-card,
-  #inicio .pulpo-index,
-  #inicio .ranking-section-movement,
-  #inicio .ranking-section-pulpo {
+  #inicio .home-dash-sidebar-card {
     display: none !important;
   }
 
