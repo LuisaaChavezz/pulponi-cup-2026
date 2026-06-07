@@ -1011,21 +1011,31 @@
 
 /* ——— Responsive ——— */
 @media (max-width: 767px) {
-  .home-dash-stack {
+  #inicio .home-dash-ranking-movement,
+  #inicio .phone--rank-movement,
+  #inicio .home-dash-insights,
+  #inicio .home-dash-sidebar-card,
+  #inicio .pulpo-index,
+  #inicio .ranking-section-movement,
+  #inicio .ranking-section-pulpo {
+    display: none !important;
+  }
+
+  .home-dash-stack--mobile {
     display: flex;
     flex-direction: column;
     gap: 10px;
   }
 
-  .home-dash-stack__section--hero {
+  .home-dash-stack--mobile .home-dash-stack__section--hero {
     order: 1;
   }
 
-  .home-dash-stack__section--mobile-ranking {
+  .home-dash-stack--mobile .home-dash-stack__section--mobile-ranking {
     order: 2;
   }
 
-  .home-dash-stack__section--mobile-carousel {
+  .home-dash-stack--mobile .home-dash-stack__section--mobile-carousel {
     order: 3;
   }
 

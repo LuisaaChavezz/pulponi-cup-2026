@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useMobileViewport } from '../hooks/useMobileViewport';
 import TeamLogo from './TeamLogo';
 import UserAvatar from './UserAvatar';
 import MatchSchedule from './MatchSchedule';
@@ -82,6 +83,7 @@ export default function HomeDashboard({
   onSelectUser,
 }) {
   const now = useKickoffClock(1000);
+  const isMobileHome = useMobileViewport(767);
 
   const heroPick = useMemo(() => {
     const upcoming = listCarouselUpcomingMatches(matches)[0];
@@ -359,32 +361,40 @@ export default function HomeDashboard({
         </p>
       ) : null}
 
-      <div className="home-dash-stack">
+      <div className={`home-dash-stack${isMobileHome ? ' home-dash-stack--mobile' : ''}`}>
         <div className="home-dash-stack__center">
           <section className="home-dash-stack__section home-dash-stack__section--hero">{heroBlock}</section>
-          <section className="home-dash-stack__section home-dash-stack__section--mobile-ranking home-dash-mobile-only">
-            <HomeMobileRankingSummary ranking={ranking} onViewRanking={onViewRanking} />
-          </section>
-          <section className="home-dash-stack__section home-dash-stack__section--ranking home-dash-desktop-only">
-            {rankingBlock}
-          </section>
+          {isMobileHome ? (
+            <section className="home-dash-stack__section home-dash-stack__section--mobile-ranking">
+              <HomeMobileRankingSummary ranking={ranking} onViewRanking={onViewRanking} />
+            </section>
+          ) : (
+            <section className="home-dash-stack__section home-dash-stack__section--ranking">
+              {rankingBlock}
+            </section>
+          )}
         </div>
-        <section className="home-dash-stack__section home-dash-stack__section--mobile-carousel home-dash-mobile-only">
-          <HomeMobileMatchesCarousel
-            matches={matches}
-            excludeMatchId={heroMatch?.id ?? null}
-            onMakePrediction={onMakePrediction}
-          />
-        </section>
-        <section className="home-dash-stack__section home-dash-stack__section--profiles home-dash-desktop-only">
-          {profilesBlock}
-        </section>
-        <section className="home-dash-stack__section home-dash-stack__section--chat home-dash-desktop-only">
-          {chatBlock}
-        </section>
-        <section className="home-dash-stack__section home-dash-stack__section--insights home-dash-desktop-only">
-          <div className="home-dash-insights">{insightsBlock}</div>
-        </section>
+        {isMobileHome ? (
+          <section className="home-dash-stack__section home-dash-stack__section--mobile-carousel">
+            <HomeMobileMatchesCarousel
+              matches={matches}
+              excludeMatchId={heroMatch?.id ?? null}
+              onMakePrediction={onMakePrediction}
+            />
+          </section>
+        ) : (
+          <>
+            <section className="home-dash-stack__section home-dash-stack__section--profiles">
+              {profilesBlock}
+            </section>
+            <section className="home-dash-stack__section home-dash-stack__section--chat">
+              {chatBlock}
+            </section>
+            <section className="home-dash-stack__section home-dash-stack__section--insights">
+              <div className="home-dash-insights">{insightsBlock}</div>
+            </section>
+          </>
+        )}
       </div>
     </div>
   );
