@@ -45,6 +45,56 @@ function mergeMatchesSorted(prev, incoming) {
   });
 }
 
+function normalizePicksKeys(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  const out = {};
+  for (const [key, value] of Object.entries(raw)) {
+    out[String(key)] = value;
+  }
+  return out;
+}
+
+function sanitizeProfileFields(fields = {}) {
+  const payload = { ...fields };
+  if (payload.username != null) {
+    const u = String(payload.username).trim().toLowerCase().replace(/^@+/, '');
+    payload.username = u || null;
+  }
+  if (payload.name != null) {
+    const n = String(payload.name).trim();
+    payload.name = n || null;
+  }
+  return payload;
+}
+
+async function ensureOwnProfileRow(client, uid) {
+  const { data: existing, error: readErr } = await client
+    .from('profiles')
+    .select('id')
+    .eq('id', uid)
+    .maybeSingle();
+
+  if (readErr) {
+    console.warn('[ensureOwnProfileRow] read', readErr);
+    return { ok: false, error: readErr };
+  }
+  if (existing?.id) return { ok: true, created: false };
+
+  const { data, error } = await client
+    .from('profiles')
+    .insert({ id: uid })
+    .select('*')
+    .single();
+
+  if (error) {
+    console.warn('[ensureOwnProfileRow] insert', error);
+    return { ok: false, error };
+  }
+
+  console.log('[PROFILE SAVE RESULT] created missing profile row', data);
+  return { ok: true, created: true, data };
+}
+
 export function useAppData(session) {
   const userId = session?.user?.id;
 
@@ -79,18 +129,32 @@ export function useAppData(session) {
 
   const loadProfile = useCallback(async () => {
     if (!userId) return;
+
+    console.log('[AUTH USER]', { id: userId, email: session?.user?.email ?? null });
+
     const cached = cacheGet(`profile:${userId}`);
     if (cached) {
       setProfile(cached);
-      if (cached.picks && typeof cached.picks === 'object') setPicks(cached.picks);
+      if (cached.picks && typeof cached.picks === 'object') {
+        setPicks(normalizePicksKeys(cached.picks));
+      }
     }
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+
+    await ensureOwnProfileRow(supabase, userId);
+
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (error) {
+      console.warn('[loadProfile]', error.message, error);
+      return;
+    }
     if (data) {
-      cacheSet(`profile:${userId}`, data, 120_000);
-      setProfile(data);
-      if (data.picks && typeof data.picks === 'object') setPicks(data.picks);
+      const normalizedPicks = normalizePicksKeys(data.picks);
+      const row = { ...data, picks: normalizedPicks };
+      cacheSet(`profile:${userId}`, row, 120_000);
+      setProfile(row);
+      setPicks(normalizedPicks);
     }
-  }, [userId]);
+  }, [userId, session?.user?.email]);
 
   const loadMatchesChunk = useCallback(
     async ({ offset = 0, limit = MATCHES_CHUNK, append = false, finishLoading = true } = {}) => {
@@ -405,14 +469,28 @@ export function useAppData(session) {
   async function logActivityEvent(type, payload = {}) {
     if (!userId) return;
     const safePayload = payload && typeof payload === 'object' ? payload : {};
+    console.log('[AUTH USER]', { id: userId });
     console.log('[ACTIVITY]', type, safePayload);
-    const { error } = await supabase.from('activity_log').insert({
-      profile_id: userId,
-      action: type,
-      payload: safePayload,
-    });
-    if (error) console.error('[ACTIVITY] insert failed', error);
-    else loadActivity();
+
+    const { data, error } = await supabase
+      .from('activity_log')
+      .insert({
+        profile_id: userId,
+        action: type,
+        payload: safePayload,
+      })
+      .select('id, action, payload, created_at')
+      .single();
+
+    console.log('[ACTIVITY INSERT RESULT]', data, error);
+    if (error) {
+      console.error('[ACTIVITY] insert failed', error);
+      return { ok: false, error };
+    }
+
+    loadActivity();
+    void loadPredictionFeedsRef.current?.();
+    return { ok: true, data };
   }
 
   const reloadReactionsForCommentIds = useCallback(async (commentIds) => {
@@ -765,6 +843,7 @@ export function useAppData(session) {
   async function savePick(matchId, homePick, awayPick, advancesTeam = null) {
     if (!userId) return { ok: false, error: 'Sin sesión' };
 
+    const matchKey = String(matchId);
     const home = Math.round(Number(homePick));
     const away = Math.round(Number(awayPick));
     if (
@@ -778,34 +857,48 @@ export function useAppData(session) {
       return { ok: false, error: 'Solo se permiten goles enteros (0, 1, 2…).' };
     }
 
-    const prevPick = picks[matchId];
+    const prevPick = picks[matchKey] ?? picks[matchId];
     const hadPick = prevPick != null;
     const nowIso = new Date().toISOString();
     const entry = {
-      home_pick: homePick,
-      away_pick: awayPick,
+      home_pick: home,
+      away_pick: away,
       advances_team: advancesTeam,
       created_at: prevPick?.created_at ?? nowIso,
       updated_at: nowIso,
     };
-    const nextPicks = { ...picks, [matchId]: entry };
+    const nextPicks = { ...normalizePicksKeys(picks), [matchKey]: entry };
     const updatePayload = { picks: nextPicks };
-    const { error } = await supabase.from('profiles').update(updatePayload).eq('id', userId);
-    let saved = false;
+
+    console.log('[AUTH USER]', { id: userId, email: session?.user?.email ?? null });
+    console.log('[PREDICTION SAVE PAYLOAD]', { profile_id: userId, match_id: matchKey, updatePayload });
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updatePayload)
+      .eq('id', userId)
+      .select('id, picks')
+      .single();
+
+    console.log('[PREDICTION SAVE RESULT]', data, error);
+
     if (error) {
-      const { error: err2 } = await supabase.from('profiles').update({}).eq('id', userId);
-      if (!err2) {
-        setPicks(nextPicks);
-        saved = true;
-      }
-      console.warn('picks column may need ALTER TABLE:', error.message);
-      if (!saved) return { ok: false, error: error.message ?? 'No se pudo guardar' };
-    } else {
-      setPicks(nextPicks);
-      saved = true;
+      console.error('[savePick] update failed', error);
+      return { ok: false, error: error.message ?? 'No se pudo guardar la predicción' };
     }
 
-    const m = matches.find((x) => x.id === matchId);
+    const persistedPicks = normalizePicksKeys(data?.picks ?? nextPicks);
+    if (!persistedPicks[matchKey]) {
+      console.error('[savePick] persistencia no confirmada para match', matchKey, persistedPicks);
+      return { ok: false, error: 'La predicción no se guardó en Supabase. Revisa permisos RLS.' };
+    }
+
+    cacheInvalidate(`profile:${userId}`);
+    setPicks(persistedPicks);
+    setProfile((prev) => (prev ? { ...prev, picks: persistedPicks } : prev));
+    cacheSet(`profile:${userId}`, { ...(profile ?? {}), id: userId, picks: persistedPicks }, 120_000);
+
+    const m = matches.find((x) => String(x.id) === matchKey);
     const pickAction = hadPick ? 'updated' : 'created';
     const actionType = hadPick ? 'prediction_updated' : 'prediction_created';
     const displayName = formatActivityDisplayName(profile);
@@ -816,8 +909,8 @@ export function useAppData(session) {
       m?.away_team
     );
 
-    await logActivityEvent(actionType, {
-      match_id: matchId,
+    const activityResult = await logActivityEvent(actionType, {
+      match_id: matchKey,
       home_team: m?.home_team ?? null,
       away_team: m?.away_team ?? null,
       pick_action: pickAction,
@@ -825,6 +918,11 @@ export function useAppData(session) {
       created_at: entry.created_at,
       updated_at: entry.updated_at,
     });
+
+    if (activityResult?.error) {
+      console.warn('[savePick] activity_log insert failed', activityResult.error);
+    }
+
     void loadPredictionFeedsRef.current();
     cacheInvalidate('community-picks');
     void loadCommunityPicks();
@@ -907,16 +1005,41 @@ export function useAppData(session) {
   );
 
   async function updateProfile(fields, options = {}) {
-    if (!userId) return;
-    const { error } = await supabase.from('profiles').update(fields).eq('id', userId);
-    if (!error) {
+    if (!userId) return { message: 'Sin sesión' };
+
+    const payload = sanitizeProfileFields(fields);
+    console.log('[AUTH USER]', { id: userId, email: session?.user?.email ?? null });
+    console.log('[PROFILE SAVE PAYLOAD]', payload);
+
+    await ensureOwnProfileRow(supabase, userId);
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(payload)
+      .eq('id', userId)
+      .select('*')
+      .single();
+
+    console.log('[PROFILE SAVE RESULT]', data, error);
+
+    if (error) return error;
+
+    cacheInvalidate(`profile:${userId}`);
+    if (data) {
+      const row = { ...data, picks: normalizePicksKeys(data.picks) };
+      cacheSet(`profile:${userId}`, row, 120_000);
+      setProfile(row);
+      if (row.picks) setPicks(row.picks);
+    } else {
       await loadProfile();
-      const act = options.activity;
-      if (act?.type) {
-        await logActivityEvent(act.type, act.payload ?? {});
-      }
     }
-    return error;
+
+    const act = options.activity;
+    if (act?.type) {
+      await logActivityEvent(act.type, act.payload ?? {});
+    }
+
+    return null;
   }
 
   async function createEvent(event) {

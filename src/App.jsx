@@ -411,9 +411,10 @@ export default function App() {
           message: result.isUpdate || hadPick ? 'Predicción actualizada ✅' : 'Predicción registrada ✅',
         });
       } else {
+        console.error('[submitPick]', result?.error);
         setPickFeedback(matchId, {
           type: 'error',
-          message: 'No se pudo guardar la predicción. Intenta de nuevo.',
+          message: result?.error ?? 'No se pudo guardar la predicción. Intenta de nuevo.',
         });
       }
     } catch {
@@ -452,8 +453,10 @@ export default function App() {
         },
       }
     );
-    if (err) alert(err.message);
-    else setProfileEdit(false);
+    if (err) {
+      console.error('[handleSaveProfile]', err);
+      alert(err.message ?? 'No se pudo guardar el perfil');
+    } else setProfileEdit(false);
   }
 
   async function handleAvatarUpload(e) {

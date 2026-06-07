@@ -3,33 +3,58 @@
 --
 -- Orden recomendado en Supabase:
 --   1. este archivo (RLS perfiles públicos + pick_scores mínima)
---   2. supabase/pulpo_scoring.sql (RPC scoring + backfill, si hace falta)
+--   2. supabase/profiles_persistence_policies.sql (UPDATE/INSERT perfil + activity_log)
+--   3. supabase/ranking_leaderboard.sql (vista leaderboard ⨝ auth.users)
+--   3. supabase/pulpo_scoring.sql (RPC scoring + backfill, si hace falta)
 --   3. supabase/achievements.sql (user_badges, si hace falta)
 --
 -- Si pick_scores no existe pero sí profiles + matches, este script la crea.
 -- Los puntos agregados también viven en profiles.points / exacts / streak.
 
+-- public.matches.id debe ser TEXT. pick_scores.match_id es TEXT.
+
 -- ── Crear pick_scores si falta (requiere profiles + matches) ────────────────
 DO $create_pick_scores$
+DECLARE
+  matches_id_type text;
 BEGIN
-  IF to_regclass('public.pick_scores') IS NOT NULL THEN
-    RAISE NOTICE 'pick_scores ya existe; omitiendo CREATE.';
-    RETURN;
-  END IF;
-
   IF to_regclass('public.profiles') IS NULL THEN
     RAISE NOTICE 'pick_scores no creada: falta public.profiles.';
     RETURN;
   END IF;
 
   IF to_regclass('public.matches') IS NULL THEN
-    RAISE NOTICE 'pick_scores no creada: falta public.matches. Ejecuta pulpo_scoring.sql o matches_world_cup_columns.sql.';
+    RAISE NOTICE 'pick_scores no creada: falta public.matches.';
     RETURN;
   END IF;
 
+  IF to_regclass('public.pick_scores') IS NOT NULL THEN
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns c
+      WHERE c.table_schema = 'public'
+        AND c.table_name = 'pick_scores'
+        AND c.column_name = 'match_id'
+        AND c.udt_name = 'uuid'
+    ) THEN
+      DROP TABLE public.pick_scores CASCADE;
+      RAISE NOTICE 'pick_scores eliminada (match_id era uuid); recreando como text.';
+    ELSE
+      RAISE NOTICE 'pick_scores ya existe; omitiendo CREATE.';
+      RETURN;
+    END IF;
+  END IF;
+
+  SELECT c.udt_name
+  INTO matches_id_type
+  FROM information_schema.columns c
+  WHERE c.table_schema = 'public'
+    AND c.table_name = 'matches'
+    AND c.column_name = 'id';
+
   CREATE TABLE public.pick_scores (
     profile_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
-    match_id uuid NOT NULL REFERENCES public.matches (id) ON DELETE CASCADE,
+    match_id text NOT NULL REFERENCES public.matches (id) ON DELETE CASCADE,
     points_awarded integer NOT NULL DEFAULT 0,
     exact_hit boolean NOT NULL DEFAULT false,
     winner_hit boolean NOT NULL DEFAULT false,
@@ -40,7 +65,7 @@ BEGIN
   CREATE INDEX IF NOT EXISTS pick_scores_match_id_idx ON public.pick_scores (match_id);
   CREATE INDEX IF NOT EXISTS pick_scores_profile_id_idx ON public.pick_scores (profile_id);
 
-  RAISE NOTICE 'pick_scores creada. Ejecuta pulpo_scoring.sql para RPC score_all_finished_matches() y backfill.';
+  RAISE NOTICE 'pick_scores creada (match_id text, matches.id=%).', matches_id_type;
 END;
 $create_pick_scores$;
 
@@ -122,6 +147,7 @@ END;
 $user_badges_policy$;
 
 -- ── ranking_history: mejor posición en perfil público ───────────────────────
+-- Nota: tras ejecutar ranking_leaderboard.sql, ranking_history_select filtra auth.users.
 DO $ranking_history_policy$
 BEGIN
   IF to_regclass('public.ranking_history') IS NULL THEN
@@ -129,14 +155,30 @@ BEGIN
     RETURN;
   END IF;
 
+  IF EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ranking_history'
+      AND policyname = 'ranking_history_select_authenticated'
+  ) THEN
+    RAISE NOTICE 'ranking_history_select_authenticated ya definida (ver ranking_leaderboard.sql).';
+    RETURN;
+  END IF;
+
   ALTER TABLE public.ranking_history ENABLE ROW LEVEL SECURITY;
 
-  DROP POLICY IF EXISTS "ranking_history_select_authenticated" ON public.ranking_history;
   CREATE POLICY "ranking_history_select_authenticated"
     ON public.ranking_history
     FOR SELECT
     TO authenticated
-    USING (true);
+    USING (
+      EXISTS (
+        SELECT 1
+        FROM auth.users u
+        WHERE u.id = ranking_history.profile_id
+      )
+    );
 
   RAISE NOTICE 'Política ranking_history_select_authenticated aplicada.';
 END;
