@@ -4,7 +4,7 @@
  * - Fallback: momios Pulponi simulados, claramente etiquetados.
  */
 
-import { buildCommunityTrendOdds, validateParlayMatchOdds } from './parlayCommunityOdds';
+import { buildTierFallbackOdds, validateParlayMatchOdds } from './parlayCommunityOdds';
 
 const ODDS_API_SPORT = 'soccer_fifa_world_cup';
 
@@ -39,13 +39,34 @@ function hashSeed(str) {
   return Math.abs(h);
 }
 
-/** @deprecated Usar buildCommunityTrendOdds — conservado como alias interno. */
+/** @deprecated Usar buildOddsFromMatchFields / buildTierFallbackOdds. */
 export function buildPulponiSimulatedOdds(match) {
-  return buildCommunityTrendOdds(match, []);
+  return buildOddsFromMatchFields(match) ?? buildTierFallbackOdds(match);
 }
 
 function roundOdd(n) {
   return Math.round(n * 100) / 100;
+}
+
+function buildOddsFromMatchFields(match) {
+  const { odds_home: oddsHome, odds_draw: oddsDraw, odds_away: oddsAway } = match ?? {};
+  if (oddsHome == null || oddsDraw == null || oddsAway == null) return null;
+
+  const home = Number(oddsHome);
+  const draw = Number(oddsDraw);
+  const away = Number(oddsAway);
+  if (!Number.isFinite(home) || !Number.isFinite(draw) || !Number.isFinite(away)) return null;
+  if (home <= 1 || draw <= 1 || away <= 1) return null;
+
+  return {
+    matchId: String(match.id),
+    source: 'match_db',
+    sourceLabel: 'Momio del partido',
+    bookmaker: null,
+    home: roundOdd(home),
+    draw: roundOdd(draw),
+    away: roundOdd(away),
+  };
 }
 
 function teamsMatch(a, b) {
@@ -151,12 +172,18 @@ export async function resolveParlayOddsForMatches(
       byMatchId[String(match.id)] = fromApi;
       authorizedCount += 1;
     } else {
-      const row = buildCommunityTrendOdds(match, communityProfiles);
-      if (!validateParlayMatchOdds(row, row.trendPcts ?? null)) {
-        console.warn('[parlayOdds] invalid simulated odds for match', match.id);
+      const fromMatch = buildOddsFromMatchFields(match);
+      if (fromMatch) {
+        byMatchId[String(match.id)] = fromMatch;
+        simulatedCount += 1;
+      } else {
+        const row = buildTierFallbackOdds(match);
+        if (!validateParlayMatchOdds(row, row.trendPcts ?? null)) {
+          console.warn('[parlayOdds] invalid simulated odds for match', match.id);
+        }
+        byMatchId[String(match.id)] = row;
+        simulatedCount += 1;
       }
-      byMatchId[String(match.id)] = row;
-      simulatedCount += 1;
     }
   }
 
