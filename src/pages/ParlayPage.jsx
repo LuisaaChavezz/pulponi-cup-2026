@@ -3,6 +3,8 @@ import TeamLogo from '../components/TeamLogo';
 import { displayTeamName, formatMatchDateShort, formatMatchTime } from '../lib/matchUtils';
 import { useParlayOdds } from '../hooks/useParlayOdds';
 import {
+  PARLAY_MIN_SELECTIONS,
+  PARLAY_MAX_SELECTIONS,
   PARLAY_MIN_STAKE,
   PARLAY_MIN_STAKE_MESSAGE,
   calculateVirtualParlayPayout,
@@ -20,7 +22,11 @@ const PARLAY_COMPLETE_MSG = 'Ya completaste tus combinaciones.';
 const PARLAY_COMPLETE_SUCCESS_MSG = 'Combinada completa ✅';
 const PARLAY_COMPLETE_PROMPT = '¿Quieres guardar o descargar tu combinada?';
 const PARLAY_REDUCE_MSG = 'Reduce tus combinaciones para continuar.';
-const PARLAY_COMBINATION_OPTIONS = [5, 10, 15, 20, 25];
+const PARLAY_LIMIT_REACHED_MSG = 'Límite alcanzado';
+const PARLAY_COMBINATION_OPTIONS = Array.from(
+  { length: PARLAY_MAX_SELECTIONS - PARLAY_MIN_SELECTIONS + 1 },
+  (_, index) => PARLAY_MIN_SELECTIONS + index
+);
 
 const OUTCOMES = ['home', 'draw', 'away'];
 
@@ -44,7 +50,7 @@ function outcomePickLabel(outcome, homeLabel, awayLabel) {
 export default function ParlayPage({ matches = [], userId, username = '', communityProfiles = [] }) {
   const oddsState = useParlayOdds(matches, communityProfiles);
   const [selections, setSelections] = useState([]);
-  const [targetCombinationCount, setTargetCombinationCount] = useState(PARLAY_COMBINATION_OPTIONS[0]);
+  const [targetCombinationCount, setTargetCombinationCount] = useState(PARLAY_MIN_SELECTIONS);
   const [stakeInput, setStakeInput] = useState(String(PARLAY_MIN_STAKE));
   const [savedParlays, setSavedParlays] = useState(() => (userId ? loadUserParlays(userId) : []));
   const [saveMsg, setSaveMsg] = useState('');
@@ -68,8 +74,10 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
   const handleTargetCombinationCountChange = useCallback(
     (event) => {
       const next = Number(event.target.value);
-      if (!PARLAY_COMBINATION_OPTIONS.includes(next)) return;
-      setTargetCombinationCount(next);
+      if (!Number.isFinite(next)) return;
+      const clamped = Math.min(PARLAY_MAX_SELECTIONS, Math.max(PARLAY_MIN_SELECTIONS, Math.round(next)));
+      if (!PARLAY_COMBINATION_OPTIONS.includes(clamped)) return;
+      setTargetCombinationCount(clamped);
       if (next < selections.length) {
         setFlowMsg(PARLAY_REDUCE_MSG);
       } else {
@@ -84,7 +92,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
   const toggleSelection = useCallback(
     (match, outcome, pickLabel) => {
       if (isParlayComplete) {
-        setFlowMsg(PARLAY_COMPLETE_MSG);
+        setFlowMsg(PARLAY_LIMIT_REACHED_MSG);
         return;
       }
 
@@ -106,7 +114,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
 
       const hasMatchSelection = selections.some((s) => s.matchId === matchId);
       if (!hasMatchSelection && selections.length >= targetCombinationCount) {
-        setFlowMsg(PARLAY_COMPLETE_MSG);
+        setFlowMsg(PARLAY_LIMIT_REACHED_MSG);
         return;
       }
 
@@ -214,7 +222,10 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
         {combinationCountLabel}
       </p>
       {isParlayComplete ? (
-        <p className="parlay-page__complete-msg">{PARLAY_COMPLETE_SUCCESS_MSG}</p>
+        <>
+          <p className="parlay-page__flow-msg">{PARLAY_LIMIT_REACHED_MSG}</p>
+          <p className="parlay-page__complete-msg">{PARLAY_COMPLETE_SUCCESS_MSG}</p>
+        </>
       ) : null}
       {flowMsg ? <p className="parlay-page__flow-msg">{flowMsg}</p> : null}
       {needsReduceSelections && flowMsg !== PARLAY_REDUCE_MSG ? (
@@ -232,7 +243,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
           <span className="eyebrow">Combinadas</span>
           <h2>PARLAY</h2>
           <p className="section-lead muted">
-            Elige cuántas combinaciones quieres hacer (5, 10, 15, 20 o 25).
+            Elige cuántas combinaciones quieres hacer ({PARLAY_MIN_SELECTIONS}–{PARLAY_MAX_SELECTIONS}).
           </p>
         </div>
       </div>
@@ -293,7 +304,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
 
                     <p className="parlay-match-card__hint">
                       {formLocked && !matchHasSelection
-                        ? 'Combinada completa'
+                        ? PARLAY_LIMIT_REACHED_MSG
                         : 'Selecciona un resultado'}
                     </p>
 
