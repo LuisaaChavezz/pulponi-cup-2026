@@ -135,12 +135,23 @@ export default function ChatMessage({
       >
         <ul className="chat-reaction-popover__list">
           {popoverUsers.map((u) => (
-            <li key={`${popover.emoji}-${u.profile_id}`} className="chat-reaction-popover__row">
-              <UserAvatar photoUrl={u.photoUrl} avatarUrl={u.avatarUrl} variant="chat" alt="" />
-              <div className="chat-reaction-popover__meta">
-                <span className="chat-reaction-popover__handle">{u.handle}</span>
-                {u.displayName ? <span className="chat-reaction-popover__name">{u.displayName}</span> : null}
-              </div>
+            <li key={`${popover.emoji}-${u.profile_id}`}>
+              <button
+                type="button"
+                className="chat-reaction-popover__row profile-link-btn"
+                onClick={() => {
+                  setPopover(null);
+                  onSelectUser?.(u.profile_id);
+                }}
+                disabled={!u.profile_id || !onSelectUser}
+                aria-label={`Ver perfil de ${u.handle}`}
+              >
+                <UserAvatar photoUrl={u.photoUrl} avatarUrl={u.avatarUrl} variant="chat" alt="" />
+                <div className="chat-reaction-popover__meta">
+                  <span className="chat-reaction-popover__handle">{u.handle}</span>
+                  {u.displayName ? <span className="chat-reaction-popover__name">{u.displayName}</span> : null}
+                </div>
+              </button>
             </li>
           ))}
         </ul>
@@ -163,7 +174,18 @@ export default function ChatMessage({
   return (
     <div className="chat-message">
       <div className="chat-message-head">
-        <UserAvatar photoUrl={message.photoUrl} avatarUrl={message.avatarUrl} variant="chat" alt="" />
+        {message.profileId && onSelectUser ? (
+          <button
+            type="button"
+            className="chat-message-avatar-btn"
+            onClick={() => onSelectUser(message.profileId)}
+            aria-label={`Ver perfil de ${message.user}`}
+          >
+            <UserAvatar photoUrl={message.photoUrl} avatarUrl={message.avatarUrl} variant="chat" alt="" />
+          </button>
+        ) : (
+          <UserAvatar photoUrl={message.photoUrl} avatarUrl={message.avatarUrl} variant="chat" alt="" />
+        )}
         <div>
           {message.profileId && onSelectUser ? (
             <button

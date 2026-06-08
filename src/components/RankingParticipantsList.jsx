@@ -12,20 +12,29 @@ export default function RankingParticipantsList({
   rowClassName = 'rm-participants__row',
   avatarVariant = 'chat',
   intro = 'El ranking comenzará cuando se registren los primeros puntos.',
+  onSelectUser,
 }) {
   return (
     <div className={['rm-participants', className].filter(Boolean).join(' ')}>
       {intro ? <p className="rm-participants__intro">{intro}</p> : null}
       <ul className={listClassName} role="list">
         {participants.map((p) => (
-          <li key={p.id} className={rowClassName}>
-            <UserAvatar
-              photoUrl={p.photo_url}
-              variant={avatarVariant}
-              className="rm-participants__avatar"
-              alt=""
-            />
-            <span className="rm-participants__name">{formatParticipantUsername(p)}</span>
+          <li key={p.id}>
+            <button
+              type="button"
+              className={[rowClassName, 'profile-link-btn'].filter(Boolean).join(' ')}
+              onClick={() => onSelectUser?.(p.id)}
+              disabled={!p.id || !onSelectUser}
+              aria-label={`Ver perfil de ${formatParticipantUsername(p)}`}
+            >
+              <UserAvatar
+                photoUrl={p.photo_url}
+                variant={avatarVariant}
+                className="rm-participants__avatar"
+                alt=""
+              />
+              <span className="rm-participants__name">{formatParticipantUsername(p)}</span>
+            </button>
           </li>
         ))}
       </ul>

@@ -321,20 +321,28 @@ export default function HomeDashboard({
             {recentActivity.map((item) => {
               const parts = parseActivityParts(item.text);
               return (
-                <li key={item.id} className="home-dash-activity__row">
-                  <UserAvatar avatarUrl={item.avatarUrl} variant="community" className="home-dash-activity__avatar" alt="" />
-                  <div className="home-dash-activity__copy">
-                    <p>
-                      <strong>{parts.action}</strong>
-                      {parts.match ? (
-                        <>
-                          {' '}
-                          — <span>{parts.match}</span>
-                        </>
-                      ) : null}
-                    </p>
-                    <time dateTime={item.at?.toISOString?.() ?? ''}>{formatRelativeTime(item.at, now)}</time>
-                  </div>
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className="home-dash-activity__row profile-link-btn"
+                    onClick={() => onSelectUser?.(item.profile_id)}
+                    disabled={!item.profile_id || !onSelectUser}
+                    aria-label={parts.match ? `Ver perfil: ${parts.action}` : `Ver perfil: ${parts.action}`}
+                  >
+                    <UserAvatar avatarUrl={item.avatarUrl} variant="community" className="home-dash-activity__avatar" alt="" />
+                    <div className="home-dash-activity__copy">
+                      <p>
+                        <strong>{parts.action}</strong>
+                        {parts.match ? (
+                          <>
+                            {' '}
+                            — <span>{parts.match}</span>
+                          </>
+                        ) : null}
+                      </p>
+                      <time dateTime={item.at?.toISOString?.() ?? ''}>{formatRelativeTime(item.at, now)}</time>
+                    </div>
+                  </button>
                 </li>
               );
             })}
@@ -367,11 +375,16 @@ export default function HomeDashboard({
             }`}
           >
             {isMobileHome ? (
-              <HomeMobileRankingSummary ranking={ranking} onViewRanking={onViewRanking} />
+              <HomeMobileRankingSummary
+                ranking={ranking}
+                onViewRanking={onViewRanking}
+                onSelectUser={onSelectUser}
+              />
             ) : (
               <RankingMovement
                 session={session}
                 className="dash-ranking pulponi-card ranking-section-movement home-dash-ranking-movement"
+                onSelectUser={onSelectUser}
               />
             )}
           </section>

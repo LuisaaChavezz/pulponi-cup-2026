@@ -38,6 +38,7 @@ export default function ComunidadPage({
               communityPickProfiles={communityPickProfiles}
               isAdmin={isAdmin}
               onCreateImportantAlert={onCreateImportantAlert}
+              onSelectUser={onSelectUser}
             />
           </div>
         </article>

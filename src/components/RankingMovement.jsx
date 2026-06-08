@@ -72,6 +72,7 @@ export default function RankingMovement({
   maxRest = null,
   onViewFull = null,
   showYouHint = true,
+  onSelectUser,
 }) {
   const { top5, rest, rows, loading, tablesMissing, jornadaLabel, profileSummary, movementActive } =
     useRankingMovement(session);
@@ -126,7 +127,7 @@ export default function RankingMovement({
           <p>El ranking todavía está vacío.</p>
         </div>
       ) : !movementActive ? (
-        <RankingParticipantsList participants={rows} avatarVariant="ranking" />
+        <RankingParticipantsList participants={rows} avatarVariant="ranking" onSelectUser={onSelectUser} />
       ) : (
         <>
           <div className="rm-top5-graph" role="list">
@@ -134,10 +135,22 @@ export default function RankingMovement({
               const rank = r.currentRank ?? i + 1;
               const barPct = Math.min(100, (r.points / maxTop5) * 100);
               return (
-                <div
+                <button
                   key={r.id}
+                  type="button"
                   role="listitem"
-                  className={`rm-top-card rm-top-card--${rank} ${r.movement?.direction === 'up' ? 'rm-top-card--up' : ''} ${r.movement?.direction === 'down' ? 'rm-top-card--down' : ''}`}
+                  className={[
+                    'rm-top-card',
+                    'profile-link-btn',
+                    `rm-top-card--${rank}`,
+                    r.movement?.direction === 'up' ? 'rm-top-card--up' : '',
+                    r.movement?.direction === 'down' ? 'rm-top-card--down' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() => onSelectUser?.(r.id)}
+                  disabled={!r.id || !onSelectUser}
+                  aria-label={`Ver perfil de ${selectDisplayName(r)}`}
                 >
                   <div className="rm-top-card-inner">
                     <div className="rm-top-row">
@@ -162,7 +175,7 @@ export default function RankingMovement({
                       </div>
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -174,21 +187,26 @@ export default function RankingMovement({
                 {visibleRest.map((r) => {
                   const pos = r.currentRank;
                   return (
-                    <li
-                      key={r.id}
-                      className={`rm-rest-row rm-rest-row--${r.movement?.direction ?? 'same'}`}
-                    >
-                      <UserAvatar photoUrl={r.photo_url} variant="chat" className="rm-rest-avatar" alt="" />
-                      <div className="rm-rest-body">
-                        <div className="rm-rest-line">
-                          <span className="rm-rest-title">
-                            <span className="rm-rank-num">#{pos}</span>{' '}
-                            <span className="rm-rank-name">{selectDisplayName(r)}</span>
-                          </span>
-                          <MovementBadge movement={r.movement} />
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        className={`rm-rest-row rm-rest-row--${r.movement?.direction ?? 'same'} profile-link-btn`}
+                        onClick={() => onSelectUser?.(r.id)}
+                        disabled={!r.id || !onSelectUser}
+                        aria-label={`Ver perfil de ${selectDisplayName(r)}`}
+                      >
+                        <UserAvatar photoUrl={r.photo_url} variant="chat" className="rm-rest-avatar" alt="" />
+                        <div className="rm-rest-body">
+                          <div className="rm-rest-line">
+                            <span className="rm-rest-title">
+                              <span className="rm-rank-num">#{pos}</span>{' '}
+                              <span className="rm-rank-name">{selectDisplayName(r)}</span>
+                            </span>
+                            <MovementBadge movement={r.movement} />
+                          </div>
+                          <RankStats points={r.points} exacts={r.exacts} />
                         </div>
-                        <RankStats points={r.points} exacts={r.exacts} />
-                      </div>
+                      </button>
                     </li>
                   );
                 })}

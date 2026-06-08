@@ -862,6 +862,12 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+.home-dash-mobile-ranking__list > li > .home-dash-mobile-ranking__row,
+.home-dash-activity__row.profile-link-btn,
+.home-dash-participants__row.profile-link-btn {
+  width: 100%;
+}
+
 .home-dash-mobile-ranking__pos {
   font-size: 0.72rem;
   font-weight: 900;

@@ -20,9 +20,10 @@ const PDF_ERROR_MSG = 'No se pudo generar el PDF.';
 
 const PREDICTION_FEED_RECENT_COUNT = 5;
 
-function PredictionActivityItem({ item }) {
-  return (
-    <li className="dash-notifications__pred-item">
+function PredictionActivityItem({ item, onSelectUser }) {
+  const profileId = item?.profile_id ?? item?.profileId ?? null;
+  const content = (
+    <>
       <UserAvatar avatarUrl={item.avatarUrl} variant="chat" alt="" />
       <div className="dash-notifications__pred-copy">
         <p>{item?.text ?? 'Sin información todavía'}</p>
@@ -30,8 +31,25 @@ function PredictionActivityItem({ item }) {
           <time dateTime={item.at.toISOString()}>{formatExportTime(item.at)}</time>
         ) : null}
       </div>
-    </li>
+    </>
   );
+
+  if (profileId && onSelectUser) {
+    return (
+      <li>
+        <button
+          type="button"
+          className="dash-notifications__pred-item profile-link-btn"
+          onClick={() => onSelectUser(profileId)}
+          aria-label="Ver perfil del usuario"
+        >
+          {content}
+        </button>
+      </li>
+    );
+  }
+
+  return <li className="dash-notifications__pred-item">{content}</li>;
 }
 
 export default function DashboardNotifications({
@@ -42,6 +60,7 @@ export default function DashboardNotifications({
   communityPickProfiles = [],
   isAdmin = false,
   onCreateImportantAlert,
+  onSelectUser,
 }) {
   const now = useKickoffClock(1000);
   const [title, setTitle] = useState('');
@@ -252,7 +271,7 @@ export default function DashboardNotifications({
           <>
             <ul className="dash-notifications__pred-feed dash-notifications__pred-feed--recent dash-notifications-community-mobile-hide">
               {recentFeed.map((item) => (
-                <PredictionActivityItem key={item.id} item={item} />
+                <PredictionActivityItem key={item.id} item={item} onSelectUser={onSelectUser} />
               ))}
             </ul>
             {historyFeed.length > 0 ? (
@@ -260,7 +279,7 @@ export default function DashboardNotifications({
                 <h4 className="dash-notifications__pred-history-title">Historial anterior</h4>
                 <ul className="dash-notifications__pred-feed dash-notifications__pred-history-scroll">
                   {historyFeed.map((item) => (
-                    <PredictionActivityItem key={item.id} item={item} />
+                    <PredictionActivityItem key={item.id} item={item} onSelectUser={onSelectUser} />
                   ))}
                 </ul>
               </div>

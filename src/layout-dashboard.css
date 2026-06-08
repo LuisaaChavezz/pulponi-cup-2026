@@ -576,6 +576,41 @@
   padding-bottom: 2px;
 }
 
+.profile-link-btn {
+  width: 100%;
+  border: none;
+  margin: 0;
+  padding: inherit;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  background: inherit;
+}
+
+.profile-link-btn:disabled {
+  cursor: default;
+}
+
+.profile-link-btn:not(:disabled):hover {
+  border-color: rgba(255, 30, 39, 0.35);
+  background: rgba(255, 30, 39, 0.06);
+}
+
+.chat-message-avatar-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  line-height: 0;
+}
+
+.chat-message-avatar-btn:hover {
+  box-shadow: 0 0 0 2px rgba(255, 30, 39, 0.45);
+}
+
 .chat-message-user {
   display: block;
   border: none;
@@ -592,6 +627,14 @@
 .chat-message-user:hover {
   color: var(--red, #ff1e27);
   text-decoration: underline;
+}
+
+.chat-reaction-popover__row.profile-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
 }
 
 .chat-message-body {

@@ -1004,6 +1004,7 @@ export default function App() {
                   <RankingMovement
                     session={session}
                     className="dash-ranking pulponi-card ranking-section-movement"
+                    onSelectUser={openUserProfile}
                   />
                 ) : null}
                 <RankingLeaderboard

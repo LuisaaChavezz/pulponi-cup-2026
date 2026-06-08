@@ -7,7 +7,7 @@ function formatUsername(row) {
   return String(raw).replace(/^@+/, '').trim() || 'jugador';
 }
 
-export default function HomeMobileRankingSummary({ ranking = [], onViewRanking }) {
+export default function HomeMobileRankingSummary({ ranking = [], onViewRanking, onSelectUser }) {
   const ranked = buildRankedLeaderboard(ranking);
   const hasScoredPoints = leaderboardHasScoredPoints(ranked);
   const topFive = ranked.slice(0, 5);
@@ -25,6 +25,7 @@ export default function HomeMobileRankingSummary({ ranking = [], onViewRanking }
             listClassName="home-dash-participants__list"
             rowClassName="home-dash-participants__row"
             avatarVariant="ranking"
+            onSelectUser={onSelectUser}
           />
         )}
         <button type="button" className="home-dash-btn home-dash-btn--ghost" onClick={onViewRanking}>
@@ -42,11 +43,19 @@ export default function HomeMobileRankingSummary({ ranking = [], onViewRanking }
       ) : (
         <ol className="home-dash-mobile-ranking__list">
           {topFive.map((row) => (
-            <li key={row.id ?? row.rank_position} className="home-dash-mobile-ranking__row">
-              <span className="home-dash-mobile-ranking__pos">{row.rank_position}.</span>
-              <UserAvatar photoUrl={row.photo_url} variant="ranking" className="home-dash-mobile-ranking__avatar" alt="" />
-              <span className="home-dash-mobile-ranking__name">{formatUsername(row)}</span>
-              <span className="home-dash-mobile-ranking__pts">{Number(row.points ?? 0)} pts</span>
+            <li key={row.id ?? row.rank_position}>
+              <button
+                type="button"
+                className="home-dash-mobile-ranking__row profile-link-btn"
+                onClick={() => onSelectUser?.(row.id)}
+                disabled={!row.id || !onSelectUser}
+                aria-label={`Ver perfil de ${formatUsername(row)}`}
+              >
+                <span className="home-dash-mobile-ranking__pos">{row.rank_position}.</span>
+                <UserAvatar photoUrl={row.photo_url} variant="ranking" className="home-dash-mobile-ranking__avatar" alt="" />
+                <span className="home-dash-mobile-ranking__name">{formatUsername(row)}</span>
+                <span className="home-dash-mobile-ranking__pts">{Number(row.points ?? 0)} pts</span>
+              </button>
             </li>
           ))}
         </ol>
