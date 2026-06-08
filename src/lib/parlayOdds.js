@@ -175,8 +175,6 @@ export async function resolveParlayOddsForMatches(
     const event = authorizedEvents ? findAuthorizedEventForMatch(authorizedEvents, match) : null;
     const fromApi = event ? extractEventOdds(event, match) : null;
 
-    let oddsSource = 'authorized_api';
-
     if (fromApi) {
       byMatchId[String(match.id)] = fromApi;
       authorizedCount += 1;
@@ -185,7 +183,6 @@ export async function resolveParlayOddsForMatches(
       if (fromMatch) {
         byMatchId[String(match.id)] = fromMatch;
         simulatedCount += 1;
-        oddsSource = 'match_db';
       } else {
         const row = buildTierFallbackOdds(match);
         if (!validateParlayMatchOdds(row, row.trendPcts ?? null)) {
@@ -193,19 +190,8 @@ export async function resolveParlayOddsForMatches(
         }
         byMatchId[String(match.id)] = row;
         simulatedCount += 1;
-        oddsSource = 'fallback_hash';
       }
     }
-
-    console.log('[parlayOdds]', {
-      matchId: match.id,
-      home_team: match.home_team,
-      away_team: match.away_team,
-      odds_home: match.odds_home ?? null,
-      odds_draw: match.odds_draw ?? null,
-      odds_away: match.odds_away ?? null,
-      source: oddsSource,
-    });
   }
 
   const mode =
