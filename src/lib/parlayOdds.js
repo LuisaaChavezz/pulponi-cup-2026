@@ -48,14 +48,21 @@ function roundOdd(n) {
   return Math.round(n * 100) / 100;
 }
 
+function americanDbOddToDecimal(american) {
+  const odd = Number(american);
+  if (!Number.isFinite(odd) || odd === 0) return null;
+  if (odd < 0) return roundOdd(1 + 100 / Math.abs(odd));
+  return roundOdd(1 + odd / 100);
+}
+
 function buildOddsFromMatchFields(match) {
   const { odds_home: oddsHome, odds_draw: oddsDraw, odds_away: oddsAway } = match ?? {};
   if (oddsHome == null || oddsDraw == null || oddsAway == null) return null;
 
-  const home = Number(oddsHome);
-  const draw = Number(oddsDraw);
-  const away = Number(oddsAway);
-  if (!Number.isFinite(home) || !Number.isFinite(draw) || !Number.isFinite(away)) return null;
+  const home = americanDbOddToDecimal(oddsHome);
+  const draw = americanDbOddToDecimal(oddsDraw);
+  const away = americanDbOddToDecimal(oddsAway);
+  if (home == null || draw == null || away == null) return null;
   if (home <= 1 || draw <= 1 || away <= 1) return null;
 
   return {
@@ -63,9 +70,9 @@ function buildOddsFromMatchFields(match) {
     source: 'match_db',
     sourceLabel: 'Momio del partido',
     bookmaker: null,
-    home: roundOdd(home),
-    draw: roundOdd(draw),
-    away: roundOdd(away),
+    home,
+    draw,
+    away,
   };
 }
 
@@ -168,6 +175,8 @@ export async function resolveParlayOddsForMatches(
     const event = authorizedEvents ? findAuthorizedEventForMatch(authorizedEvents, match) : null;
     const fromApi = event ? extractEventOdds(event, match) : null;
 
+    let oddsSource = 'authorized_api';
+
     if (fromApi) {
       byMatchId[String(match.id)] = fromApi;
       authorizedCount += 1;
@@ -176,6 +185,7 @@ export async function resolveParlayOddsForMatches(
       if (fromMatch) {
         byMatchId[String(match.id)] = fromMatch;
         simulatedCount += 1;
+        oddsSource = 'match_db';
       } else {
         const row = buildTierFallbackOdds(match);
         if (!validateParlayMatchOdds(row, row.trendPcts ?? null)) {
@@ -183,8 +193,19 @@ export async function resolveParlayOddsForMatches(
         }
         byMatchId[String(match.id)] = row;
         simulatedCount += 1;
+        oddsSource = 'fallback_hash';
       }
     }
+
+    console.log('[parlayOdds]', {
+      matchId: match.id,
+      home_team: match.home_team,
+      away_team: match.away_team,
+      odds_home: match.odds_home ?? null,
+      odds_draw: match.odds_draw ?? null,
+      odds_away: match.odds_away ?? null,
+      source: oddsSource,
+    });
   }
 
   const mode =
