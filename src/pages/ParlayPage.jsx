@@ -22,12 +22,11 @@ const PARLAY_COMPLETE_MSG = 'Ya completaste las selecciones de tu combinada.';
 const PARLAY_COMPLETE_SUCCESS_MSG = 'Combinada completa ✅';
 const PARLAY_REDUCE_MSG = 'Reduce tus selecciones para continuar.';
 
-/** Opciones 5, 6, 7, … 25 (partidos por combinada y combinadas planeadas) */
+/** Opciones 5, 6, 7, … 25 (partidos por combinada) */
 const PARLAY_COUNT_OPTIONS = Array.from(
   { length: PARLAY_MAX_SELECTIONS - PARLAY_MIN_SELECTIONS + 1 },
   (_, index) => PARLAY_MIN_SELECTIONS + index
 );
-const PARLAY_COMBO_LIMIT_MSG = 'Completaste todas las combinadas que planeaste.';
 
 const OUTCOMES = ['home', 'draw', 'away'];
 
@@ -101,9 +100,6 @@ function ParlaySlip({
   isParlayComplete,
   progressLabel,
   incompleteMessage,
-  plannedComboCount,
-  sessionSavedCount,
-  isComboLimitReached,
   stakeInput,
   stakeError,
   payout,
@@ -113,7 +109,6 @@ function ParlaySlip({
   saveMsg,
   pdfError,
   savedParlays,
-  onPlannedComboCountChange,
   onStakeChange,
   onStakeBlur,
   onRemoveSelection,
@@ -121,33 +116,8 @@ function ParlaySlip({
   onSaveParlay,
   onExportPdf,
 }) {
-  const savedComboLabel = `${sessionSavedCount} de ${plannedComboCount} combinadas guardadas`;
-
   return (
     <aside className="parlay-page__slip pulponi-card">
-      <label className="parlay-page__target-label parlay-page__slip-plan">
-        <span>¿Cuántas combinadas planeas hacer?</span>
-        <select
-          className="parlay-page__target-select"
-          value={plannedComboCount}
-          onChange={onPlannedComboCountChange}
-          disabled={sessionSavedCount > 0}
-          aria-label="Cantidad de combinadas planeadas"
-        >
-          {PARLAY_COUNT_OPTIONS.map((count) => (
-            <option key={count} value={count} disabled={count < sessionSavedCount}>
-              {count}
-            </option>
-          ))}
-        </select>
-      </label>
-      <p className={`parlay-page__target-progress${isComboLimitReached ? ' is-complete' : ''}`}>
-        {savedComboLabel}
-      </p>
-      {isComboLimitReached ? (
-        <p className="parlay-page__complete-msg">{PARLAY_COMBO_LIMIT_MSG}</p>
-      ) : null}
-
       <div className="parlay-page__slip-head">
         <h3>Combinada</h3>
         <span className={`parlay-page__count${isParlayComplete ? ' is-ok' : ''}`}>{progressLabel}</span>
@@ -212,7 +182,7 @@ function ParlaySlip({
       </dl>
 
       <div className="parlay-page__actions">
-        {isParlayComplete && !isComboLimitReached ? (
+        {isParlayComplete ? (
           <>
             <button type="button" className="primary full" disabled={!canSubmit} onClick={onSaveParlay}>
               Guardar combinada
@@ -391,8 +361,6 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
   const [targetSelectionCount, setTargetSelectionCount] = useState(PARLAY_MIN_SELECTIONS);
   const [stakeInput, setStakeInput] = useState(String(PARLAY_MIN_STAKE));
   const [savedParlays, setSavedParlays] = useState(() => (userId ? loadUserParlays(userId) : []));
-  const [plannedComboCount, setPlannedComboCount] = useState(PARLAY_MIN_SELECTIONS);
-  const [sessionSavedCount, setSessionSavedCount] = useState(0);
   const [saveMsg, setSaveMsg] = useState('');
   const [pdfError, setPdfError] = useState('');
   const [flowMsg, setFlowMsg] = useState('');
@@ -406,9 +374,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
   const needsReduceSelections = selections.length > targetSelectionCount;
   const isParlayComplete = selections.length === targetSelectionCount && !needsReduceSelections;
   const formLocked = isParlayComplete;
-  const isComboLimitReached = sessionSavedCount >= plannedComboCount;
-
-  const canSubmit = isParlayComplete && !isComboLimitReached && isParlayStakeValid(stakeInput);
+  const canSubmit = isParlayComplete && isParlayStakeValid(stakeInput);
   const canExportPdf = isParlayComplete;
   const progressLabel = `${selections.length} / ${targetSelectionCount}`;
   const incompleteMessage = `Selecciona ${targetSelectionCount} partidos para completar tu combinada.`;
@@ -517,26 +483,8 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
     setFlowMsg('');
   }, []);
 
-  const handlePlannedComboCountChange = useCallback(
-    (event) => {
-      const next = Number(event.target.value);
-      if (!Number.isFinite(next)) return;
-      const clamped = Math.min(PARLAY_MAX_SELECTIONS, Math.max(PARLAY_MIN_SELECTIONS, Math.round(next)));
-      if (!PARLAY_COUNT_OPTIONS.includes(clamped)) return;
-      if (clamped < sessionSavedCount) return;
-      setPlannedComboCount(clamped);
-      setSaveMsg('');
-      setPdfError('');
-    },
-    [sessionSavedCount]
-  );
-
   const handleSaveParlay = useCallback(() => {
     if (!userId) return;
-    if (isComboLimitReached) {
-      setSaveMsg(PARLAY_COMBO_LIMIT_MSG);
-      return;
-    }
     if (!isParlayStakeValid(stakeInput)) {
       setSaveMsg(PARLAY_MIN_STAKE_MESSAGE);
       return;
@@ -555,11 +503,10 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
     };
     const rows = saveUserParlay(userId, parlay);
     setSavedParlays(rows);
-    setSessionSavedCount((prev) => prev + 1);
     setSaveMsg('Parlay guardado.');
     setSelections([]);
     setFlowMsg('');
-  }, [userId, isComboLimitReached, canSubmit, selections, payout, oddsState.mode, stakeInput]);
+  }, [userId, canSubmit, selections, payout, oddsState.mode, stakeInput]);
 
   const handleStakeChange = useCallback((event) => {
     const next = event.target.value;
@@ -580,16 +527,11 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
   return (
     <div className={`parlay-page${formLocked ? ' parlay-page--locked' : ''}`}>
       <ParlayHeader />
-      <p style={{ color: 'red', fontSize: '24px' }}>AQUI ESTA EL SLIP</p>
       <ParlaySlip
         selections={selections}
         isParlayComplete={isParlayComplete}
         progressLabel={progressLabel}
         incompleteMessage={incompleteMessage}
-        plannedComboCount={plannedComboCount}
-        sessionSavedCount={sessionSavedCount}
-        isComboLimitReached={isComboLimitReached}
-        onPlannedComboCountChange={handlePlannedComboCountChange}
         stakeInput={stakeInput}
         stakeError={stakeError}
         payout={payout}
