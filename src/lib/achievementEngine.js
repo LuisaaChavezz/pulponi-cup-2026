@@ -4,6 +4,17 @@ import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 
 const ACTIVE_RULES = ACHIEVEMENT_CATALOG.filter((a) => a.active);
 
+export const PULPO_FUTBOLERO_OFICIAL_ID = 'pulpo-futbolero-oficial';
+
+/** Arranque del Mundial 2026 — desbloqueo automático al abrir la app. */
+export function isWorldCupKickoffOrLater(now = new Date()) {
+  const threshold = new Date(2026, 5, 11);
+  threshold.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  return today >= threshold;
+}
+
 function pickFromProfile(profile, matchId) {
   const raw = profile?.picks?.[matchId] ?? profile?.picks?.[String(matchId)];
   return parsePickScore(raw);
@@ -81,6 +92,9 @@ export function evaluateAchievementIdsForProfile(profile, context = {}) {
   }
   if (profileHasRiskyExactHit(profile.id, pickScoreRows, communityProfiles)) {
     earned.push('pick-salvaje');
+  }
+  if (isWorldCupKickoffOrLater()) {
+    earned.push(PULPO_FUTBOLERO_OFICIAL_ID);
   }
 
   return earned.filter((id) => ACTIVE_RULES.some((a) => a.id === id));

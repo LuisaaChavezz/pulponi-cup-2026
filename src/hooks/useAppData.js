@@ -758,6 +758,9 @@ export function useAppData(session) {
   const syncWorldCupBackgroundRef = useRef(syncWorldCupBackground);
   syncWorldCupBackgroundRef.current = syncWorldCupBackground;
 
+  const syncAchievementsForProfilesRef = useRef(syncAchievementsForProfiles);
+  syncAchievementsForProfilesRef.current = syncAchievementsForProfiles;
+
   const loadSecondaryData = useCallback(async () => {
     await Promise.all([
       loadCommunityPicks(),
@@ -767,6 +770,7 @@ export function useAppData(session) {
       loadBadges(),
       refreshUserAchievements(),
     ]);
+    await syncAchievementsForProfilesRef.current?.();
     markBootstrapPhase('fase2');
     reportBootstrapDiagnostics('Fase 2 (secundaria)');
   }, [

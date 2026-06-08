@@ -46,6 +46,7 @@ values
   ('rey-del-pulpo', 'Rey del Pulpo', 'Número uno del ranking. Coronan al pulpo.', '👑', 'Ser #1 del ranking.', 'rank_first', 1, 7, true),
   ('pick-salvaje', 'Pick Salvaje', 'Acertaste lo que casi nadie se atrevió a poner.', '⚡', 'Acertar un marcador elegido por menos del 5% de usuarios.', 'risky_exact', 1, 8, true),
   ('pulpo-legendario', 'Pulpo Legendario', 'Índice Pulpo 90+. Nivel supremo.', '🐙', 'Alcanzar Índice Pulpo 90+.', 'pulpo_index_min', 90, 9, true),
+  ('pulpo-futbolero-oficial', 'Pulpo Futbolero Oficial', 'Participaste en Pulponi Cup 2026 desde el arranque del Mundial.', '⚽', 'Entra a Pulponi Cup el 11 de junio de 2026 o después.', 'world_cup_kickoff', 0, 21, true),
   ('comentarista-pulponi', 'Comentarista Pulponi', 'Próximamente.', '💬', 'Envía 50 mensajes en el chat.', 'placeholder', 0, 10, false),
   ('favorito-comunidad', 'Favorito de la Comunidad', 'Próximamente.', '❤️', 'Recibe 30 reacciones en el chat.', 'placeholder', 0, 11, false),
   ('pulpo-social', 'Pulpo Social', 'Próximamente.', '🫂', 'Interactúa con 20 perfiles distintos.', 'placeholder', 0, 12, false),
