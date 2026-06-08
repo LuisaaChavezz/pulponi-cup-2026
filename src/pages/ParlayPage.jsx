@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import TeamLogo from '../components/TeamLogo';
 import { displayTeamName, formatMatchDateShort, formatMatchTime } from '../lib/matchUtils';
+import { useMobileViewport } from '../hooks/useMobileViewport';
 import { useParlayOdds } from '../hooks/useParlayOdds';
 import {
   PARLAY_MIN_SELECTIONS,
@@ -48,6 +49,7 @@ function outcomePickLabel(outcome, homeLabel, awayLabel) {
 }
 
 export default function ParlayPage({ matches = [], userId, username = '', communityProfiles = [] }) {
+  const isMobileParlay = useMobileViewport(767);
   const oddsState = useParlayOdds(matches, communityProfiles);
   const [selections, setSelections] = useState([]);
   const [targetCombinationCount, setTargetCombinationCount] = useState(PARLAY_MIN_SELECTIONS);
@@ -236,7 +238,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
 
   return (
     <div className={`parlay-page${formLocked ? ' parlay-page--locked' : ''}`}>
-      {combinationSetup}
+      {!isMobileParlay ? combinationSetup : null}
 
       <div className="section-title parlay-page__head">
         <div>
@@ -249,6 +251,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
       </div>
 
       <div className="parlay-page__layout">
+        {isMobileParlay ? combinationSetup : null}
         <div className="parlay-page__matches">
           {oddsState.loading ? (
             <p className="muted sync-footnote">Cargando partidos…</p>
