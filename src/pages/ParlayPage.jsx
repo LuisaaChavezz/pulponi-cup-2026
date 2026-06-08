@@ -226,6 +226,8 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
 
   return (
     <div className="parlay-page">
+      {targetSetup}
+
       <div className="section-title parlay-page__head">
         <div>
           <span className="eyebrow">Combinadas</span>
@@ -236,11 +238,8 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
         </div>
       </div>
 
-      {isMobileParlayFlow ? targetSetup : null}
-
       <div className="parlay-page__layout">
         <div className="parlay-page__matches">
-          {!isMobileParlayFlow ? targetSetup : null}
           {oddsState.loading ? (
             <p className="muted sync-footnote">Cargando partidos…</p>
           ) : oddsState.openMatches.length === 0 ? (
