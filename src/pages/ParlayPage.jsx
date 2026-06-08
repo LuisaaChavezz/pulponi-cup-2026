@@ -25,6 +25,7 @@ const PARLAY_TARGET_OPTIONS = Array.from(
   { length: PARLAY_MAX_SELECTIONS - PARLAY_MIN_SELECTIONS + 1 },
   (_, index) => PARLAY_MIN_SELECTIONS + index
 );
+const PARLAY_COUNT_OPTIONS = [5, 10, 15, 20, 25];
 
 const OUTCOMES = ['home', 'draw', 'away'];
 
@@ -51,6 +52,8 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
   const [targetSelectionCount, setTargetSelectionCount] = useState(PARLAY_MIN_SELECTIONS);
   const [stakeInput, setStakeInput] = useState(String(PARLAY_MIN_STAKE));
   const [savedParlays, setSavedParlays] = useState(() => (userId ? loadUserParlays(userId) : []));
+  const [parlayCountLimit, setParlayCountLimit] = useState(5);
+  const [sessionSavedCount, setSessionSavedCount] = useState(0);
   const [saveMsg, setSaveMsg] = useState('');
   const [pdfError, setPdfError] = useState('');
   const [flowMsg, setFlowMsg] = useState('');
@@ -63,12 +66,14 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
 
   const needsReduceSelections = selections.length > targetSelectionCount;
   const isParlayComplete = selections.length === targetSelectionCount && !needsReduceSelections;
+  const isAllParlaysDone = sessionSavedCount >= parlayCountLimit;
   const formLocked = isParlayComplete;
 
-  const canSubmit = isParlayComplete && isParlayStakeValid(stakeInput);
+  const canSubmit = isParlayComplete && !isAllParlaysDone && isParlayStakeValid(stakeInput);
   const canExportPdf = isParlayComplete;
   const progressLabel = `${selections.length} / ${targetSelectionCount}`;
   const incompleteMessage = `Selecciona ${targetSelectionCount} partidos para completar tu combinada.`;
+  const combinationCountLabel = `${sessionSavedCount} de ${parlayCountLimit} combinaciones`;
 
   const handleTargetSelectionCountChange = useCallback(
     (event) => {
@@ -90,6 +95,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
 
   const toggleSelection = useCallback(
     (match, outcome, pickLabel) => {
+      if (isAllParlaysDone) return;
       if (isParlayComplete) {
         setFlowMsg(PARLAY_COMPLETE_MSG);
         return;
@@ -140,7 +146,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
       setSaveMsg('');
       setPdfError('');
     },
-    [oddsState.byMatchId, selections, targetSelectionCount, isParlayComplete]
+    [oddsState.byMatchId, selections, targetSelectionCount, isParlayComplete, isAllParlaysDone]
   );
 
   const handleExportPdf = useCallback(() => {
@@ -194,6 +200,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
     };
     const rows = saveUserParlay(userId, parlay);
     setSavedParlays(rows);
+    setSessionSavedCount((prev) => prev + 1);
     setSaveMsg('Parlay guardado.');
     setSelections([]);
     setFlowMsg('');
@@ -201,6 +208,29 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
 
   const targetSetup = (
     <div className="parlay-page__target-setup pulponi-card">
+      <label className="parlay-page__target-label">
+        <span>¿Cuántas combinadas quieres hacer?</span>
+        <select
+          className="parlay-page__target-select"
+          value={parlayCountLimit}
+          onChange={(e) => setParlayCountLimit(Number(e.target.value))}
+          disabled={sessionSavedCount > 0}
+          aria-label="Cantidad de combinadas a realizar"
+        >
+          {PARLAY_COUNT_OPTIONS.map((count) => (
+            <option key={count} value={count}>
+              {count}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className={`parlay-page__target-progress${isAllParlaysDone ? ' is-complete' : ''}`}>
+        {combinationCountLabel}
+      </p>
+      {isAllParlaysDone ? (
+        <p className="parlay-page__complete-msg">¡Completaste todas tus combinadas!</p>
+      ) : null}
+
       <label className="parlay-page__target-label">
         <span>¿Cuántos partidos tendrá tu combinada?</span>
         <select
@@ -302,7 +332,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
       </dl>
 
       <div className="parlay-page__actions">
-        {isParlayComplete ? (
+        {isParlayComplete && !isAllParlaysDone ? (
           <>
             <button type="button" className="primary full" disabled={!canSubmit} onClick={handleSaveParlay}>
               Guardar combinada
@@ -385,7 +415,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
                 <article
                   key={match.id}
                   className={`parlay-match-card${
-                    formLocked && !matchHasSelection ? ' parlay-match-card--locked' : ''
+                    isAllParlaysDone || (formLocked && !matchHasSelection) ? ' parlay-match-card--locked' : ''
                   }`}
                 >
                   {kickoffLabel ? (
@@ -421,7 +451,9 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
                   </div>
 
                   <p className="parlay-match-card__hint">
-                    {formLocked && !matchHasSelection
+                    {isAllParlaysDone
+                      ? 'Límite de combinadas alcanzado'
+                      : formLocked && !matchHasSelection
                       ? PARLAY_COMPLETE_SUCCESS_MSG
                       : 'Selecciona un resultado'}
                   </p>
@@ -434,7 +466,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
                       const pickLabel = outcomePickLabel(outcome, homeLabel, awayLabel);
                       const american = formatAmericanOdd(odd);
                       const isFavorite = american.startsWith('-');
-                      const pickDisabled = formLocked && !active;
+                      const pickDisabled = isAllParlaysDone || (formLocked && !active);
 
                       return (
                         <button
