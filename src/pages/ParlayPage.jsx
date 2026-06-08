@@ -580,14 +580,6 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
   return (
     <div className={`parlay-page${formLocked ? ' parlay-page--locked' : ''}`}>
       <ParlayHeader />
-      <ParlaySelectionCount
-        targetSelectionCount={targetSelectionCount}
-        selectionsLength={selections.length}
-        formLocked={formLocked}
-        flowMsg={flowMsg}
-        needsReduceSelections={needsReduceSelections}
-        onChange={handleTargetSelectionCountChange}
-      />
       <ParlaySlip
         selections={selections}
         isParlayComplete={isParlayComplete}
@@ -612,6 +604,14 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
         onClearSelections={clearSelections}
         onSaveParlay={handleSaveParlay}
         onExportPdf={handleExportPdf}
+      />
+      <ParlaySelectionCount
+        targetSelectionCount={targetSelectionCount}
+        selectionsLength={selections.length}
+        formLocked={formLocked}
+        flowMsg={flowMsg}
+        needsReduceSelections={needsReduceSelections}
+        onChange={handleTargetSelectionCountChange}
       />
       <ParlayMatchesList
         oddsState={oddsState}
