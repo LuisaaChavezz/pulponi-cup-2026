@@ -576,6 +576,24 @@
   padding-bottom: 2px;
 }
 
+.chat-message-user {
+  display: block;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.chat-message-user:hover {
+  color: var(--red, #ff1e27);
+  text-decoration: underline;
+}
+
 .chat-message-body {
   margin: 0 0 2px;
   word-break: break-word;

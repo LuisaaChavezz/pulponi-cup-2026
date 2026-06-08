@@ -10,6 +10,7 @@ export default function MatchChat({
   currentUserId,
   reactionRowsByMessage,
   onToggleReaction,
+  onSelectUser,
   messagesListClassName = '',
   inputAreaClassName = '',
 }) {
@@ -45,6 +46,7 @@ export default function MatchChat({
             reactionRows={m.id ? reactionRowsByMessage[m.id] ?? [] : []}
             currentUserId={currentUserId}
             onToggleReaction={onToggleReaction}
+            onSelectUser={onSelectUser}
           />
         ))}
         <div ref={endRef} className="chat-list__end" aria-hidden="true" />

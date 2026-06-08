@@ -1025,6 +1025,7 @@ export default function App() {
                 sessionUserId={session?.user?.id ?? null}
                 reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
                 onToggleReaction={data.toggleReaction}
+                onSelectUser={openUserProfile}
                 events={data.events ?? []}
                 predictionActivityFeed={data.predictionActivityFeed ?? []}
                 predictionActivityLog={data.predictionActivityLog ?? []}

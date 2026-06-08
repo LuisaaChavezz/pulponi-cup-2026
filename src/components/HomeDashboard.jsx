@@ -242,6 +242,7 @@ export default function HomeDashboard({
           currentUserId={session?.user?.id ?? null}
           reactionRowsByMessage={reactionRowsByMessage}
           onToggleReaction={onToggleReaction}
+          onSelectUser={onSelectUser}
         />
       </div>
     </article>

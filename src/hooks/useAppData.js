@@ -593,7 +593,7 @@ export function useAppData(session) {
     const { data, error } = await timedQuery('comments', () =>
       supabase
         .from('comments')
-        .select('id, body, created_at, profiles(username, name, photo_url)')
+        .select('id, profile_id, body, created_at, profiles(username, name, photo_url)')
         .order('created_at', { ascending: true })
         .limit(80)
     );
@@ -614,6 +614,7 @@ export function useAppData(session) {
     setChatData(
       data.map((c) => ({
         id: c.id,
+        profileId: c.profile_id ?? null,
         user: c.profiles?.username ? `@${c.profiles.username}` : '@anon',
         photoUrl: c.profiles?.photo_url ?? null,
         avatarUrl: resolveAvatarUrl(c.profiles?.photo_url),

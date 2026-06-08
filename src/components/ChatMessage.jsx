@@ -43,7 +43,13 @@ function uniqueReactionHandles(reactionRows) {
   return out;
 }
 
-export default function ChatMessage({ message, reactionRows = [], currentUserId, onToggleReaction }) {
+export default function ChatMessage({
+  message,
+  reactionRows = [],
+  currentUserId,
+  onToggleReaction,
+  onSelectUser,
+}) {
   const grouped = useMemo(() => groupReactions(reactionRows, currentUserId), [reactionRows, currentUserId]);
   const [poppingEmoji, setPoppingEmoji] = useState(null);
   const [popover, setPopover] = useState(null);
@@ -159,7 +165,17 @@ export default function ChatMessage({ message, reactionRows = [], currentUserId,
       <div className="chat-message-head">
         <UserAvatar photoUrl={message.photoUrl} avatarUrl={message.avatarUrl} variant="chat" alt="" />
         <div>
-          <strong>{message.user}</strong>
+          {message.profileId && onSelectUser ? (
+            <button
+              type="button"
+              className="chat-message-user"
+              onClick={() => onSelectUser(message.profileId)}
+            >
+              {message.user}
+            </button>
+          ) : (
+            <strong>{message.user}</strong>
+          )}
           <small>{message.time}</small>
         </div>
       </div>
