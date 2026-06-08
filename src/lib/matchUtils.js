@@ -7,6 +7,9 @@ const FINISHED_NORM = new Set(['finished', 'ft', 'aet', 'pen', 'terminado', 'fin
 const LIVE_NORM = new Set(['live', 'in_play', '1h', '2h']);
 const HALFTIME_NORM = new Set(['ht', 'halftime', 'medio tiempo']);
 
+/** Predicciones cierran 5 minutos antes del kickoff. */
+const PICK_CLOSE_MS_BEFORE_KICKOFF = 5 * 60 * 1000;
+
 export function uiStatus(status, apiStatus) {
   const raw = String(apiStatus ?? status ?? '').toUpperCase();
   if (FINISHED_RAW.has(raw)) return 'Final';
@@ -52,9 +55,15 @@ export function isPickLocked(match) {
   if (FINISHED_RAW.has(raw) || LIVE_RAW.has(raw) || HALFTIME_RAW.has(raw)) return true;
   if (FINISHED_NORM.has(norm) || LIVE_NORM.has(norm) || HALFTIME_NORM.has(norm)) return true;
   if (label === 'En vivo' || label === 'Medio tiempo' || label === 'Final') return true;
-  if (SCHEDULED_RAW.has(raw) || norm === 'scheduled') return false;
 
-  if (match?.kickoff && new Date(match.kickoff) <= new Date()) return true;
+  if (match?.kickoff) {
+    const kickoffTime = new Date(match.kickoff).getTime();
+    if (!Number.isNaN(kickoffTime) && kickoffTime - PICK_CLOSE_MS_BEFORE_KICKOFF <= Date.now()) {
+      return true;
+    }
+  }
+
+  if (SCHEDULED_RAW.has(raw) || norm === 'scheduled') return false;
   return false;
 }
 
