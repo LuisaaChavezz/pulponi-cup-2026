@@ -162,6 +162,8 @@
   overflow-y: auto;
   padding-right: 4px;
   -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
 }
 
 .home-dash-chat-body .message-box {

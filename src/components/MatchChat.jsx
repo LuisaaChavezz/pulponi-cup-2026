@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
 import ChatMessage from './ChatMessage';
 
@@ -12,12 +13,31 @@ export default function MatchChat({
   messagesListClassName = '',
   inputAreaClassName = '',
 }) {
+  const listRef = useRef(null);
+  const endRef = useRef(null);
   const listClassName = ['chat-list', messagesListClassName].filter(Boolean).join(' ');
   const inputClassName = ['message-box', inputAreaClassName].filter(Boolean).join(' ');
 
+  const scrollToLatestMessage = useCallback(() => {
+    const list = listRef.current;
+    if (list) {
+      list.scrollTop = list.scrollHeight;
+    }
+    endRef.current?.scrollIntoView({ block: 'end' });
+  }, []);
+
+  useLayoutEffect(() => {
+    scrollToLatestMessage();
+  }, [messages, scrollToLatestMessage]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(scrollToLatestMessage);
+    return () => cancelAnimationFrame(frame);
+  }, [messages, scrollToLatestMessage]);
+
   return (
     <>
-      <div className={listClassName}>
+      <div ref={listRef} className={listClassName}>
         {messages.map((m, i) => (
           <ChatMessage
             key={m.id ?? `demo-${i}`}
@@ -27,6 +47,7 @@ export default function MatchChat({
             onToggleReaction={onToggleReaction}
           />
         ))}
+        <div ref={endRef} className="chat-list__end" aria-hidden="true" />
       </div>
       <div className={inputClassName}>
         <input
