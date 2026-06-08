@@ -380,7 +380,7 @@ export function useAppData(session) {
       const { data, error } = await timedQuery('activity', () =>
         supabase
           .from('activity_log')
-          .select('action, payload, created_at, profiles(username, photo_url)')
+          .select('profile_id, action, payload, created_at, profiles(username, name, photo_url)')
           .order('created_at', { ascending: false })
           .limit(8)
       );
@@ -396,10 +396,14 @@ export function useAppData(session) {
 
       if (data?.length) {
         setActivity(
-          data.map((row) => ({
-            text: formatActivityLogMessage(row, matchById) || 'Actividad reciente',
-            avatarUrl: resolveAvatarUrl(row.profiles?.photo_url),
-          }))
+          data.map((row) => {
+            let prof = row.profiles;
+            if (Array.isArray(prof)) prof = prof[0];
+            return {
+              text: formatActivityLogMessage(row, matchById) || 'Actividad reciente',
+              avatarUrl: resolveAvatarUrl(prof?.photo_url),
+            };
+          })
         );
       } else {
         setActivity([]);

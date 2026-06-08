@@ -1,18 +1,29 @@
 /**
- * Plantillas de texto para "Actividad reciente" ({usuario} = @username).
+ * Plantillas de texto para "Actividad reciente" ({usuario} = @username o name).
  */
+
+import { formatPredictionActivityMessage, normalizeActivityProfile } from './predictionActivity';
 
 function trimStr(s) {
   return typeof s === 'string' ? s.trim() : '';
 }
 
+function formatActivityUsuario(profiles) {
+  const profile = normalizeActivityProfile(profiles);
+  if (!profile) return 'Alguien';
+  const name = trimStr(profile.name);
+  if (name) return name;
+  const username = trimStr(profile.username);
+  if (username) return `@${username.replace(/^@+/, '')}`;
+  return 'Alguien';
+}
+
 /**
- * @param {object} row - fila de activity_log con profiles { username, photo_url }
+ * @param {object} row - fila de activity_log con profiles { username, name, photo_url }
  * @param {Map<string, object>} [matchById] - matches indexados por id (opcional)
  */
 export function formatActivityLogMessage(row, matchById) {
-  const username = row.profiles?.username;
-  const usuario = username ? `@${username}` : 'Alguien';
+  const usuario = formatActivityUsuario(row.profiles);
   const action = (row.action || '').trim();
   const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
 
@@ -35,13 +46,10 @@ export function formatActivityLogMessage(row, matchById) {
 
     /* PREDICCIONES (sin revelar marcador) */
     case 'prediction_created':
-      return trimStr(p.public_message) || `${usuario} envió una predicción para ${home} vs ${away}`;
     case 'prediction_updated':
-      return trimStr(p.public_message) || `${usuario} actualizó su predicción para ${home} vs ${away}`;
     case 'prediction_made':
-      return trimStr(p.public_message) || `${usuario} envió una predicción para ${home} vs ${away}`;
     case 'prediction_changed':
-      return trimStr(p.public_message) || `${usuario} cambió su predicción para ${home} vs ${away}`;
+      return formatPredictionActivityMessage(row, matchById);
     case 'prediction_exact_score':
       return `${usuario} acertó el marcador`;
     case 'prediction_correct_winner':

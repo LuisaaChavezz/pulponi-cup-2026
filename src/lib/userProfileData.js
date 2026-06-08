@@ -223,7 +223,7 @@ export function mapUserActivityRows(rows, profile, matchIndex) {
         {
           action: row.action,
           payload: row.payload,
-          profiles: { username, photo_url: profile?.photo_url },
+          profiles: { username, name: profile?.name, photo_url: profile?.photo_url },
         },
         matchIndex
       );

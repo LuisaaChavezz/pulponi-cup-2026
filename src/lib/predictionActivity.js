@@ -33,12 +33,20 @@ export function getProfilePickForMatch(picks, matchId) {
   return null;
 }
 
+/** Supabase puede devolver profiles como objeto o array en el join. */
+export function normalizeActivityProfile(profiles) {
+  if (!profiles) return null;
+  if (Array.isArray(profiles)) return profiles[0] ?? null;
+  return profiles;
+}
+
 /** Nombre visible sin @ ni marcador. */
 export function formatActivityDisplayName(profile) {
-  if (!profile) return 'Alguien';
-  const name = trimStr(profile.name);
+  const row = normalizeActivityProfile(profile);
+  if (!row) return 'Alguien';
+  const name = trimStr(row.name);
   if (name) return name;
-  const user = trimStr(profile.username);
+  const user = trimStr(row.username);
   if (user) return user.replace(/^@+/, '');
   return 'Alguien';
 }
@@ -71,9 +79,6 @@ export function buildPredictionPublicMessage(displayName, pickAction, homeTeam, 
 export function formatPredictionActivityMessage(row, matchById) {
   if (!row || typeof row !== 'object') return 'Actividad de predicción';
   const p = row.payload && typeof row.payload === 'object' ? row.payload : {};
-  const safe = trimStr(p.public_message);
-  if (safe) return safe;
-
   const usuario = formatActivityDisplayName(row.profiles);
   const fixture = matchLabelFromPayload(p, matchById);
   const action = String(row.action || '').trim();
@@ -84,13 +89,16 @@ export function formatPredictionActivityMessage(row, matchById) {
       ? 'updated'
       : 'created';
 
+  let built;
   if (pickAction === 'updated') {
-    if (action === 'prediction_changed') {
-      return `${usuario} cambió su predicción para ${fixture}`;
-    }
-    return `${usuario} actualizó su predicción para ${fixture}`;
+    built =
+      action === 'prediction_changed'
+        ? `${usuario} cambió su predicción para ${fixture}`
+        : `${usuario} actualizó su predicción para ${fixture}`;
+  } else {
+    built = `${usuario} envió una predicción para ${fixture}`;
   }
-  return `${usuario} envió una predicción para ${fixture}`;
+  return usuario !== 'Alguien' ? built : trimStr(p.public_message) || built;
 }
 
 function kickoffMs(match) {
