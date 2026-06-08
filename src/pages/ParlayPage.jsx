@@ -580,6 +580,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
   return (
     <div className={`parlay-page${formLocked ? ' parlay-page--locked' : ''}`}>
       <ParlayHeader />
+      <p style={{ color: 'red', fontSize: '24px' }}>AQUI ESTA EL SLIP</p>
       <ParlaySlip
         selections={selections}
         isParlayComplete={isParlayComplete}
