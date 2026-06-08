@@ -177,7 +177,7 @@ function ParlaySlip({
         </div>
         <div className="parlay-page__calc-total">
           <dt>Posible ganancia</dt>
-          <dd>{payout.grossGain.toFixed(0)} pts</dd>
+          <dd>{payout.pulponiGain.toFixed(0)} pts</dd>
         </div>
       </dl>
 
