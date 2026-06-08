@@ -7,6 +7,7 @@ import {
   PARLAY_MAX_SELECTIONS,
   PARLAY_MIN_STAKE,
   PARLAY_MIN_STAKE_MESSAGE,
+  PULPONI_GAIN_FACTOR,
   calculateVirtualParlayPayout,
   formatAmericanOdd,
   isParlayStakeValid,
@@ -21,6 +22,13 @@ const PDF_ERROR_MSG = 'No se pudo generar el PDF.';
 const PARLAY_COMPLETE_MSG = 'Ya completaste las selecciones de tu combinada.';
 const PARLAY_COMPLETE_SUCCESS_MSG = 'Combinada completa ✅';
 const PARLAY_REDUCE_MSG = 'Reduce tus selecciones para continuar.';
+
+function displayParlayPossibleGain({ pulponiGain, possibleGain, estimatedReturn, stake }) {
+  if (pulponiGain != null) return pulponiGain;
+  if (possibleGain != null) return possibleGain;
+  const gross = Math.max(0, (Number(estimatedReturn) || 0) - (Number(stake) || 0));
+  return gross * PULPONI_GAIN_FACTOR;
+}
 
 /** Opciones 5, 6, 7, … 25 (partidos por combinada) */
 const PARLAY_COUNT_OPTIONS = Array.from(
@@ -177,7 +185,7 @@ function ParlaySlip({
         </div>
         <div className="parlay-page__calc-total">
           <dt>Posible ganancia</dt>
-          <dd>{payout.pulponiGain.toFixed(0)} pts</dd>
+          <dd>{displayParlayPossibleGain(payout).toFixed(0)} pts</dd>
         </div>
       </dl>
 
@@ -221,7 +229,7 @@ function ParlaySlip({
               <li key={p.id}>
                 <span>
                   {p.selections.length} picks · {formatAmericanOdd(p.totalOdds)} ·{' '}
-                  {(p.possibleGain ?? Math.max(0, (p.estimatedReturn ?? 0) - (p.stake ?? 0))).toFixed(0)} pts
+                  {displayParlayPossibleGain(p).toFixed(0)} pts
                 </span>
                 <span className="muted">{new Date(p.createdAt).toLocaleString('es-MX')}</span>
               </li>
@@ -461,13 +469,13 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
         selections,
         stake: payout.stake,
         totalOdds,
-        grossGain: payout.grossGain,
+        grossGain: displayParlayPossibleGain(payout),
       });
     } catch (error) {
       console.error('[exportParlayPdf]', error);
       setPdfError(PDF_ERROR_MSG);
     }
-  }, [canExportPdf, username, selections, payout.stake, payout.grossGain, totalOdds]);
+  }, [canExportPdf, username, selections, payout, totalOdds]);
 
   const removeSelection = useCallback((key) => {
     setSelections((prev) => prev.filter((s) => s.key !== key));
@@ -496,7 +504,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
       selections,
       stake: payout.stake,
       totalOdds: payout.totalOdds,
-      possibleGain: payout.grossGain,
+      possibleGain: displayParlayPossibleGain(payout),
       estimatedReturn: payout.estimatedReturn,
       oddsMode: oddsState.mode,
       status: 'pending',
