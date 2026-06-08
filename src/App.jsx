@@ -125,6 +125,7 @@ export default function App() {
 
   const data = useAppData(session);
   const showRankingMovement = useMobileViewport(1023);
+  const isMobileViewport = useMobileViewport(767);
   const appRenderCountRef = useRef(0);
   appRenderCountRef.current += 1;
 
@@ -767,7 +768,7 @@ export default function App() {
           <img src="/avatars/pulponi-neon.png" alt="Pulponi Cup" className="topbar-brand__logo" width={36} height={36} />
           <span className="topbar-brand__lockup">
             <span className="topbar-brand__w">PULPONI</span>
-            <span className="topbar-brand__r">CUP 2026</span>
+            <span className="topbar-brand__r">CUP 2.0</span>
           </span>
         </a>
         <nav className="topbar-nav desktop-nav" aria-label="Principal">
@@ -792,14 +793,16 @@ export default function App() {
           <button type="button" className="topbar-logout-btn" onClick={handleLogout}>
             Salir
           </button>
-          <button
-            type="button"
-            className="topbar-avatar-btn"
-            onClick={() => navigateToSection('perfil')}
-            aria-label="Ir a perfil"
-          >
-            <UserAvatar avatarUrl={avatarUrl} variant="chat" alt="" />
-          </button>
+          {!isMobileViewport ? (
+            <button
+              type="button"
+              className="topbar-avatar-btn"
+              onClick={() => navigateToSection('perfil')}
+              aria-label="Ir a perfil"
+            >
+              <UserAvatar avatarUrl={avatarUrl} variant="chat" alt="" />
+            </button>
+          ) : null}
         </div>
       </header>
 
