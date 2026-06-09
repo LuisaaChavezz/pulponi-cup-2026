@@ -28,13 +28,13 @@ export default function RulesPage() {
         <details>
           <summary>Parlay virtual Pulponi</summary>
           <p>
-            En la pestaña PARLAY puedes combinar entre 5 y 25 selecciones 1X2. Si hay API de momios
-            autorizada configurada (The Odds API vía proxy seguro), se muestran cotizaciones reales
-            agregadas. Si no, verás momios Pulponi simulados, claramente etiquetados — sin datos de
-            casas no autorizadas ni scraping. El momio total multiplica cada selección. Sobre la ganancia
-            estimada se aplica una comisión interna Pulponi del 30% (factor usuario 70%).{' '}
-            <strong>El cálculo final usa el sistema interno Pulponi.</strong> No se maneja dinero real:
-            solo puntos virtuales y ranking interno.
+            En la pestaña PARLAY arma una combinada virtual con entre 5 y 25 partidos. En cada partido
+            eliges el resultado (local, empate o visitante). Indica un monto virtual en puntos y el slip
+            calcula el momio total multiplicando cada selección; tu posible ganancia depende de ese momio
+            y del monto apostado. Si hay API de momios autorizada configurada (The Odds API vía proxy
+            seguro), verás cotizaciones reales agregadas; si no, momios Pulponi estimados, claramente
+            etiquetados. No se maneja dinero real: solo puntos virtuales y diversión dentro de Pulponi
+            Cup.
           </p>
         </details>
         <details>
