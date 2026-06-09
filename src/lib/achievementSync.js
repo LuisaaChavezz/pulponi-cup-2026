@@ -16,10 +16,14 @@ function normalizeAchievementUsername(username) {
 }
 
 const QUINIELA_INSCRITO_USERNAMES = new Set(
-  ['pirata12', 'luisaachavezz', 'góngora', 'gongora'].map((u) => normalizeAchievementUsername(u))
+  ['pirata12', 'luisaachavezz', 'góngora', 'gongora', 'itsmariachavez'].map((u) =>
+    normalizeAchievementUsername(u)
+  )
 );
 const PARLAY_INSCRITO_USERNAMES = new Set(
-  ['jcpe', 'luisaachavezz', 'góngora', 'gongora'].map((u) => normalizeAchievementUsername(u))
+  ['jcpe', 'luisaachavezz', 'góngora', 'gongora', 'itsmariachavez'].map((u) =>
+    normalizeAchievementUsername(u)
+  )
 );
 
 /**
