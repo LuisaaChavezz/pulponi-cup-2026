@@ -411,6 +411,16 @@ export default function HomeDashboard({
           </>
         )}
       </div>
+
+      <footer className="home-dash-footer" aria-label="Quiniela y bolsas">
+        <p className="home-dash-footer__inscritos">
+          ✅ Inscritos en la quiniela: @pirata12, @luisaachavezz
+        </p>
+        <div className="home-dash-footer__bags">
+          <span>💰 Bolsa Quiniela: $1,000 MXN</span>
+          <span>💰 Bolsa Parlay: $400 MXN</span>
+        </div>
+      </footer>
     </div>
   );
 }
