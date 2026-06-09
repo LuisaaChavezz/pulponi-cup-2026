@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 import { buildAchievementGrants } from './achievementEngine';
 import { buildRankedLeaderboard } from './rankingHistory';
 import { fetchLeaderboardProfiles, LEADERBOARD_ACHIEVEMENT_COLUMNS } from './leaderboardQuery';
@@ -296,16 +297,19 @@ export async function loadUserAchievementIds(client, userId) {
 export async function loadAchievementCatalog(client) {
   const { data, error } = await client
     .from('badges')
-    .select('id, name, description, icon, requirement_text, sort_order, active')
-    .order('sort_order', { ascending: true });
+    .select('id, name, description, icon')
+    .order('id', { ascending: true });
 
   if (error || !data?.length) return null;
-  return data.map((row) => ({
-    id: row.id,
-    name: row.name,
-    icon: row.icon ?? '🏆',
-    description: row.description ?? '',
-    requirement: row.requirement_text ?? '',
-    active: row.active !== false,
-  }));
+  return data.map((row) => {
+    const staticDef = ACHIEVEMENT_CATALOG.find((a) => a.id === row.id);
+    return {
+      id: row.id,
+      name: row.name,
+      icon: row.icon ?? staticDef?.icon ?? '🏆',
+      description: row.description ?? staticDef?.description ?? '',
+      requirement: staticDef?.requirement ?? '',
+      active: staticDef?.active !== false,
+    };
+  });
 }
