@@ -142,7 +142,14 @@ BEGIN
     TO authenticated
     USING (true);
 
-  RAISE NOTICE 'Política user_badges_select_authenticated aplicada.';
+  DROP POLICY IF EXISTS "user_badges_insert_own" ON public.user_badges;
+  CREATE POLICY "user_badges_insert_own"
+    ON public.user_badges
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (profile_id = auth.uid());
+
+  RAISE NOTICE 'Políticas user_badges (select + insert own) aplicadas.';
 END;
 $user_badges_policy$;
 

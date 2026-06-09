@@ -62,20 +62,10 @@ export async function syncEnrollmentAchievementsForUser(client, userId, username
   if (parlayMatch) targetBadgeIds.push(PARLAY_TODO_O_NADA_ID);
   if (!targetBadgeIds.length) return { inserted: 0, newUnlocks: [] };
 
-  const existingIds = await loadUserAchievementIds(client, userId);
-  const existingSet = new Set(existingIds);
-  const grants = targetBadgeIds
-    .filter((badgeId) => !existingSet.has(badgeId))
-    .map((badge_id) => ({ profile_id: userId, badge_id }));
-
+  const grants = targetBadgeIds.map((badge_id) => ({ profile_id: userId, badge_id }));
   console.log('[achievementSync] enrollment grants pending', grants);
 
-  if (!grants.length) {
-    console.log('[achievementSync] enrollment already unlocked', targetBadgeIds);
-    return { inserted: 0, newUnlocks: [] };
-  }
-
-  const result = await grantAchievements(client, grants);
+  const result = await upsertUserBadgeRows(client, grants);
   const newUnlocks = result.newUnlocks ?? [];
 
   for (const unlock of newUnlocks) {
@@ -123,6 +113,37 @@ async function loadRankingHistoryContext(client) {
     console.warn('[achievementSync] ranking history', e?.message ?? e);
     return { rankingHistoryRows: [], recentJornadaIds: [] };
   }
+}
+
+/** Inserta logros en user_badges (profile_id, badge_id, earned_at) sin duplicar. */
+async function upsertUserBadgeRows(client, rows) {
+  if (!rows?.length) return { inserted: 0, newUnlocks: [] };
+
+  const payload = rows.map(({ profile_id, badge_id }) => ({
+    profile_id,
+    badge_id,
+    earned_at: new Date().toISOString(),
+  }));
+
+  console.log('[achievementSync] user_badges upsert payload', payload);
+
+  const { data, error } = await client
+    .from('user_badges')
+    .upsert(payload, { onConflict: 'profile_id,badge_id', ignoreDuplicates: true })
+    .select('profile_id, badge_id, earned_at');
+
+  if (error) {
+    console.error('[achievementSync] user_badges upsert error', error);
+    return { inserted: 0, newUnlocks: [], error: error.message };
+  }
+
+  const newUnlocks = Array.isArray(data) ? data : [];
+  console.log('[achievementSync] user_badges upsert inserted', {
+    count: newUnlocks.length,
+    rows: newUnlocks,
+  });
+
+  return { inserted: newUnlocks.length, newUnlocks };
 }
 
 async function loadExistingUserBadgeKeys(client) {

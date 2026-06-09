@@ -35,6 +35,11 @@ drop policy if exists "user_badges_select_authenticated" on public.user_badges;
 create policy "user_badges_select_authenticated"
   on public.user_badges for select to authenticated using (true);
 
+drop policy if exists "user_badges_insert_own" on public.user_badges;
+create policy "user_badges_insert_own"
+  on public.user_badges for insert to authenticated
+  with check (profile_id = auth.uid());
+
 insert into public.badges (id, name, description, icon, requirement_text, rule_key, rule_threshold, sort_order, active)
 values
   ('francotirador', 'Francotirador', 'Primer marcador exacto. Ya diste en el blanco.', '🎯', 'Acertar 1 marcador exacto.', 'exacts_min', 1, 1, true),
