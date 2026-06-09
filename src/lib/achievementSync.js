@@ -141,11 +141,34 @@ async function upsertUserBadgeRows(client, rows) {
 
   const { data, error } = await client
     .from('user_badges')
-    .upsert(payload, { onConflict: 'profile_id,badge_id', ignoreDuplicates: true })
+    .insert(payload, { onConflict: 'profile_id,badge_id', ignoreDuplicates: true })
     .select('profile_id, badge_id, earned_at');
 
   if (error) {
-    return { inserted: 0, newUnlocks: [], error: error.message, errorDetail: error };
+    console.error(
+      '═══════════════════════════════════════════════════════════════',
+      '\n🚨 ERROR AL INSERTAR user_badges — DESBLOQUEO DE LOGROS FALLÓ 🚨',
+      '\n═══════════════════════════════════════════════════════════════',
+      '\nmessage:', error.message,
+      '\ncode:', error.code,
+      '\ndetails:', error.details,
+      '\nhint:', error.hint,
+      '\npayload:', payload,
+      '\nerror completo:', error,
+      '\n═══════════════════════════════════════════════════════════════'
+    );
+    return {
+      inserted: 0,
+      newUnlocks: [],
+      error: error.message,
+      errorDetail: {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        raw: error,
+      },
+    };
   }
 
   const newUnlocks = Array.isArray(data) ? data : [];
