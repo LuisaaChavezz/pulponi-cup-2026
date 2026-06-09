@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMobileViewport } from '../hooks/useMobileViewport';
 import TeamLogo from './TeamLogo';
 import UserAvatar from './UserAvatar';
@@ -55,6 +55,10 @@ function parseActivityParts(text) {
   return { action: raw, match: '' };
 }
 
+const QUINIELA_INSCRITOS = ['@pirata12', '@luisaachavezz'];
+const PARLAY_INSCRITOS = ['@jcpe', '@luisaachavezz'];
+const INSCRITOS_ROTATE_MS = 2000;
+
 function HomeDashButton({ children, onClick, variant = 'ghost' }) {
   return (
     <button type="button" className={`home-dash-btn home-dash-btn--${variant}`} onClick={onClick}>
@@ -88,6 +92,16 @@ export default function HomeDashboard({
 }) {
   const now = useKickoffClock(1000);
   const isMobileHome = useMobileViewport(767);
+  const [quinielaInscritoIdx, setQuinielaInscritoIdx] = useState(0);
+  const [parlayInscritoIdx, setParlayInscritoIdx] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setQuinielaInscritoIdx((prev) => (prev + 1) % QUINIELA_INSCRITOS.length);
+      setParlayInscritoIdx((prev) => (prev + 1) % PARLAY_INSCRITOS.length);
+    }, INSCRITOS_ROTATE_MS);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const heroPick = useMemo(() => {
     const upcoming = listCarouselUpcomingMatches(matches)[0];
@@ -414,10 +428,19 @@ export default function HomeDashboard({
 
       <footer className="home-dash-footer" aria-label="Quiniela y bolsas">
         <p className="home-dash-footer__inscritos">
-          ✅ Inscritos en la quiniela: @pirata12, @luisaachavezz
+          ✅ Inscritos en la quiniela:{' '}
+          <span key={quinielaInscritoIdx} className="home-dash-footer__rotate">
+            {QUINIELA_INSCRITOS[quinielaInscritoIdx]}
+          </span>
         </p>
         <div className="home-dash-footer__bags">
           <span>💰 Bolsa Quiniela: $1,000 MXN</span>
+          <p className="home-dash-footer__inscritos">
+            ✅ Inscritos en el parlay:{' '}
+            <span key={parlayInscritoIdx} className="home-dash-footer__rotate">
+              {PARLAY_INSCRITOS[parlayInscritoIdx]}
+            </span>
+          </p>
           <span>💰 Bolsa Parlay: $400 MXN</span>
         </div>
       </footer>
