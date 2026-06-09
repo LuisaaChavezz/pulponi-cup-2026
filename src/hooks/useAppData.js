@@ -837,6 +837,7 @@ export function useAppData(session) {
 
       if (cancelled || gen !== loginBootstrapGenRef.current) return;
 
+      console.log('🚀 LLAMANDO ACHIEVEMENTS LOGIN');
       await timedQuery('achievements:login', () =>
         syncAchievementsForProfilesRef.current?.(undefined, bootProfile?.username ?? null)
       );
