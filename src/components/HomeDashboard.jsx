@@ -61,6 +61,8 @@ const QUINIELA_INSCRITOS = [
   { username: 'góngora', amount: 500 },
   { username: 'itsmariachavez', amount: 500 },
   { username: 'manolo', amount: 500 },
+  { username: 'marceloveloz', amount: 500 },
+  { username: 'ni', amount: 500 },
 ];
 const PARLAY_INSCRITOS = [
   { username: 'jcpe', amount: 200 },
@@ -444,7 +446,7 @@ export default function HomeDashboard({
               <InscritoChip key={row.username} username={row.username} amount={row.amount} />
             ))}
           </div>
-          <p className="home-dash-pool__bolsa">💰 Bolsa Quiniela: $2,500 MXN</p>
+          <p className="home-dash-pool__bolsa">💰 Bolsa Quiniela: $3,500 MXN</p>
         </section>
         <section className="home-dash-pool">
           <h3 className="home-dash-pool__title">🏆 Parlay</h3>
