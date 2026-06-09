@@ -58,10 +58,12 @@ function parseActivityParts(text) {
 const QUINIELA_INSCRITOS = [
   { username: 'pirata12', amount: 500 },
   { username: 'luisaachavezz', amount: 500 },
+  { username: 'alejandra', amount: 500 },
 ];
 const PARLAY_INSCRITOS = [
   { username: 'jcpe', amount: 200 },
   { username: 'luisaachavezz', amount: 200 },
+  { username: 'alejandra', amount: 200 },
 ];
 
 function InscritoChip({ username, amount }) {
