@@ -123,6 +123,7 @@ function ParlaySlip({
   onClearSelections,
   onSaveParlay,
   onExportPdf,
+  onExportSavedPdf,
 }) {
   return (
     <aside className="parlay-page__slip pulponi-card">
@@ -226,12 +227,21 @@ function ParlaySlip({
           <h4>Recientes</h4>
           <ul>
             {savedParlays.slice(0, 5).map((p) => (
-              <li key={p.id}>
-                <span>
-                  {p.selections.length} picks · {formatAmericanOdd(p.totalOdds)} ·{' '}
-                  {displayParlayPossibleGain(p).toFixed(0)} pts
-                </span>
-                <span className="muted">{new Date(p.createdAt).toLocaleString('es-MX')}</span>
+              <li key={p.id} className="parlay-page__saved-item">
+                <div className="parlay-page__saved-meta">
+                  <span>
+                    {p.selections.length} picks · {formatAmericanOdd(p.totalOdds)} ·{' '}
+                    {displayParlayPossibleGain(p).toFixed(0)} pts
+                  </span>
+                  <span className="muted">{new Date(p.createdAt).toLocaleString('es-MX')}</span>
+                </div>
+                <button
+                  type="button"
+                  className="parlay-page__saved-pdf-btn"
+                  onClick={() => onExportSavedPdf(p)}
+                >
+                  Descargar PDF
+                </button>
               </li>
             ))}
           </ul>
@@ -460,6 +470,27 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
     [oddsState.byMatchId, selections, targetSelectionCount, isParlayComplete]
   );
 
+  const handleExportSavedPdf = useCallback(
+    (parlay) => {
+      if (!parlay?.selections?.length) return;
+      setPdfError('');
+      try {
+        exportParlayPdf({
+          username,
+          selections: parlay.selections,
+          stake: parlay.stake,
+          totalOdds: parlay.totalOdds,
+          grossGain: displayParlayPossibleGain(parlay),
+          filename: `pulponi-parlay-${String(parlay.id ?? 'saved').slice(0, 8)}.pdf`,
+        });
+      } catch (error) {
+        console.error('[exportParlayPdf saved]', error);
+        setPdfError(PDF_ERROR_MSG);
+      }
+    },
+    [username]
+  );
+
   const handleExportPdf = useCallback(() => {
     if (!canExportPdf) return;
     setPdfError('');
@@ -555,6 +586,7 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
         onClearSelections={clearSelections}
         onSaveParlay={handleSaveParlay}
         onExportPdf={handleExportPdf}
+        onExportSavedPdf={handleExportSavedPdf}
       />
       <ParlaySelectionCount
         targetSelectionCount={targetSelectionCount}

@@ -595,8 +595,43 @@
 .parlay-page__saved li {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   font-size: 0.74rem;
+}
+
+.parlay-page__saved-item {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.parlay-page__saved-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.parlay-page__saved-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.parlay-page__saved-pdf-btn {
+  align-self: flex-start;
+  margin: 0;
+  padding: 5px 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: rgba(255, 30, 39, 0.18);
+  border: 1px solid rgba(255, 30, 39, 0.45);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.parlay-page__saved-pdf-btn:hover {
+  background: rgba(255, 30, 39, 0.28);
+  border-color: rgba(255, 30, 39, 0.65);
 }
 
 @media (min-width: 768px) {

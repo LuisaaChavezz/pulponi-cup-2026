@@ -17,7 +17,14 @@ function matchLabel(sel) {
 /**
  * Exporta la combinada actual del usuario a PDF (solo selección en curso).
  */
-export function exportParlayPdf({ username, selections = [], stake = 0, totalOdds = 1, grossGain = 0 }) {
+export function exportParlayPdf({
+  username,
+  selections = [],
+  stake = 0,
+  totalOdds = 1,
+  grossGain = 0,
+  filename = 'pulponi-parlay.pdf',
+}) {
   const picks = Array.isArray(selections) ? selections : [];
   if (picks.length < 1) {
     throw new Error('Sin selecciones');
@@ -107,5 +114,5 @@ export function exportParlayPdf({ username, selections = [], stake = 0, totalOdd
     y += 6;
   });
 
-  pdf.save('pulponi-parlay.pdf');
+  pdf.save(filename);
 }
