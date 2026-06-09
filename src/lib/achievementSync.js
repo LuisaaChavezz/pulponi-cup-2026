@@ -47,40 +47,27 @@ export async function syncEnrollmentAchievementsForUser(client, userId, username
     rawUsername = data?.username ?? '';
   }
 
-  const normalized = normalizeAchievementUsername(rawUsername);
-  console.log('[achievementSync] enrollment username compare', {
-    userId,
-    rawUsername,
-    normalized,
-  });
+  console.log('🔍 USERNAME ACTUAL:', rawUsername);
 
+  const normalized = normalizeAchievementUsername(rawUsername);
   const quinielaMatch = QUINIELA_INSCRITO_USERNAMES.has(normalized);
   const parlayMatch = PARLAY_INSCRITO_USERNAMES.has(normalized);
-  console.log('[achievementSync] enrollment match', { quinielaMatch, parlayMatch });
 
   const targetBadgeIds = [];
-  if (quinielaMatch) targetBadgeIds.push(QUINIELA_ACEPTASTE_EL_RETO_ID);
-  if (parlayMatch) targetBadgeIds.push(PARLAY_TODO_O_NADA_ID);
+  if (quinielaMatch) {
+    console.log('✅ MATCH ENCONTRADO:', QUINIELA_ACEPTASTE_EL_RETO_ID);
+    targetBadgeIds.push(QUINIELA_ACEPTASTE_EL_RETO_ID);
+  }
+  if (parlayMatch) {
+    console.log('✅ MATCH ENCONTRADO:', PARLAY_TODO_O_NADA_ID);
+    targetBadgeIds.push(PARLAY_TODO_O_NADA_ID);
+  }
   if (!targetBadgeIds.length) return { inserted: 0, newUnlocks: [] };
 
   const grants = targetBadgeIds.map((badge_id) => ({ profile_id: userId, badge_id }));
-  console.log('[achievementSync] user_badges insert attempt', {
-    username: rawUsername,
-    profile_id: userId,
-    badge_ids: targetBadgeIds,
-  });
 
   const result = await upsertUserBadgeRows(client, grants);
-  console.log('[achievementSync] user_badges upsert result', {
-    username: rawUsername,
-    profile_id: userId,
-    badge_ids: targetBadgeIds,
-    inserted: result.inserted ?? 0,
-    newUnlocks: result.newUnlocks ?? [],
-    data: result.data ?? null,
-    error: result.error ?? null,
-    errorDetail: result.errorDetail ?? null,
-  });
+  console.log('💾 INSERT RESULT:', result.data ?? null, result.insertError ?? null);
   const newUnlocks = result.newUnlocks ?? [];
 
   for (const unlock of newUnlocks) {
@@ -161,6 +148,8 @@ async function upsertUserBadgeRows(client, rows) {
     return {
       inserted: 0,
       newUnlocks: [],
+      data: null,
+      insertError: error,
       error: error.message,
       errorDetail: {
         message: error.message,
@@ -173,7 +162,7 @@ async function upsertUserBadgeRows(client, rows) {
   }
 
   const newUnlocks = Array.isArray(data) ? data : [];
-  return { inserted: newUnlocks.length, newUnlocks, data, error: null };
+  return { inserted: newUnlocks.length, newUnlocks, data, insertError: null, error: null };
 }
 
 async function loadExistingUserBadgeKeys(client) {
