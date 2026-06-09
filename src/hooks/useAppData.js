@@ -305,6 +305,9 @@ export function useAppData(session) {
     });
   }, []);
 
+  const applyMatchRowRef = useRef(applyMatchRow);
+  applyMatchRowRef.current = applyMatchRow;
+
   const loadRanking = useCallback(async () => {
     cacheDelete('ranking');
     try {
@@ -901,9 +904,28 @@ export function useAppData(session) {
         }
       });
 
+    const matchesChannel = supabase
+      .channel('matches-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'matches' },
+        (payload) => {
+          if (payload.new) applyMatchRowRef.current?.(payload.new);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'matches' },
+        (payload) => {
+          if (payload.new) applyMatchRowRef.current?.(payload.new);
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(commentsChannel);
       supabase.removeChannel(rxChannel);
+      supabase.removeChannel(matchesChannel);
     };
   }, [userId]);
 

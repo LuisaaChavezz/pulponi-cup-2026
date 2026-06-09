@@ -309,6 +309,39 @@ export async function fetchWorldCupFixtures() {
   return fixtures;
 }
 
+/** Fixtures en vivo para la liga y temporada configuradas (VITE_FOOTBALL_*). */
+export async function fetchLiveScores() {
+  if (!getApiKey()) return [];
+
+  const leagueId = getLeagueId();
+  const season = getSeason();
+  const merged = new Map();
+
+  try {
+    const byLeague = await apiFetch('/fixtures', { league: leagueId, season, live: 'all' });
+    filterApiWorldCup2026Fixtures(byLeague ?? []).forEach((f) => {
+      if (f?.fixture?.id) merged.set(f.fixture.id, f);
+    });
+  } catch (err) {
+    console.warn('[API-FOOTBALL FALLBACK] fetchLiveScores league', err);
+  }
+
+  try {
+    const liveAll = await apiFetch('/fixtures', { live: 'all' }, { requireKey: true });
+    filterApiWorldCup2026Fixtures(liveAll ?? []).forEach((f) => {
+      if (f?.fixture?.id) merged.set(f.fixture.id, f);
+    });
+  } catch (err) {
+    console.warn('[API-FOOTBALL FALLBACK] fetchLiveScores live=all', err);
+  }
+
+  const fixtures = [...merged.values()];
+  if (fixtures.length) {
+    console.log('[API-FOOTBALL] live scores', fixtures.length, { leagueId, season });
+  }
+  return fixtures;
+}
+
 export async function fetchFixturesWithLiveMerge() {
   try {
     let fixtures = await fetchWorldCupFixtures();
@@ -766,6 +799,55 @@ export function buildResultsPatchFromFixture(fixture, events = []) {
     winner: resolveWinner(fixture),
     updated_at: new Date().toISOString(),
   };
+}
+
+/** Actualiza solo partidos en vivo (marcador, minuto, estado, eventos). */
+export async function syncLiveScoresToSupabase(client) {
+  if (!client) client = await getDefaultSupabaseClient();
+  if (!getApiKey()) return { skipped: true, updated: 0, ignored: 0 };
+
+  const liveFixtures = await fetchLiveScores();
+  if (!liveFixtures.length) return { updated: 0, ignored: 0, empty: true, source: 'live_scores' };
+
+  const { data: dbMatches, error } = await client.from('matches').select('*');
+  if (error) {
+    logSupabaseWarn('syncLiveScoresToSupabase', error);
+    return { updated: 0, ignored: 0, selectError: true, source: 'live_scores' };
+  }
+
+  const wcMatches = (dbMatches ?? []).filter(isWorldCupMatch);
+  let updated = 0;
+  let ignored = 0;
+
+  for (const fixture of liveFixtures) {
+    const fid = fixture?.fixture?.id;
+    if (!fid) continue;
+
+    const dbMatch = wcMatches.find((row) => findMatchingFixture(row, [fixture]));
+    if (!dbMatch) {
+      ignored += 1;
+      continue;
+    }
+
+    const apiStatus = fixture.fixture?.status?.short ?? 'NS';
+    const needsEvents = LIVE_API.has(apiStatus) || FINISHED_API.has(apiStatus);
+    const events = needsEvents ? await fetchFixtureEvents(fid) : [];
+    const patch = buildResultsPatchFromFixture(fixture, events);
+
+    const { error: updateError } = await client.from('matches').update(patch).eq('id', dbMatch.id);
+    if (updateError) {
+      logSupabaseWarn(`syncLiveScoresToSupabase ${dbMatch.id}`, updateError);
+      ignored += 1;
+      continue;
+    }
+    updated += 1;
+  }
+
+  if (updated) {
+    console.info(`[API live] ${updated} partidos actualizados (${ignored} ignorados)`);
+  }
+
+  return { updated, ignored, source: 'live_scores' };
 }
 
 export async function syncMatchesToSupabase(client) {

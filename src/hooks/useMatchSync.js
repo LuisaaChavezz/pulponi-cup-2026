@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { ensureFootballDataSynced, hasAnyLiveMatch, isFootballApiConfigured } from '../lib/footballApi';
+import {
+  ensureFootballDataSynced,
+  hasAnyLiveMatch,
+  isFootballApiConfigured,
+  syncLiveScoresToSupabase,
+} from '../lib/footballApi';
 
-const LIVE_INTERVAL_MS = 30_000;
+const LIVE_INTERVAL_MS = 60_000;
 const IDLE_INTERVAL_MS = 5 * 60_000;
 
 /** Actualización periódica vía API-Football (el seed inicial lo hace useAppData). */
@@ -20,7 +25,9 @@ export function useMatchSync(session, matches, onSynced) {
       if (syncingRef.current || cancelled) return;
       syncingRef.current = true;
       try {
-        const result = await ensureFootballDataSynced();
+        const result = hasLive
+          ? await syncLiveScoresToSupabase()
+          : await ensureFootballDataSynced();
         if (!cancelled) onSyncedRef.current?.(result);
       } catch (err) {
         console.warn('[useMatchSync]', err?.message ?? err, err);
@@ -31,6 +38,8 @@ export function useMatchSync(session, matches, onSynced) {
     }
 
     const intervalMs = hasLive ? LIVE_INTERVAL_MS : IDLE_INTERVAL_MS;
+
+    if (hasLive) void runSync();
     const timer = window.setInterval(runSync, intervalMs);
 
     return () => {
