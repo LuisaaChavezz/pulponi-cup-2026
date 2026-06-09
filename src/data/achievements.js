@@ -82,6 +82,22 @@ export const ACHIEVEMENT_CATALOG = [
     active: true,
   },
   {
+    id: 'parlay-todo-o-nada',
+    name: 'Todo o Nada',
+    icon: '🏆',
+    description: 'Te uniste al parlay Pulponi.',
+    requirement: 'Inscríbete en el parlay Pulponi.',
+    active: true,
+  },
+  {
+    id: 'quiniela-aceptaste-el-reto',
+    name: 'La Quiniela Llama',
+    icon: '⚽',
+    description: 'Aceptaste el reto y entraste a la competencia.',
+    requirement: 'Inscríbete en la quiniela Pulponi.',
+    active: true,
+  },
+  {
     id: 'comentarista-pulponi',
     name: 'Comentarista Pulponi',
     icon: '💬',

@@ -3,6 +3,46 @@ import { buildAchievementGrants } from './achievementEngine';
 import { buildRankedLeaderboard } from './rankingHistory';
 import { fetchLeaderboardProfiles, LEADERBOARD_ACHIEVEMENT_COLUMNS } from './leaderboardQuery';
 
+export const PARLAY_TODO_O_NADA_ID = 'parlay-todo-o-nada';
+export const QUINIELA_ACEPTASTE_EL_RETO_ID = 'quiniela-aceptaste-el-reto';
+
+const PARLAY_INSCRITO_USERNAMES = new Set(['jcpe', 'luisaachavezz']);
+const QUINIELA_INSCRITO_USERNAMES = new Set(['pirata12', 'luisaachavezz']);
+
+function normalizeAchievementUsername(username) {
+  return String(username ?? '')
+    .replace(/^@+/, '')
+    .trim()
+    .toLowerCase();
+}
+
+/** Logros por lista de inscritos (parlay / quiniela). */
+export function buildUsernameAchievementGrants(profiles, existingKeys = new Set()) {
+  const grants = [];
+
+  for (const profile of profiles ?? []) {
+    if (!profile?.id) continue;
+    const user = normalizeAchievementUsername(profile.username);
+    if (!user) continue;
+
+    if (PARLAY_INSCRITO_USERNAMES.has(user)) {
+      const key = `${profile.id}:${PARLAY_TODO_O_NADA_ID}`;
+      if (!existingKeys.has(key)) {
+        grants.push({ profile_id: profile.id, badge_id: PARLAY_TODO_O_NADA_ID });
+      }
+    }
+
+    if (QUINIELA_INSCRITO_USERNAMES.has(user)) {
+      const key = `${profile.id}:${QUINIELA_ACEPTASTE_EL_RETO_ID}`;
+      if (!existingKeys.has(key)) {
+        grants.push({ profile_id: profile.id, badge_id: QUINIELA_ACEPTASTE_EL_RETO_ID });
+      }
+    }
+  }
+
+  return grants;
+}
+
 async function loadPickScores(client) {
   const { data, error } = await client
     .from('pick_scores')
@@ -112,7 +152,10 @@ export async function syncAllAchievements(
     ...historyCtx,
   };
 
-  const grants = buildAchievementGrants(profs, context, existingKeys);
+  const grants = [
+    ...buildAchievementGrants(profs, context, existingKeys),
+    ...buildUsernameAchievementGrants(profs, existingKeys),
+  ];
   const result = await grantAchievements(client, grants);
 
   const newForUser = (result.newUnlocks ?? []).filter((r) => r.profile_id === userId);
