@@ -1,4 +1,8 @@
-import { parsePickScoreInput, sanitizePickScoreDraft } from '../lib/pickScoreInput';
+import {
+  formatPickScoreInputValue,
+  parsePickScoreInput,
+  sanitizePickScoreDraft,
+} from '../lib/pickScoreInput';
 
 export default function PickScoreInput({ value, onChange, disabled = false, ariaLabel = 'Goles' }) {
   function bump(delta) {
@@ -10,6 +14,10 @@ export default function PickScoreInput({ value, onChange, disabled = false, aria
     const next = e.target.value;
     if (next === '') {
       onChange('');
+      return;
+    }
+    if (next === '0') {
+      onChange('0');
       return;
     }
     onChange(sanitizePickScoreDraft(next));
@@ -39,7 +47,7 @@ export default function PickScoreInput({ value, onChange, disabled = false, aria
         pattern="[0-9]*"
         placeholder="0"
         disabled={disabled}
-        value={value ?? ''}
+        value={formatPickScoreInputValue(value)}
         onChange={handleChange}
         onBlur={handleBlur}
         aria-label={ariaLabel}
