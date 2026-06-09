@@ -139,7 +139,7 @@ export function useAppData(session) {
   const [pendingUnlock, setPendingUnlock] = useState(null);
 
   const loadProfile = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) return null;
 
     console.log('[AUTH USER]', { id: userId, email: session?.user?.email ?? null });
 
@@ -157,17 +157,18 @@ export function useAppData(session) {
     console.log('QUERY RESULT loadProfile profiles.select', data, error);
     if (error) {
       console.warn('[loadProfile]', error.message, error);
-      return;
+      return null;
     }
     if (!data) {
       console.warn('[loadProfile] sin fila de perfil para', userId);
-      return;
+      return null;
     }
     const normalizedPicks = normalizePicksKeys(data.picks);
     const row = { ...data, picks: normalizedPicks };
     cacheSet(`profile:${userId}`, row, 120_000);
     setProfile(row);
     setPicks(normalizedPicks);
+    return row;
   }, [userId, session?.user?.email]);
 
   const loadMatchesChunk = useCallback(
@@ -443,14 +444,16 @@ export function useAppData(session) {
   }, [userId]);
 
   const syncAchievementsForProfiles = useCallback(
-    async (profiles) => {
+    async (profiles, usernameOverride = null) => {
       if (!userId) return null;
+      const username = usernameOverride ?? profile?.username ?? null;
+      console.log('INTENTANDO DESBLOQUEAR LOGROS', { userId, username });
       const previous = new Set(userAchievementIds);
       const result = await syncAllAchievements(supabase, {
         profiles,
         communityProfiles: communityPickProfiles,
         userId,
-        username: profile?.username ?? null,
+        username,
       });
       await refreshUserAchievements();
       await loadBadges();
@@ -814,8 +817,11 @@ export function useAppData(session) {
     (async () => {
       setMatchesLoading(matchesRef.current.length === 0);
 
+      let bootProfile = null;
       await Promise.all([
-        timedQuery('profile', () => loadProfileRef.current()),
+        timedQuery('profile', async () => {
+          bootProfile = await loadProfileRef.current();
+        }),
         timedQuery('ranking', () => loadRankingRef.current()),
         timedQuery('comments', () => loadCommentsRef.current()),
         timedQuery('communityProfiles', () => loadCommunityProfiles()),
@@ -828,6 +834,12 @@ export function useAppData(session) {
           })
         ),
       ]);
+
+      if (cancelled || gen !== loginBootstrapGenRef.current) return;
+
+      await timedQuery('achievements:login', () =>
+        syncAchievementsForProfilesRef.current?.(undefined, bootProfile?.username ?? null)
+      );
 
       if (cancelled || gen !== loginBootstrapGenRef.current) return;
       setBootstrapReady(true);
