@@ -63,9 +63,23 @@ export async function syncEnrollmentAchievementsForUser(client, userId, username
   if (!targetBadgeIds.length) return { inserted: 0, newUnlocks: [] };
 
   const grants = targetBadgeIds.map((badge_id) => ({ profile_id: userId, badge_id }));
-  console.log('[achievementSync] enrollment grants pending', grants);
+  console.log('[achievementSync] user_badges insert attempt', {
+    username: rawUsername,
+    profile_id: userId,
+    badge_ids: targetBadgeIds,
+  });
 
   const result = await upsertUserBadgeRows(client, grants);
+  console.log('[achievementSync] user_badges upsert result', {
+    username: rawUsername,
+    profile_id: userId,
+    badge_ids: targetBadgeIds,
+    inserted: result.inserted ?? 0,
+    newUnlocks: result.newUnlocks ?? [],
+    data: result.data ?? null,
+    error: result.error ?? null,
+    errorDetail: result.errorDetail ?? null,
+  });
   const newUnlocks = result.newUnlocks ?? [];
 
   for (const unlock of newUnlocks) {
@@ -125,25 +139,17 @@ async function upsertUserBadgeRows(client, rows) {
     earned_at: new Date().toISOString(),
   }));
 
-  console.log('[achievementSync] user_badges upsert payload', payload);
-
   const { data, error } = await client
     .from('user_badges')
     .upsert(payload, { onConflict: 'profile_id,badge_id', ignoreDuplicates: true })
     .select('profile_id, badge_id, earned_at');
 
   if (error) {
-    console.error('[achievementSync] user_badges upsert error', error);
-    return { inserted: 0, newUnlocks: [], error: error.message };
+    return { inserted: 0, newUnlocks: [], error: error.message, errorDetail: error };
   }
 
   const newUnlocks = Array.isArray(data) ? data : [];
-  console.log('[achievementSync] user_badges upsert inserted', {
-    count: newUnlocks.length,
-    rows: newUnlocks,
-  });
-
-  return { inserted: newUnlocks.length, newUnlocks };
+  return { inserted: newUnlocks.length, newUnlocks, data, error: null };
 }
 
 async function loadExistingUserBadgeKeys(client) {
