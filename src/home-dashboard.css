@@ -1237,3 +1237,10 @@
   color: #4ade80;
   font-weight: 700;
 }
+
+.home-dash-pool__bolsa {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--muted, #a1a1aa);
+  line-height: 1.35;
+}
