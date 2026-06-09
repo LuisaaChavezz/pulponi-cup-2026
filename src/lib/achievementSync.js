@@ -6,14 +6,16 @@ import { fetchLeaderboardProfiles, LEADERBOARD_ACHIEVEMENT_COLUMNS } from './lea
 export const PARLAY_TODO_O_NADA_ID = 'parlay-todo-o-nada';
 export const QUINIELA_ACEPTASTE_EL_RETO_ID = 'quiniela-aceptaste-el-reto';
 
-const PARLAY_INSCRITO_USERNAMES = new Set(['jcpe', 'luisaachavezz']);
-const QUINIELA_INSCRITO_USERNAMES = new Set(['pirata12', 'luisaachavezz']);
+const PARLAY_INSCRITO_USERNAMES = new Set(['jcpe', 'luisaachavezz', 'gongora']);
+const QUINIELA_INSCRITO_USERNAMES = new Set(['pirata12', 'luisaachavezz', 'gongora']);
 
 function normalizeAchievementUsername(username) {
   return String(username ?? '')
     .replace(/^@+/, '')
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
 /** Logros por lista de inscritos (parlay / quiniela). */
