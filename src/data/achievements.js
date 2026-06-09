@@ -76,7 +76,7 @@ export const ACHIEVEMENT_CATALOG = [
   {
     id: 'pulpo-futbolero-oficial',
     name: 'Pulpo Futbolero Oficial',
-    icon: '⚽',
+    icon: '🏃‍♂️',
     description: 'Participaste en Pulponi Cup 2026 desde el arranque del Mundial.',
     requirement: 'Entra a Pulponi Cup el 11 de junio de 2026 o después.',
     active: true,

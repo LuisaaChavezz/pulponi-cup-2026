@@ -450,6 +450,7 @@ export function useAppData(session) {
         profiles,
         communityProfiles: communityPickProfiles,
         userId,
+        username: profile?.username ?? null,
       });
       await refreshUserAchievements();
       await loadBadges();
@@ -462,7 +463,7 @@ export function useAppData(session) {
       }
       return result;
     },
-    [userId, userAchievementIds, communityPickProfiles, refreshUserAchievements, loadBadges, loadActivity]
+    [userId, profile?.username, userAchievementIds, communityPickProfiles, refreshUserAchievements, loadBadges, loadActivity]
   );
 
   const runScoringPipeline = useCallback(

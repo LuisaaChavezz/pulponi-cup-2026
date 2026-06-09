@@ -6,9 +6,6 @@ import { fetchLeaderboardProfiles, LEADERBOARD_ACHIEVEMENT_COLUMNS } from './lea
 export const PARLAY_TODO_O_NADA_ID = 'parlay-todo-o-nada';
 export const QUINIELA_ACEPTASTE_EL_RETO_ID = 'quiniela-aceptaste-el-reto';
 
-const PARLAY_INSCRITO_USERNAMES = new Set(['jcpe', 'luisaachavezz', 'gongora']);
-const QUINIELA_INSCRITO_USERNAMES = new Set(['pirata12', 'luisaachavezz', 'gongora']);
-
 function normalizeAchievementUsername(username) {
   return String(username ?? '')
     .replace(/^@+/, '')
@@ -18,31 +15,74 @@ function normalizeAchievementUsername(username) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-/** Logros por lista de inscritos (parlay / quiniela). */
-export function buildUsernameAchievementGrants(profiles, existingKeys = new Set()) {
-  const grants = [];
+const QUINIELA_INSCRITO_USERNAMES = new Set(
+  ['pirata12', 'luisaachavezz', 'góngora', 'gongora'].map((u) => normalizeAchievementUsername(u))
+);
+const PARLAY_INSCRITO_USERNAMES = new Set(
+  ['jcpe', 'luisaachavezz', 'góngora', 'gongora'].map((u) => normalizeAchievementUsername(u))
+);
 
-  for (const profile of profiles ?? []) {
-    if (!profile?.id) continue;
-    const user = normalizeAchievementUsername(profile.username);
-    if (!user) continue;
+/**
+ * Al iniciar sesión: compara profile.username del usuario y desbloquea logros de inscripción.
+ */
+export async function syncEnrollmentAchievementsForUser(client, userId, username = null) {
+  if (!userId) return { inserted: 0, newUnlocks: [] };
 
-    if (PARLAY_INSCRITO_USERNAMES.has(user)) {
-      const key = `${profile.id}:${PARLAY_TODO_O_NADA_ID}`;
-      if (!existingKeys.has(key)) {
-        grants.push({ profile_id: profile.id, badge_id: PARLAY_TODO_O_NADA_ID });
-      }
+  let rawUsername = username;
+  if (!rawUsername) {
+    const { data, error } = await client
+      .from('profiles')
+      .select('username')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) {
+      console.warn('[achievementSync] enrollment profile', error.message);
+      return { inserted: 0, newUnlocks: [] };
     }
-
-    if (QUINIELA_INSCRITO_USERNAMES.has(user)) {
-      const key = `${profile.id}:${QUINIELA_ACEPTASTE_EL_RETO_ID}`;
-      if (!existingKeys.has(key)) {
-        grants.push({ profile_id: profile.id, badge_id: QUINIELA_ACEPTASTE_EL_RETO_ID });
-      }
-    }
+    rawUsername = data?.username ?? '';
   }
 
-  return grants;
+  const normalized = normalizeAchievementUsername(rawUsername);
+  console.log('[achievementSync] enrollment username compare', {
+    userId,
+    rawUsername,
+    normalized,
+  });
+
+  const quinielaMatch = QUINIELA_INSCRITO_USERNAMES.has(normalized);
+  const parlayMatch = PARLAY_INSCRITO_USERNAMES.has(normalized);
+  console.log('[achievementSync] enrollment match', { quinielaMatch, parlayMatch });
+
+  const targetBadgeIds = [];
+  if (quinielaMatch) targetBadgeIds.push(QUINIELA_ACEPTASTE_EL_RETO_ID);
+  if (parlayMatch) targetBadgeIds.push(PARLAY_TODO_O_NADA_ID);
+  if (!targetBadgeIds.length) return { inserted: 0, newUnlocks: [] };
+
+  const existingIds = await loadUserAchievementIds(client, userId);
+  const existingSet = new Set(existingIds);
+  const grants = targetBadgeIds
+    .filter((badgeId) => !existingSet.has(badgeId))
+    .map((badge_id) => ({ profile_id: userId, badge_id }));
+
+  console.log('[achievementSync] enrollment grants pending', grants);
+
+  if (!grants.length) {
+    console.log('[achievementSync] enrollment already unlocked', targetBadgeIds);
+    return { inserted: 0, newUnlocks: [] };
+  }
+
+  const result = await grantAchievements(client, grants);
+  const newUnlocks = result.newUnlocks ?? [];
+
+  for (const unlock of newUnlocks) {
+    await client.from('activity_log').insert({
+      profile_id: userId,
+      action: 'badge_unlocked',
+      payload: { badge_id: unlock.badge_id },
+    });
+  }
+
+  return result;
 }
 
 async function loadPickScores(client) {
@@ -115,6 +155,8 @@ async function grantAchievements(client, grants) {
     if (!insErr) {
       inserted += 1;
       newUnlocks.push(row);
+    } else if (!/duplicate|unique|23505/i.test(String(insErr.message ?? insErr))) {
+      console.warn('[achievementSync] user_badges insert', insErr.message);
     }
   }
   return { inserted, newUnlocks, fallback: true };
@@ -126,7 +168,7 @@ async function grantAchievements(client, grants) {
  */
 export async function syncAllAchievements(
   client = supabase,
-  { profiles, communityProfiles, userId } = {}
+  { profiles, communityProfiles, userId, username } = {}
 ) {
   let profs = profiles;
   if (!profs?.length) {
@@ -154,16 +196,12 @@ export async function syncAllAchievements(
     ...historyCtx,
   };
 
-  const grants = [
-    ...buildAchievementGrants(profs, context, existingKeys),
-    ...buildUsernameAchievementGrants(profs, existingKeys),
-  ];
-  const result = await grantAchievements(client, grants);
+  const engineGrants = buildAchievementGrants(profs, context, existingKeys);
+  const engineResult = await grantAchievements(client, engineGrants);
 
-  const newForUser = (result.newUnlocks ?? []).filter((r) => r.profile_id === userId);
-
-  if (newForUser.length) {
-    for (const unlock of newForUser) {
+  const engineNewForUser = (engineResult.newUnlocks ?? []).filter((r) => r.profile_id === userId);
+  if (engineNewForUser.length) {
+    for (const unlock of engineNewForUser) {
       await client.from('activity_log').insert({
         profile_id: userId,
         action: 'badge_unlocked',
@@ -172,7 +210,18 @@ export async function syncAllAchievements(
     }
   }
 
-  return { ...result, newForUser };
+  const enrollmentResult = userId
+    ? await syncEnrollmentAchievementsForUser(client, userId, username)
+    : { inserted: 0, newUnlocks: [] };
+
+  const newUnlocks = [...(engineResult.newUnlocks ?? []), ...(enrollmentResult.newUnlocks ?? [])];
+  const newForUser = [...engineNewForUser, ...(enrollmentResult.newUnlocks ?? [])];
+
+  return {
+    inserted: Number(engineResult.inserted ?? 0) + Number(enrollmentResult.inserted ?? 0),
+    newUnlocks,
+    newForUser,
+  };
 }
 
 export async function loadUserAchievementIds(client, userId) {
