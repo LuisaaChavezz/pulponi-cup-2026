@@ -115,6 +115,7 @@ export default function App() {
 
   const matchesRef = useRef([]);
   const pickFeedbackTimersRef = useRef({});
+  const sessionRef = useRef(null);
 
   const [pickSaveFeedback, setPickSaveFeedback] = useState({});
   const [matchSearchInput, setMatchSearchInput] = useState('');
@@ -271,41 +272,64 @@ export default function App() {
   }
 
   useEffect(() => {
-    const AUTH_TIMEOUT_MS = 10_000;
-    let settled = false;
+    let mounted = true;
 
-    const finishAuth = () => {
-      if (settled) return;
-      settled = true;
-      setAuthLoading(false);
-    };
-
-    const authTimer = window.setTimeout(() => {
-      console.warn('[auth] safety timeout — continuing without session confirmation');
-      finishAuth();
-    }, AUTH_TIMEOUT_MS);
-
-    supabase.auth
-      .getSession()
-      .then(({ data: d }) => {
-        setSession(d.session);
-        finishAuth();
-      })
-      .catch((err) => {
+    async function restoreSession() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (!mounted) return;
+        if (error) console.warn('[auth] getSession', error.message);
+        const initial = data?.session ?? null;
+        if (initial) {
+          sessionRef.current = initial;
+          setSession(initial);
+        }
+      } catch (err) {
         console.error('[auth] getSession failed', err);
-        setSession(null);
-        finishAuth();
-      });
+        // No borrar sesión en errores de red/storage — puede seguir en localStorage.
+      } finally {
+        if (mounted) setAuthLoading(false);
+      }
+    }
+
+    void restoreSession();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      finishAuth();
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!mounted) return;
+
+      if (event === 'SIGNED_OUT') {
+        sessionRef.current = null;
+        setSession(null);
+        setAuthLoading(false);
+        return;
+      }
+
+      if (nextSession) {
+        sessionRef.current = nextSession;
+        setSession(nextSession);
+        setAuthLoading(false);
+        return;
+      }
+
+      // En móvil a veces llega un evento con session=null antes de leer storage.
+      if (sessionRef.current) {
+        setSession(sessionRef.current);
+      }
+      setAuthLoading(false);
     });
 
+    const slowTimer = window.setTimeout(() => {
+      if (!mounted) return;
+      console.warn('[auth] slow init — unblocking UI without clearing session');
+      setAuthLoading(false);
+      if (sessionRef.current) setSession(sessionRef.current);
+    }, 12_000);
+
     return () => {
-      window.clearTimeout(authTimer);
+      mounted = false;
+      window.clearTimeout(slowTimer);
       subscription.unsubscribe();
     };
   }, []);
@@ -780,6 +804,15 @@ export default function App() {
           onDismiss={data.dismissPendingUnlock}
         />
       <div className="bg-glow" />
+
+      {data.bootstrapError ? (
+        <div className="app-bootstrap-error" role="alert">
+          <p>{data.bootstrapError}</p>
+          <button type="button" className="app-bootstrap-error__retry" onClick={() => data.retryBootstrap?.()}>
+            Reintentar
+          </button>
+        </div>
+      ) : null}
 
       <header className="topbar topbar--premium">
         <a

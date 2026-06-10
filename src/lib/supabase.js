@@ -21,9 +21,14 @@ if (!supabaseAnonKey || typeof supabaseAnonKey !== 'string' || !supabaseAnonKey.
   throw new Error('VITE_SUPABASE_ANON_KEY inválida o vacía');
 }
 
+const authStorage =
+  typeof window !== 'undefined' && window.localStorage ? window.localStorage : undefined;
+
 export const supabase = createClient(supabaseUrl.trim(), supabaseAnonKey.trim(), {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: authStorage,
   },
 });

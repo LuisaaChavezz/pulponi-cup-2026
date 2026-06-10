@@ -114,6 +114,8 @@ export function useAppData(session) {
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchesFullyLoaded, setMatchesFullyLoaded] = useState(false);
   const [bootstrapReady, setBootstrapReady] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState(null);
+  const [bootstrapRetryKey, setBootstrapRetryKey] = useState(0);
   const matchesFullyLoadedRef = useRef(false);
   const loadingMoreMatchesRef = useRef(false);
   const [matchSyncNotice, setMatchSyncNotice] = useState(null);
@@ -804,11 +806,17 @@ export function useAppData(session) {
   const loadDeferredDataRef = useRef(loadDeferredData);
   loadDeferredDataRef.current = loadDeferredData;
 
+  const retryBootstrap = useCallback(() => {
+    setBootstrapError(null);
+    setBootstrapRetryKey((key) => key + 1);
+  }, []);
+
   // Login: fase crítica primero; secundaria y resto en idle
   useEffect(() => {
     if (!userId) {
       loginBootstrapGenRef.current = 0;
       setBootstrapReady(false);
+      setBootstrapError(null);
       matchesFullyLoadedRef.current = false;
       setMatchesFullyLoaded(false);
       return;
@@ -818,26 +826,35 @@ export function useAppData(session) {
     const gen = ++loginBootstrapGenRef.current;
     markBootstrapStart();
     setBootstrapReady(false);
+    setBootstrapError(null);
 
-    const finishBootstrap = () => {
+    const finishBootstrap = ({ partial = false, message = null } = {}) => {
       if (cancelled || gen !== loginBootstrapGenRef.current) return;
       setBootstrapReady(true);
       setMatchesLoading(false);
+      if (partial || message) {
+        setBootstrapError(
+          message ?? 'Algunos datos no cargaron a tiempo. Puedes reintentar sin cerrar sesión.'
+        );
+      } else {
+        setBootstrapError(null);
+      }
       markBootstrapPhase('fase1');
       reportBootstrapDiagnostics('Fase 1 (crítica)');
     };
 
     const safetyTimer = window.setTimeout(() => {
       console.warn('[bootstrap] safety timeout — showing app with partial data');
-      finishBootstrap();
+      finishBootstrap({ partial: true });
     }, BOOTSTRAP_READY_TIMEOUT_MS);
 
     (async () => {
       setMatchesLoading(matchesRef.current.length === 0);
 
       let bootProfile = null;
+      let phaseError = null;
       try {
-        await withTimeout(
+        const phaseResult = await withTimeout(
           Promise.all([
             timedQuery('profile', async () => {
               bootProfile = await loadProfileRef.current();
@@ -857,13 +874,19 @@ export function useAppData(session) {
           BOOTSTRAP_READY_TIMEOUT_MS - 500,
           'bootstrap:phase1'
         );
+        if (phaseResult === undefined) {
+          phaseError = 'La carga inicial tardó demasiado.';
+        }
       } catch (e) {
-        console.warn('[bootstrap] phase1 error', e?.message ?? e);
+        phaseError = e?.message ?? 'Error al cargar datos iniciales';
+        console.warn('[bootstrap] phase1 error', phaseError);
       }
 
       if (cancelled || gen !== loginBootstrapGenRef.current) return;
 
-      finishBootstrap();
+      finishBootstrap(
+        phaseError ? { partial: true, message: `${phaseError} Puedes reintentar.` } : {}
+      );
       window.clearTimeout(safetyTimer);
 
       console.log('🚀 LLAMANDO ACHIEVEMENTS LOGIN');
@@ -892,7 +915,7 @@ export function useAppData(session) {
       cancelled = true;
       window.clearTimeout(safetyTimer);
     };
-  }, [userId]);
+  }, [userId, bootstrapRetryKey]);
 
   useEffect(() => {
     if (!userId) return;
@@ -1231,6 +1254,8 @@ export function useAppData(session) {
     matchesLoading,
     matchesFullyLoaded,
     bootstrapReady,
+    bootstrapError,
+    retryBootstrap,
     ensureAllMatchesLoaded,
     loadSecondaryData,
     matchSyncNotice,

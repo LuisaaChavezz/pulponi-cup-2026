@@ -3558,6 +3558,39 @@
   }
 }
 
+.app-bootstrap-error {
+  max-width: 1320px;
+  margin: 12px auto 0;
+  padding: 10px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 30, 39, 0.45);
+  background: rgba(255, 30, 39, 0.12);
+  color: #fecaca;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-bootstrap-error p {
+  margin: 0;
+  flex: 1 1 200px;
+}
+
+.app-bootstrap-error__retry {
+  border: 1px solid rgba(255, 30, 39, 0.65);
+  background: rgba(255, 30, 39, 0.22);
+  color: #fff;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 /* —— Perfil jugador: FUT / Discord / red social —— */
 .profile-page {
   position: relative;
