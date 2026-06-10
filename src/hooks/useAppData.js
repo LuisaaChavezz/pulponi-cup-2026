@@ -25,11 +25,13 @@ import {
 } from '../lib/achievementSync';
 import { cacheGet, cacheSet, cacheInvalidate, cacheDelete } from '../lib/appCache';
 import {
+  BOOTSTRAP_READY_TIMEOUT_MS,
   markBootstrapStart,
   markBootstrapPhase,
   reportBootstrapDiagnostics,
   scheduleIdleWork,
   timedQuery,
+  withTimeout,
 } from '../lib/bootstrapPerf';
 
 const MATCHES_CHUNK = 20;
@@ -817,38 +819,63 @@ export function useAppData(session) {
     markBootstrapStart();
     setBootstrapReady(false);
 
+    const finishBootstrap = () => {
+      if (cancelled || gen !== loginBootstrapGenRef.current) return;
+      setBootstrapReady(true);
+      setMatchesLoading(false);
+      markBootstrapPhase('fase1');
+      reportBootstrapDiagnostics('Fase 1 (crítica)');
+    };
+
+    const safetyTimer = window.setTimeout(() => {
+      console.warn('[bootstrap] safety timeout — showing app with partial data');
+      finishBootstrap();
+    }, BOOTSTRAP_READY_TIMEOUT_MS);
+
     (async () => {
       setMatchesLoading(matchesRef.current.length === 0);
 
       let bootProfile = null;
-      await Promise.all([
-        timedQuery('profile', async () => {
-          bootProfile = await loadProfileRef.current();
-        }),
-        timedQuery('ranking', () => loadRankingRef.current()),
-        timedQuery('comments', () => loadCommentsRef.current()),
-        timedQuery('communityProfiles', () => loadCommunityProfiles()),
-        timedQuery('matches:initial', () =>
-          loadMatchesChunkRef.current({
-            offset: 0,
-            limit: MATCHES_CHUNK,
-            append: false,
-            finishLoading: true,
-          })
-        ),
-      ]);
+      try {
+        await withTimeout(
+          Promise.all([
+            timedQuery('profile', async () => {
+              bootProfile = await loadProfileRef.current();
+            }),
+            timedQuery('ranking', () => loadRankingRef.current()),
+            timedQuery('comments', () => loadCommentsRef.current()),
+            timedQuery('communityProfiles', () => loadCommunityProfiles()),
+            timedQuery('matches:initial', () =>
+              loadMatchesChunkRef.current({
+                offset: 0,
+                limit: MATCHES_CHUNK,
+                append: false,
+                finishLoading: true,
+              })
+            ),
+          ]),
+          BOOTSTRAP_READY_TIMEOUT_MS - 500,
+          'bootstrap:phase1'
+        );
+      } catch (e) {
+        console.warn('[bootstrap] phase1 error', e?.message ?? e);
+      }
 
       if (cancelled || gen !== loginBootstrapGenRef.current) return;
+
+      finishBootstrap();
+      window.clearTimeout(safetyTimer);
 
       console.log('🚀 LLAMANDO ACHIEVEMENTS LOGIN');
-      await timedQuery('achievements:login', () =>
-        syncAchievementsForProfilesRef.current?.(undefined, bootProfile?.username ?? null)
+      void timedQuery('achievements:login', () =>
+        withTimeout(
+          Promise.resolve(
+            syncAchievementsForProfilesRef.current?.(undefined, bootProfile?.username ?? null)
+          ),
+          8000,
+          'achievements:login'
+        )
       );
-
-      if (cancelled || gen !== loginBootstrapGenRef.current) return;
-      setBootstrapReady(true);
-      markBootstrapPhase('fase1');
-      reportBootstrapDiagnostics('Fase 1 (crítica)');
 
       scheduleIdleWork(() => {
         if (cancelled || gen !== loginBootstrapGenRef.current) return;
@@ -863,6 +890,7 @@ export function useAppData(session) {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(safetyTimer);
     };
   }, [userId]);
 

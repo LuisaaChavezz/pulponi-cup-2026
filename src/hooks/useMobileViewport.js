@@ -9,8 +9,9 @@ export function useMobileViewport(maxWidth = 767) {
 
   useEffect(() => {
     const mq = window.matchMedia(query);
-    const update = () => setIsMobile(mq.matches);
-    update();
+    const update = () => {
+      setIsMobile((prev) => (prev === mq.matches ? prev : mq.matches));
+    };
     mq.addEventListener('change', update);
     return () => mq.removeEventListener('change', update);
   }, [query]);

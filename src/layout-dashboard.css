@@ -3571,6 +3571,57 @@
 .profile-page--empty {
   padding: 28px 16px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 220px;
+}
+
+.profile-page__spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 30, 39, 0.45);
+  border-top-color: var(--red, #ff1e27);
+  animation: profile-page-spin 0.85s linear infinite;
+}
+
+@keyframes profile-page-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.profile-page__error-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fecaca;
+}
+
+.profile-page__error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.profile-page__retry {
+  border: 1px solid rgba(255, 30, 39, 0.65);
+  background: rgba(255, 30, 39, 0.2);
+  color: #fff;
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.profile-page__retry:hover {
+  background: rgba(255, 30, 39, 0.32);
 }
 
 .profile-page__muted {

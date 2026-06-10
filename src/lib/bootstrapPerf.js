@@ -1,8 +1,26 @@
+export const BOOTSTRAP_READY_TIMEOUT_MS = 10_000;
+
 const boot = {
   startedAt: typeof performance !== 'undefined' ? performance.now() : 0,
   queries: [],
   phaseMarks: [],
 };
+
+/** Resuelve con `fallback` si la promesa tarda más de `ms` (evita loaders infinitos en móvil). */
+export function withTimeout(promise, ms, label = 'task', fallback = undefined) {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).finally(() => {
+      if (timer) window.clearTimeout(timer);
+    }),
+    new Promise((resolve) => {
+      timer = window.setTimeout(() => {
+        console.warn(`[withTimeout] ${label} exceeded ${ms}ms`);
+        resolve(fallback);
+      }, ms);
+    }),
+  ]);
+}
 
 export function markBootstrapStart() {
   boot.startedAt = performance.now();

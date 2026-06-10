@@ -11,6 +11,36 @@ import {
   SHOW_PROFILE_ACTIVITY,
 } from './ProfilePageSections';
 
+function ProfileLoadingState() {
+  return (
+    <div className="profile-page profile-page--loading" role="status" aria-live="polite">
+      <span className="profile-page__spinner" aria-hidden />
+      <p className="profile-page__muted">Cargando perfil…</p>
+    </div>
+  );
+}
+
+function ProfileErrorState({ error, onBack, onRetry }) {
+  return (
+    <div className="profile-page profile-page--empty" role="alert">
+      <p className="profile-page__error-title">No se pudo cargar el perfil</p>
+      <p className="profile-page__muted">{error ?? 'Perfil no disponible'}</p>
+      <div className="profile-page__error-actions">
+        {onRetry ? (
+          <button type="button" className="profile-page__retry" onClick={onRetry}>
+            Reintentar
+          </button>
+        ) : null}
+        {onBack ? (
+          <button type="button" className="profile-page__back" onClick={onBack}>
+            Volver
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function UserPublicProfile({
   data,
   loading,
@@ -18,27 +48,15 @@ export default function UserPublicProfile({
   isOwnProfile,
   onEditProfile,
   onBack,
+  onRetry,
   achievementsTotal,
 }) {
   if (loading) {
-    return (
-      <div className="profile-page profile-page--loading">
-        <p className="profile-page__muted">Cargando perfil…</p>
-      </div>
-    );
+    return <ProfileLoadingState />;
   }
 
   if (error || !data) {
-    return (
-      <div className="profile-page profile-page--empty">
-        <p className="profile-page__muted">{error ?? 'Perfil no disponible'}</p>
-        {onBack ? (
-          <button type="button" className="profile-page__back" onClick={onBack}>
-            Volver
-          </button>
-        ) : null}
-      </div>
-    );
+    return <ProfileErrorState error={error} onBack={onBack} onRetry={onRetry} />;
   }
 
   const {

@@ -221,6 +221,8 @@ export default function App() {
     communityPickProfiles: data.communityPickProfiles ?? [],
     achievementCatalog,
   });
+  const publicProfileReloadRef = useRef(publicProfile.reload);
+  publicProfileReloadRef.current = publicProfile.reload;
 
   const myProfileView = usePublicProfile(activeNav === 'perfil' ? session?.user?.id ?? null : null, {
     matches: worldCupMatches,
@@ -269,24 +271,43 @@ export default function App() {
   }
 
   useEffect(() => {
+    const AUTH_TIMEOUT_MS = 10_000;
+    let settled = false;
+
+    const finishAuth = () => {
+      if (settled) return;
+      settled = true;
+      setAuthLoading(false);
+    };
+
+    const authTimer = window.setTimeout(() => {
+      console.warn('[auth] safety timeout — continuing without session confirmation');
+      finishAuth();
+    }, AUTH_TIMEOUT_MS);
+
     supabase.auth
       .getSession()
       .then(({ data: d }) => {
         setSession(d.session);
-        setAuthLoading(false);
+        finishAuth();
       })
       .catch((err) => {
         console.error('[auth] getSession failed', err);
         setSession(null);
-        setAuthLoading(false);
+        finishAuth();
       });
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
-      setAuthLoading(false);
+      finishAuth();
     });
-    return () => subscription.unsubscribe();
+
+    return () => {
+      window.clearTimeout(authTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -568,7 +589,11 @@ export default function App() {
 
   function openUserProfile(profileId) {
     if (!profileId) return;
-    setViewProfileId(profileId);
+    if (profileId === viewProfileId) {
+      void publicProfileReloadRef.current?.();
+    } else {
+      setViewProfileId(profileId);
+    }
     setActiveNav('ranking');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -809,7 +834,7 @@ export default function App() {
       <main className="app-shell">
         <section id="inicio" className={sectionClass('inicio', 'layout layout--dashboard')}>
           {activeNav === 'inicio' ? (
-            !data.bootstrapReady && !worldCupMatches.length ? (
+            !data.bootstrapReady && !worldCupMatches.length && data.matchesLoading ? (
               <HomeDashboardSkeleton />
             ) : (
               <HomeDashboard
@@ -967,12 +992,14 @@ export default function App() {
           {activeNav === 'ranking' ? (
             viewProfileId ? (
               <UserPublicProfile
+                key={viewProfileId}
                 data={publicProfile.data}
                 loading={publicProfile.loading}
                 error={publicProfile.error}
                 isOwnProfile={viewProfileId === session.user.id}
                 onEditProfile={() => navigateToSection('perfil')}
                 onBack={closeUserProfile}
+                onRetry={() => void publicProfile.reload()}
                 achievementsTotal={achievementsTotal}
               />
             ) : (
