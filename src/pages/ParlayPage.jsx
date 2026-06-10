@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import TeamLogo from '../components/TeamLogo';
 import { displayTeamName, formatMatchDateShort, formatMatchTime } from '../lib/matchUtils';
 import { useParlayOdds } from '../hooks/useParlayOdds';
@@ -251,18 +251,109 @@ function ParlaySlip({
   );
 }
 
-function ParlayMatchesList({
-  oddsState,
-  selections,
+function ParlayMatchesLoading() {
+  return (
+    <div className="parlay-page__matches parlay-page__matches--loading" role="status" aria-live="polite">
+      <span className="parlay-page__spinner" aria-hidden />
+      <p className="muted sync-footnote">Cargando partidos…</p>
+    </div>
+  );
+}
+
+const ParlayMatchCard = memo(function ParlayMatchCard({
+  match,
+  oddsRow,
+  selectedKey,
   formLocked,
   onToggleSelection,
 }) {
-  if (oddsState.loading) {
-    return (
-      <div className="parlay-page__matches">
-        <p className="muted sync-footnote">Cargando partidos…</p>
+  const homeLabel = displayTeamName(match.home_team) ?? 'Local';
+  const awayLabel = displayTeamName(match.away_team) ?? 'Visitante';
+  const kickoffLabel = formatKickoff(match.kickoff);
+  const matchHasSelection = Boolean(selectedKey);
+
+  return (
+    <article
+      className={`parlay-match-card${
+        formLocked && !matchHasSelection ? ' parlay-match-card--locked' : ''
+      }`}
+    >
+      {kickoffLabel ? (
+        <time className="parlay-match-card__kickoff" dateTime={match.kickoff}>
+          {kickoffLabel}
+        </time>
+      ) : null}
+
+      <div className="parlay-match-card__matchup">
+        <div className="parlay-match-card__team parlay-match-card__team--home">
+          <TeamLogo logo={match.home_logo} flag={match.home_flag} alt={match.home_team ?? ''} size="sm" />
+          <span className="parlay-match-card__team-name">{homeLabel}</span>
+        </div>
+
+        <span className="parlay-match-card__vs" aria-hidden>
+          VS
+        </span>
+
+        <div className="parlay-match-card__team parlay-match-card__team--away">
+          <span className="parlay-match-card__team-name">{awayLabel}</span>
+          <TeamLogo logo={match.away_logo} flag={match.away_flag} alt={match.away_team ?? ''} size="sm" />
+        </div>
       </div>
-    );
+
+      <p className="parlay-match-card__hint">
+        {formLocked && !matchHasSelection ? PARLAY_COMPLETE_SUCCESS_MSG : 'Selecciona un resultado'}
+      </p>
+
+      <div className="parlay-match-card__picks">
+        {OUTCOMES.map((outcome) => {
+          const odd = getOutcomeOdds(oddsRow, outcome);
+          const key = selectionKey(match.id, outcome);
+          const active = selectedKey === key;
+          const pickLabel = outcomePickLabel(outcome, homeLabel, awayLabel);
+          const american = formatAmericanOdd(odd);
+          const isFavorite = american.startsWith('-');
+          const pickDisabled = formLocked && !active;
+
+          return (
+            <button
+              key={key}
+              type="button"
+              className={`parlay-pick-btn${active ? ' is-active' : ''}${pickDisabled ? ' is-locked' : ''}`}
+              disabled={pickDisabled}
+              onClick={() => onToggleSelection(match, outcome, pickLabel)}
+              aria-pressed={active}
+              aria-disabled={pickDisabled}
+            >
+              <span className="parlay-pick-btn__label">{pickLabel}</span>
+              <span className="parlay-pick-btn__meta">
+                <span
+                  className={`parlay-pick-btn__odd${isFavorite ? ' parlay-pick-btn__odd--favorite' : ''}`}
+                >
+                  {american}
+                </span>
+                {active ? (
+                  <span className="parlay-pick-btn__check" aria-hidden>
+                    ✓
+                  </span>
+                ) : null}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </article>
+  );
+});
+
+function ParlayMatchesList({
+  oddsState,
+  selectionByMatchId,
+  formLocked,
+  onToggleSelection,
+  matchesReady,
+}) {
+  if (!matchesReady || oddsState.loading) {
+    return <ParlayMatchesLoading />;
   }
 
   if (oddsState.openMatches.length === 0) {
@@ -276,105 +367,50 @@ function ParlayMatchesList({
   return (
     <div className="parlay-page__matches">
       <div className="parlay-page__match-list">
-        {oddsState.openMatches.map((match) => {
-          const oddsRow = oddsState.byMatchId[String(match.id)];
-          const homeLabel = displayTeamName(match.home_team) ?? 'Local';
-          const awayLabel = displayTeamName(match.away_team) ?? 'Visitante';
-          const kickoffLabel = formatKickoff(match.kickoff);
-          const matchHasSelection = selections.some((s) => s.matchId === String(match.id));
-
-          return (
-            <article
-              key={match.id}
-              className={`parlay-match-card${
-                formLocked && !matchHasSelection ? ' parlay-match-card--locked' : ''
-              }`}
-            >
-              {kickoffLabel ? (
-                <time className="parlay-match-card__kickoff" dateTime={match.kickoff}>
-                  {kickoffLabel}
-                </time>
-              ) : null}
-
-              <div className="parlay-match-card__matchup">
-                <div className="parlay-match-card__team parlay-match-card__team--home">
-                  <TeamLogo
-                    logo={match.home_logo}
-                    flag={match.home_flag}
-                    alt={match.home_team ?? ''}
-                    size="sm"
-                  />
-                  <span className="parlay-match-card__team-name">{homeLabel}</span>
-                </div>
-
-                <span className="parlay-match-card__vs" aria-hidden>
-                  VS
-                </span>
-
-                <div className="parlay-match-card__team parlay-match-card__team--away">
-                  <span className="parlay-match-card__team-name">{awayLabel}</span>
-                  <TeamLogo
-                    logo={match.away_logo}
-                    flag={match.away_flag}
-                    alt={match.away_team ?? ''}
-                    size="sm"
-                  />
-                </div>
-              </div>
-
-              <p className="parlay-match-card__hint">
-                {formLocked && !matchHasSelection
-                  ? PARLAY_COMPLETE_SUCCESS_MSG
-                  : 'Selecciona un resultado'}
-              </p>
-
-              <div className="parlay-match-card__picks">
-                {OUTCOMES.map((outcome) => {
-                  const odd = getOutcomeOdds(oddsRow, outcome);
-                  const key = selectionKey(match.id, outcome);
-                  const active = selections.some((s) => s.key === key);
-                  const pickLabel = outcomePickLabel(outcome, homeLabel, awayLabel);
-                  const american = formatAmericanOdd(odd);
-                  const isFavorite = american.startsWith('-');
-                  const pickDisabled = formLocked && !active;
-
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      className={`parlay-pick-btn${active ? ' is-active' : ''}${pickDisabled ? ' is-locked' : ''}`}
-                      disabled={pickDisabled}
-                      onClick={() => onToggleSelection(match, outcome, pickLabel)}
-                      aria-pressed={active}
-                      aria-disabled={pickDisabled}
-                    >
-                      <span className="parlay-pick-btn__label">{pickLabel}</span>
-                      <span className="parlay-pick-btn__meta">
-                        <span
-                          className={`parlay-pick-btn__odd${isFavorite ? ' parlay-pick-btn__odd--favorite' : ''}`}
-                        >
-                          {american}
-                        </span>
-                        {active ? (
-                          <span className="parlay-pick-btn__check" aria-hidden>
-                            ✓
-                          </span>
-                        ) : null}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </article>
-          );
-        })}
+        {oddsState.openMatches.map((match) => (
+          <ParlayMatchCard
+            key={match.id}
+            match={match}
+            oddsRow={oddsState.byMatchId[String(match.id)]}
+            selectedKey={selectionByMatchId.get(String(match.id)) ?? null}
+            formLocked={formLocked}
+            onToggleSelection={onToggleSelection}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-export default function ParlayPage({ matches = [], userId, username = '', communityProfiles = [] }) {
-  const oddsState = useParlayOdds(matches, communityProfiles);
+export default function ParlayPage({
+  matches = [],
+  matchesFullyLoaded = false,
+  matchesLoading = false,
+  onEnsureMatchesLoaded,
+  userId,
+  username = '',
+  communityProfiles = [],
+}) {
+  const [ensuringMatches, setEnsuringMatches] = useState(false);
+
+  useEffect(() => {
+    if (matchesFullyLoaded) return undefined;
+    let cancelled = false;
+    setEnsuringMatches(true);
+    void Promise.resolve(onEnsureMatchesLoaded?.()).finally(() => {
+      if (!cancelled) setEnsuringMatches(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [matchesFullyLoaded, onEnsureMatchesLoaded]);
+
+  const matchesForOdds = useMemo(
+    () => (matchesFullyLoaded ? matches : []),
+    [matches, matchesFullyLoaded]
+  );
+  const oddsState = useParlayOdds(matchesForOdds, communityProfiles);
+  const matchesReady = matchesFullyLoaded && !matchesLoading && !ensuringMatches;
   const [selections, setSelections] = useState([]);
   const [targetSelectionCount, setTargetSelectionCount] = useState(PARLAY_MIN_SELECTIONS);
   const [stakeInput, setStakeInput] = useState(String(PARLAY_MIN_STAKE));
@@ -563,6 +599,12 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
     setStakeInput((current) => (current === '' ? String(PARLAY_MIN_STAKE) : current));
   }, []);
 
+  const selectionByMatchId = useMemo(() => {
+    const map = new Map();
+    for (const sel of selections) map.set(sel.matchId, sel.key);
+    return map;
+  }, [selections]);
+
   return (
     <div className={`parlay-page${formLocked ? ' parlay-page--locked' : ''}`}>
       <ParlayHeader />
@@ -598,9 +640,10 @@ export default function ParlayPage({ matches = [], userId, username = '', commun
       />
       <ParlayMatchesList
         oddsState={oddsState}
-        selections={selections}
+        selectionByMatchId={selectionByMatchId}
         formLocked={formLocked}
         onToggleSelection={toggleSelection}
+        matchesReady={matchesReady}
       />
     </div>
   );

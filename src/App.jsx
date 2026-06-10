@@ -1013,6 +1013,9 @@ export default function App() {
             <Suspense fallback={<PanelFallback label="Cargando parlay…" />}>
               <ParlayPage
                 matches={worldCupMatches}
+                matchesFullyLoaded={data.matchesFullyLoaded}
+                matchesLoading={data.matchesLoading}
+                onEnsureMatchesLoaded={data.ensureAllMatchesLoaded}
                 userId={session?.user?.id}
                 username={profile?.username ?? session?.user?.email ?? ''}
                 communityProfiles={data.communityPickProfiles ?? []}

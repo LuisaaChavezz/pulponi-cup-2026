@@ -118,6 +118,7 @@ export function useAppData(session) {
   const [bootstrapRetryKey, setBootstrapRetryKey] = useState(0);
   const matchesFullyLoadedRef = useRef(false);
   const loadingMoreMatchesRef = useRef(false);
+  const loadAllMatchesPromiseRef = useRef(null);
   const [matchSyncNotice, setMatchSyncNotice] = useState(null);
   const syncInFlightRef = useRef(false);
   const scoringInFlightRef = useRef(false);
@@ -208,43 +209,64 @@ export function useAppData(session) {
     []
   );
 
-  const loadRemainingMatches = useCallback(async () => {
-    if (loadingMoreMatchesRef.current || matchesFullyLoadedRef.current) return;
-    loadingMoreMatchesRef.current = true;
-    try {
-      let offset = MATCHES_CHUNK;
-      while (offset <= MATCHES_HARD_LIMIT) {
-        const count = await loadMatchesChunk({
-          offset,
-          limit: MATCHES_CHUNK,
-          append: true,
-          finishLoading: false,
-        });
-        if (count < MATCHES_CHUNK) break;
-        offset += MATCHES_CHUNK;
-        await new Promise((resolve) => window.setTimeout(resolve, 16));
-      }
-      matchesFullyLoadedRef.current = true;
-      setMatchesFullyLoaded(true);
-    } finally {
-      loadingMoreMatchesRef.current = false;
-    }
-  }, [loadMatchesChunk]);
+  const loadAllMatchesComplete = useCallback(async () => {
+    if (matchesFullyLoadedRef.current) return matchesRef.current.length;
 
-  const ensureAllMatchesLoaded = useCallback(async () => {
-    if (matchesFullyLoadedRef.current) return;
-    await loadRemainingMatches();
-  }, [loadRemainingMatches]);
+    if (loadAllMatchesPromiseRef.current) {
+      return loadAllMatchesPromiseRef.current;
+    }
+
+    const promise = (async () => {
+      loadingMoreMatchesRef.current = true;
+      setMatchesLoading(true);
+      try {
+        const cacheKey = 'matches:all';
+        let rows = cacheGet(cacheKey);
+
+        if (!rows?.length) {
+          const { data, error } = await timedQuery('matches:all', () =>
+            supabase
+              .from('matches')
+              .select('*')
+              .order('kickoff', { ascending: true })
+              .range(0, MATCHES_HARD_LIMIT - 1)
+          );
+          if (error) {
+            console.warn('[loadAllMatchesComplete]', error?.message ?? error);
+            return matchesRef.current.length;
+          }
+          rows = data?.length ? filterWorldCupMatches(normalizeMatches(data)) : [];
+          if (rows.length) cacheSet(cacheKey, rows, 90_000);
+        }
+
+        if (rows?.length) {
+          setMatches(rows);
+          matchesRef.current = rows;
+        }
+
+        matchesFullyLoadedRef.current = true;
+        setMatchesFullyLoaded(true);
+        return rows?.length ?? 0;
+      } finally {
+        loadingMoreMatchesRef.current = false;
+        setMatchesLoading(false);
+        loadAllMatchesPromiseRef.current = null;
+      }
+    })();
+
+    loadAllMatchesPromiseRef.current = promise;
+    return promise;
+  }, []);
+
+  const ensureAllMatchesLoaded = loadAllMatchesComplete;
 
   const reloadMatches = useCallback(async () => {
     cacheInvalidate('matches:');
+    loadAllMatchesPromiseRef.current = null;
     matchesFullyLoadedRef.current = false;
     setMatchesFullyLoaded(false);
-    setMatchesLoading(true);
-    const n = await loadMatchesChunk({ offset: 0, limit: MATCHES_CHUNK, append: false, finishLoading: true });
-    void loadRemainingMatches();
-    return n;
-  }, [loadMatchesChunk, loadRemainingMatches]);
+    return loadAllMatchesComplete();
+  }, [loadAllMatchesComplete]);
 
   const syncWorldCupBackground = useCallback(async () => {
     if (!userId || syncInFlightRef.current) return;
@@ -275,14 +297,14 @@ export function useAppData(session) {
         setMatchesFullyLoaded(false);
         const n = await loadMatchesChunk({ offset: 0, limit: MATCHES_CHUNK, append: false, finishLoading: false });
         if (n > 0) setMatchSyncNotice(null);
-        void loadRemainingMatches();
+        void loadAllMatchesComplete();
         if (n > 0) await runScoringPipelineRef.current?.();
       } catch (e) {
         console.warn('[reloadMatches]', e?.message ?? e);
       }
       syncInFlightRef.current = false;
     }
-  }, [userId, loadMatchesChunk, loadRemainingMatches]);
+  }, [userId, loadMatchesChunk, loadAllMatchesComplete]);
 
   const syncWorldCupAndReload = syncWorldCupBackground;
 
@@ -764,8 +786,8 @@ export function useAppData(session) {
   loadEventsRef.current = loadEvents;
   const loadMatchesChunkRef = useRef(loadMatchesChunk);
   loadMatchesChunkRef.current = loadMatchesChunk;
-  const loadRemainingMatchesRef = useRef(loadRemainingMatches);
-  loadRemainingMatchesRef.current = loadRemainingMatches;
+  const loadAllMatchesCompleteRef = useRef(loadAllMatchesComplete);
+  loadAllMatchesCompleteRef.current = loadAllMatchesComplete;
   const syncWorldCupBackgroundRef = useRef(syncWorldCupBackground);
   syncWorldCupBackgroundRef.current = syncWorldCupBackground;
 
@@ -794,12 +816,12 @@ export function useAppData(session) {
   ]);
 
   const loadDeferredData = useCallback(async () => {
-    await loadRemainingMatches();
+    await loadAllMatchesComplete();
     void syncWorldCupBackgroundRef.current?.();
     loadEventsRef.current?.();
     markBootstrapPhase('fase3');
     reportBootstrapDiagnostics('Fase 3 (resto)');
-  }, [loadRemainingMatches]);
+  }, [loadAllMatchesComplete]);
 
   const loadSecondaryDataRef = useRef(loadSecondaryData);
   loadSecondaryDataRef.current = loadSecondaryData;
