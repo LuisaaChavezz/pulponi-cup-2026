@@ -56,27 +56,29 @@ function parseActivityParts(text) {
 }
 
 const QUINIELA_INSCRITOS = [
-  { username: 'pirata12', amount: 500 },
-  { username: 'luisaachavezz', amount: 500 },
-  { username: 'góngora', amount: 500 },
-  { username: 'itsmariachavez', amount: 500 },
-  { username: 'manolo', amount: 500 },
-  { username: 'marceloveloz', amount: 500 },
-  { username: 'ni', amount: 500 },
   { username: 'analy', amount: 500 },
-  { username: 'chovitz', amount: 500 },
   { username: 'chaveza', amount: 500 },
-  { username: 'mau', amount: 500 },
-  { username: 'adriespinoza', amount: 500 },
+  { username: 'chovitz', amount: 500 },
   { username: 'claudioroca', amount: 500 },
   { username: 'costalitocampeon', amount: 500 },
+  { username: 'ecantu8', amount: 500 },
+  { username: 'imanol', amount: 500 },
   { username: 'lizbeth', amount: 500 },
-  { username: 'michrobertsv', amount: 500 },
+  { username: 'luisaachavezz', amount: 500 },
+  { username: 'mau', amount: 500 },
+  { username: 'scs', amount: 500 },
   { username: 'piyu', amount: 500 },
+  { username: 'adriespinoza', amount: 500 },
+  { username: 'góngora', amount: 500 },
+  { username: 'itsmariachavez', amount: 500 },
+  { username: 'ivan', amount: 500 },
+  { username: 'manolo', amount: 500 },
+  { username: 'michrobertsv', amount: 500 },
+  { username: 'marceloveloz', amount: 500 },
+  { username: 'ni', amount: 500 },
+  { username: 'pirata12', amount: 500 },
   { username: 'ucg', amount: 500 },
   { username: 'vv', amount: 500 },
-  { username: 'ivan', amount: 500 },
-  { username: 'scs', amount: 500 },
 ];
 const PARLAY_INSCRITOS = [
   { username: 'jcpe', amount: 2000 },
@@ -85,6 +87,7 @@ const PARLAY_INSCRITOS = [
   { username: 'itsmariachavez', amount: 200 },
   { username: 'manolo', amount: 10000 },
   { username: 'imanol', amount: 40000 },
+  { username: 'ni', amount: 500 },
 ];
 
 function InscritoChip({ username, amount }) {
@@ -465,7 +468,7 @@ export default function HomeDashboard({
               <InscritoChip key={row.username} username={row.username} amount={row.amount} />
             ))}
           </div>
-          <p className="home-dash-pool__bolsa">💰 Bolsa Quiniela: $10,500 MXN</p>
+          <p className="home-dash-pool__bolsa">💰 Bolsa Quiniela: $11,500 MXN</p>
         </section>
         <section className="home-dash-pool">
           <h3 className="home-dash-pool__title">🏆 Parlay</h3>
@@ -474,7 +477,7 @@ export default function HomeDashboard({
               <InscritoChip key={row.username} username={row.username} amount={row.amount} />
             ))}
           </div>
-          <p className="home-dash-pool__bolsa">💰 Bolsa Parlay: $54,400 MXN</p>
+          <p className="home-dash-pool__bolsa">💰 Bolsa Parlay: $56,900 MXN</p>
         </section>
       </footer>
     </div>
