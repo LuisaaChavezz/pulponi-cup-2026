@@ -29,20 +29,23 @@ export function selectDisplayName(profile) {
 }
 
 /**
- * Ranking estándar con empates (1224): mismos puntos → misma posición; la siguiente salta.
- * Ej.: cinco jugadores con 3 pts → todos #1; el siguiente con 2 pts → #6.
+ * Dense rank: mismos puntos → misma posición; la siguiente es secuencial (+1, sin saltos).
+ * Ej.: 13 jugadores con 3 pts → todos #1; el siguiente con 1 pt → #2 (no #14).
  */
-export function computeStandardRankPosition(sortedRows, index, pointsKey = 'points') {
+export function computeDenseRankPosition(sortedRows, index, pointsKey = 'points') {
   if (index <= 0) return 1;
   const cur = Number(sortedRows[index]?.[pointsKey] ?? 0);
   const prev = Number(sortedRows[index - 1]?.[pointsKey] ?? 0);
   if (cur === prev) {
-    return computeStandardRankPosition(sortedRows, index - 1, pointsKey);
+    return computeDenseRankPosition(sortedRows, index - 1, pointsKey);
   }
-  return index + 1;
+  return computeDenseRankPosition(sortedRows, index - 1, pointsKey) + 1;
 }
 
-/** Ordena perfiles por puntos (desc) y asigna rank_position con empates (standard rank). */
+/** @deprecated Alias de computeDenseRankPosition (antes standard/1224). */
+export const computeStandardRankPosition = computeDenseRankPosition;
+
+/** Ordena perfiles por puntos (desc) y asigna rank_position con empates (dense rank). */
 export function buildRankedLeaderboard(profiles) {
   const sorted = [...(profiles ?? [])].sort((a, b) => {
     const pa = Number(a.points ?? 0);
@@ -63,13 +66,24 @@ export function buildRankedLeaderboard(profiles) {
     return ua.localeCompare(ub, 'es', { sensitivity: 'base' });
   });
 
-  return sorted.map((row, index) => ({
-    ...row,
-    points: Number(row.points ?? 0),
-    exacts: Number(row.exacts ?? 0),
-    streak: Number(row.streak ?? 0),
-    rank_position: computeStandardRankPosition(sorted, index),
-  }));
+  let denseRank = 1;
+  let prevPoints = null;
+
+  return sorted.map((row, index) => {
+    const points = Number(row.points ?? 0);
+    if (index > 0 && points !== prevPoints) {
+      denseRank += 1;
+    }
+    prevPoints = points;
+
+    return {
+      ...row,
+      points,
+      exacts: Number(row.exacts ?? 0),
+      streak: Number(row.streak ?? 0),
+      rank_position: denseRank,
+    };
+  });
 }
 
 /** ¿El snapshot anterior refleja el mismo orden de puestos y puntos? */

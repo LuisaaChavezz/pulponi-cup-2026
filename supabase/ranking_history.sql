@@ -45,7 +45,7 @@ create policy "ranking_history_insert"
   on public.ranking_history for insert to authenticated with check (true);
 
 comment on table public.ranking_jornadas is 'Instantáneas del leaderboard (una fila por jornada/corte)';
-comment on table public.ranking_history is 'Posición y puntos de cada jugador por jornada';
+comment on table public.ranking_history is 'Posición (dense rank) y puntos de cada jugador por jornada';
 
 -- Elimina jornadas donde todos los jugadores tenían 0 puntos (snapshots inválidos pre-quiniela)
 create or replace function public.cleanup_zero_point_ranking_jornadas()
