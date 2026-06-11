@@ -75,11 +75,14 @@ const QUINIELA_INSCRITOS = [
   { username: 'piyu', amount: 500 },
   { username: 'ucg', amount: 500 },
   { username: 'vv', amount: 500 },
+  { username: 'ivan', amount: 500 },
+  { username: 'scs', amount: 500 },
 ];
 const PARLAY_INSCRITOS = [
   { username: 'jcpe', amount: 2000 },
   { username: 'luisaachavezz', amount: 2000 },
   { username: 'góngora', amount: 200 },
+  { username: 'itsmariachavez', amount: 200 },
   { username: 'manolo', amount: 10000 },
   { username: 'imanol', amount: 40000 },
 ];
@@ -467,7 +470,7 @@ export default function HomeDashboard({
               <InscritoChip key={row.username} username={row.username} amount={row.amount} />
             ))}
           </div>
-          <p className="home-dash-pool__bolsa">💰 Bolsa Parlay: $54,200 MXN</p>
+          <p className="home-dash-pool__bolsa">💰 Bolsa Parlay: $54,400 MXN</p>
         </section>
       </footer>
     </div>
