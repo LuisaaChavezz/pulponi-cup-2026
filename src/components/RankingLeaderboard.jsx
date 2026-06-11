@@ -1,9 +1,6 @@
-import UserAvatar from './UserAvatar';
-
-function formatUsername(row) {
-  const raw = row?.username ?? row?.name ?? 'jugador';
-  return String(raw).replace(/^@+/, '').trim() || 'jugador';
-}
+import { useMemo } from 'react';
+import { groupRankedRowsByPosition } from '../lib/rankingGroups';
+import { RankingGroupList } from './RankingGroupBubble';
 
 export default function RankingLeaderboard({
   rows = [],
@@ -14,61 +11,32 @@ export default function RankingLeaderboard({
 }) {
   const list = rows ?? [];
   const visible = maxRows != null && maxRows > 0 ? list.slice(0, maxRows) : list;
+  const groups = useMemo(() => groupRankedRowsByPosition(visible), [visible]);
 
   return (
     <div
       className={[
         'ranking-leaderboard',
-        'ranking-table',
+        'ranking-groups-panel',
         compact ? 'ranking-leaderboard--compact' : '',
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      <div className="ranking-leaderboard__head rank-head">
-        <span>#</span>
-        <span>Usuario</span>
-        <span>Puntos</span>
-        <span>Exactos</span>
-        <span>Racha</span>
-      </div>
-
-      <div className="ranking-leaderboard__list">
-        {visible.length === 0 ? (
-          <div className="empty-state ranking-leaderboard__empty">Aún no hay jugadores en el ranking</div>
-        ) : (
-          visible.map((r) => {
-            const username = formatUsername(r);
-            const points = Number(r.points ?? 0);
-            const exacts = Number(r.exacts ?? 0);
-            const streak = Number(r.streak ?? 0);
-            const isMe = currentUserId && r.id === currentUserId;
-            const rank = r.rank_position ?? '—';
-
-            return (
-              <button
-                key={r.id}
-                type="button"
-                className={`rank-row rank-row--link${isMe ? ' rank-row--me' : ''}`}
-                onClick={() => onSelectUser?.(r.id)}
-                aria-label={`Ver perfil de ${username}, puesto ${rank}`}
-              >
-                <span className="rank-row__pos">#{rank}</span>
-                <div className="rank-row__user">
-                  <UserAvatar photoUrl={r.photo_url} variant="ranking" className="rank-row__avatar" alt="" />
-                  <span className="rank-row__name">{username}</span>
-                </div>
-                <span className="rank-row__stat rank-row__stat--pts">{points}</span>
-                <span className="rank-row__stat rank-row__stat--ex">{exacts}</span>
-                <span className="rank-row__stat rank-row__stat--streak">{streak}</span>
-                <p className="rank-row__meta">
-                  {points} PTS • {exacts} exactos • Racha {streak}
-                </p>
-              </button>
-            );
-          })
-        )}
-      </div>
+      {groups.length === 0 ? (
+        <div className="empty-state ranking-leaderboard__empty">Aún no hay jugadores en el ranking</div>
+      ) : (
+        <RankingGroupList
+          groups={groups}
+          featuredCount={groups.length}
+          showMovement={false}
+          showBars={false}
+          showRestHead={false}
+          onSelectUser={onSelectUser}
+          currentUserId={currentUserId}
+          listClassName="ranking-leaderboard__groups"
+        />
+      )}
     </div>
   );
 }

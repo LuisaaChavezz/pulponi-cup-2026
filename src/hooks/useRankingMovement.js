@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { fetchLeaderboardProfiles } from '../lib/leaderboardQuery';
 import {
@@ -193,13 +193,8 @@ export function useRankingMovement(session) {
     return attachRankingRealtimeListener(userId, () => refreshRef.current());
   }, [userId]);
 
-  const top5 = useMemo(() => rows.slice(0, 5), [rows]);
-  const rest = useMemo(() => rows.slice(5), [rows]);
-
   return {
     rows,
-    top5,
-    rest,
     loading,
     tablesMissing,
     profileSummary,

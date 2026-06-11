@@ -6,6 +6,7 @@ import './layout-dashboard.css';
 import './avatars-global.css';
 import './pulponi-player-card.css';
 import './ranking-leaderboard.css';
+import './ranking-groups.css';
 import './home-dashboard.css';
 import './navigation.css';
 import './partidos-matches-layout.css';
