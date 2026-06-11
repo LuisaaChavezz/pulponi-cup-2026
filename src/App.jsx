@@ -125,7 +125,6 @@ export default function App() {
   const [matchPredictionFilter, setMatchPredictionFilter] = useState('all');
 
   const data = useAppData(session);
-  const showRankingMovement = useMobileViewport(1023);
   const isMobileViewport = useMobileViewport(767);
   const appRenderCountRef = useRef(0);
   appRenderCountRef.current += 1;
@@ -1063,13 +1062,11 @@ export default function App() {
                     userId={session?.user?.id}
                   />
                 </section>
-                {showRankingMovement ? (
-                  <RankingMovement
-                    session={session}
-                    className="dash-ranking pulponi-card ranking-section-movement"
-                    onSelectUser={openUserProfile}
-                  />
-                ) : null}
+                <RankingMovement
+                  session={session}
+                  className="dash-ranking pulponi-card ranking-section-movement"
+                  onSelectUser={openUserProfile}
+                />
                 <RankingLeaderboard
                   rows={sortedRanking}
                   currentUserId={session?.user?.id}

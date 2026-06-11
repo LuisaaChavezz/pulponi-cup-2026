@@ -1,68 +1,15 @@
-import UserAvatar from './UserAvatar';
-import RankingParticipantsList from './RankingParticipantsList';
-import { buildRankedLeaderboard, leaderboardHasScoredPoints } from '../lib/rankingHistory';
+import RankingMovement from './RankingMovement';
 
-function formatUsername(row) {
-  const raw = row?.username ?? row?.name ?? 'jugador';
-  return String(raw).replace(/^@+/, '').trim() || 'jugador';
-}
-
-export default function HomeMobileRankingSummary({ ranking = [], onViewRanking, onSelectUser }) {
-  const ranked = buildRankedLeaderboard(ranking);
-  const hasScoredPoints = leaderboardHasScoredPoints(ranked);
-  const topFive = ranked.slice(0, 5);
-
-  if (!hasScoredPoints) {
-    return (
-      <article className="home-dash-mobile-ranking pulponi-card home-dash-mobile-ranking--participants">
-        <h3 className="home-dash-mobile-ranking__title">Participantes</h3>
-        {ranked.length === 0 ? (
-          <p className="home-dash-empty home-dash-mobile-ranking__empty">Sin participantes todavía</p>
-        ) : (
-          <RankingParticipantsList
-            participants={ranked}
-            className="home-dash-participants"
-            listClassName="home-dash-participants__list"
-            rowClassName="home-dash-participants__row"
-            avatarVariant="ranking"
-            onSelectUser={onSelectUser}
-          />
-        )}
-        <button type="button" className="home-dash-btn home-dash-btn--ghost" onClick={onViewRanking}>
-          Ver ranking completo
-        </button>
-      </article>
-    );
-  }
-
+/** Ranking en Inicio (móvil): movimiento ↑ ↓ = vía jornada anterior. */
+export default function HomeMobileRankingSummary({ session, onViewRanking, onSelectUser }) {
   return (
-    <article className="home-dash-mobile-ranking pulponi-card">
-      <h3 className="home-dash-mobile-ranking__title">TOP RANKING</h3>
-      {topFive.length === 0 ? (
-        <p className="home-dash-empty home-dash-mobile-ranking__empty">Sin datos todavía</p>
-      ) : (
-        <ol className="home-dash-mobile-ranking__list">
-          {topFive.map((row) => (
-            <li key={row.id ?? row.rank_position}>
-              <button
-                type="button"
-                className="home-dash-mobile-ranking__row profile-link-btn"
-                onClick={() => onSelectUser?.(row.id)}
-                disabled={!row.id || !onSelectUser}
-                aria-label={`Ver perfil de ${formatUsername(row)}`}
-              >
-                <span className="home-dash-mobile-ranking__pos">{row.rank_position}.</span>
-                <UserAvatar photoUrl={row.photo_url} variant="ranking" className="home-dash-mobile-ranking__avatar" alt="" />
-                <span className="home-dash-mobile-ranking__name">{formatUsername(row)}</span>
-                <span className="home-dash-mobile-ranking__pts">{Number(row.points ?? 0)} pts</span>
-              </button>
-            </li>
-          ))}
-        </ol>
-      )}
-      <button type="button" className="home-dash-btn home-dash-btn--ghost" onClick={onViewRanking}>
-        Ver ranking completo
-      </button>
-    </article>
+    <RankingMovement
+      session={session}
+      compact
+      maxRest={5}
+      onViewFull={onViewRanking}
+      className="home-dash-mobile-ranking pulponi-card phone--rank-movement--compact home-dash-ranking-movement"
+      onSelectUser={onSelectUser}
+    />
   );
 }

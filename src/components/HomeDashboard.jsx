@@ -417,7 +417,7 @@ export default function HomeDashboard({
           >
             {isMobileHome ? (
               <HomeMobileRankingSummary
-                ranking={ranking}
+                session={session}
                 onViewRanking={onViewRanking}
                 onSelectUser={onSelectUser}
               />

@@ -33,6 +33,12 @@
   }
 }
 
+@media (min-width: 768px) {
+  #ranking.panel.is-active .ranking-section-movement {
+    display: none !important;
+  }
+}
+
 @media (min-width: 1024px) {
   #ranking.panel.is-active .ranking-leaderboard {
     max-width: 900px;
