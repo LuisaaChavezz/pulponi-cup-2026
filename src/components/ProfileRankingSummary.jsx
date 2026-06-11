@@ -45,6 +45,16 @@ export default function ProfileRankingSummary({ userId }) {
           if (!cancelled) setSummary(getProfileRankingSummary(userId, withMovement, historyRows));
         })();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pick_scores' }, () => {
+        void (async () => {
+          const { data: profiles } = await fetchLeaderboardProfiles(supabase);
+          const comparison = await loadJornadaComparison();
+          const ranked = buildRankedLeaderboard(profiles ?? []);
+          const withMovement = attachPositionMovement(ranked, comparison.previousHistory);
+          const historyRows = await loadProfileHistoryRows(userId);
+          if (!cancelled) setSummary(getProfileRankingSummary(userId, withMovement, historyRows));
+        })();
+      })
       .subscribe();
 
     return () => {

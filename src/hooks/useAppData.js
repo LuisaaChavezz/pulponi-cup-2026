@@ -10,6 +10,7 @@ import { filterWorldCupMatches } from '../lib/worldCupScope';
 import { normalizeMatchRow, normalizeMatches } from '../lib/normalizeMatch';
 import { formatActivityLogMessage } from '../lib/activityMessages';
 import { fetchLeaderboardProfiles } from '../lib/leaderboardQuery';
+import { enrichProfileWithPickScores, enrichProfilesWithPickScores } from '../lib/pickScoreStats';
 import {
   buildPredictionPublicMessage,
   formatActivityDisplayName,
@@ -172,10 +173,11 @@ export function useAppData(session) {
     }
     const normalizedPicks = normalizePicksKeys(data.picks);
     const row = { ...data, picks: normalizedPicks };
-    cacheSet(`profile:${userId}`, row, 120_000);
-    setProfile(row);
+    const enriched = await enrichProfileWithPickScores(supabase, row);
+    cacheSet(`profile:${userId}`, enriched, 120_000);
+    setProfile(enriched);
     setPicks(normalizedPicks);
-    return row;
+    return enriched;
   }, [userId, session?.user?.email]);
 
   const loadMatchesChunk = useCallback(
@@ -402,8 +404,9 @@ export function useAppData(session) {
         return fallback.data ?? [];
       }
       const rows = data ?? [];
-      setCommunityProfiles(rows);
-      return rows;
+      const enriched = await enrichProfilesWithPickScores(supabase, rows);
+      setCommunityProfiles(enriched);
+      return enriched;
     } catch (e) {
       console.warn('[loadCommunityProfiles]', e?.message ?? e);
       setCommunityProfiles([]);
@@ -1001,10 +1004,23 @@ export function useAppData(session) {
       )
       .subscribe();
 
+    const pickScoresChannel = supabase
+      .channel('pick-scores-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pick_scores' },
+        () => {
+          void loadRankingRef.current?.();
+          void loadProfileRef.current?.();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(commentsChannel);
       supabase.removeChannel(rxChannel);
       supabase.removeChannel(matchesChannel);
+      supabase.removeChannel(pickScoresChannel);
     };
   }, [userId]);
 

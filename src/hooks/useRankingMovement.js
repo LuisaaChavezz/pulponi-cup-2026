@@ -72,6 +72,13 @@ function ensureRankingRealtimeChannel(userId) {
           void notifyRankingRealtimeListeners();
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pick_scores' },
+        () => {
+          void notifyRankingRealtimeListeners();
+        }
+      )
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR') {
           console.warn('[useRankingMovement] realtime CHANNEL_ERROR');

@@ -5,6 +5,7 @@ import { formatKickoff, isMatchFinished, isProfilePickRevealed, uiStatus } from 
 import { formatActivityLogMessage } from './activityMessages';
 import { getAchievementById } from '../data/achievements';
 import { computePulpoDerivedStats } from './pulpoIndex';
+import { aggregatePickScoreRowsForProfile, enrichProfilesWithPickScores } from './pickScoreStats';
 
 function pickMap(profile) {
   const raw = profile?.picks;
@@ -180,25 +181,20 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
 
 export function buildUserStats(profile, pickScoreRows, matches, communityProfiles, rankingSummary) {
   try {
-    const picks = pickMap(profile);
-    const predicted = Object.keys(picks).filter((mid) => parsePickScore(picks[mid])).length;
-    const graded = (pickScoreRows ?? []).length;
-    const correctResults = (pickScoreRows ?? []).filter((r) => r.exact_hit || r.winner_hit).length;
-    const exacts = (pickScoreRows ?? []).filter((r) => r.exact_hit).length;
-    const effectiveness = graded > 0 ? Math.round((correctResults / graded) * 100) : 0;
+    const scored = aggregatePickScoreRowsForProfile(pickScoreRows ?? []);
     const matchIndex = matchesById(matches);
 
     return {
-      predicted,
-      correctResults,
-      exacts,
-      effectiveness,
+      predicted: scored.predicted,
+      correctResults: scored.correctResults,
+      exacts: scored.exacts,
+      effectiveness: scored.effectiveness,
       riskyHits: countRiskyExactHits(profile?.id, pickScoreRows, communityProfiles, profile),
       bestStreak: computeBestStreak(pickScoreRows, matchIndex),
       currentStreak: Number(profile?.streak ?? 0),
-      bestRank: rankingSummary?.bestRank ?? rankingSummary?.currentRank ?? null,
+      bestRank: rankingSummary?.currentRank ?? null,
       currentRank: rankingSummary?.currentRank ?? null,
-      points: Number(profile?.points ?? 0),
+      points: scored.points,
       pulpoIndex: Number(profile?.pulpo_index ?? 0),
     };
   } catch (e) {
@@ -326,15 +322,28 @@ export async function loadPublicProfile(
     let ranked = [];
     let rankingSummary = { currentRank: null, bestRank: null };
     try {
-      ranked = buildRankedLeaderboard(allProfilesRows ?? []);
+      const mergedProfiles = await enrichProfilesWithPickScores(client, allProfilesRows ?? []);
+      ranked = buildRankedLeaderboard(mergedProfiles);
       rankingSummary = getProfileRankingSummary(profileId, ranked, historyRows ?? []) ?? rankingSummary;
     } catch (e) {
       console.warn('[loadPublicProfile] rankingSummary', e?.message ?? e);
     }
 
+    const scoredProfile = aggregatePickScoreRowsForProfile(pickScoreRows ?? []);
+    const profileWithScores = {
+      ...profile,
+      points: scoredProfile.points,
+      exacts: scoredProfile.exacts,
+    };
     const matchIndex = matchesById(matches);
-    const stats = buildUserStats(profile, pickScoreRows ?? [], matches, communityProfiles, rankingSummary);
-    const pickHistory = buildPickHistoryRows(profile, pickScoreRows ?? [], matches, communityProfiles);
+    const stats = buildUserStats(
+      profileWithScores,
+      pickScoreRows ?? [],
+      matches,
+      communityProfiles,
+      rankingSummary
+    );
+    const pickHistory = buildPickHistoryRows(profileWithScores, pickScoreRows ?? [], matches, communityProfiles);
     const badges = mapUserBadges(userBadgeRows ?? [], achievementCatalog);
     const activity = mapUserActivityRows(activityRows ?? [], profile, matchIndex);
 
@@ -352,7 +361,7 @@ export async function loadPublicProfile(
     }
 
     return {
-      profile,
+      profile: profileWithScores,
       rankingSummary,
       stats: { ...stats, pulpoIndex: pulpoStats?.index ?? stats.pulpoIndex ?? 0 },
       pickHistory: pickHistory ?? [],

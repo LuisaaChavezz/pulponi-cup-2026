@@ -875,6 +875,7 @@ export default function App() {
                 ranking={data.ranking ?? []}
                 profile={profile}
                 myCurrentRank={myCurrentRank}
+                myRankingRow={myRow}
                 predictionActivityFeed={data.predictionActivityFeed ?? []}
                 communityPickProfiles={data.communityPickProfiles ?? []}
                 communityProfiles={data.communityProfiles ?? []}

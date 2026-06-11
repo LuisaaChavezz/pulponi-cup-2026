@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { enrichProfilesWithPickScores } from './pickScoreStats';
 
 /** Vista public.ranking_leaderboard (profiles ⨝ auth.users). */
 export const LEADERBOARD_SOURCE = 'ranking_leaderboard';
@@ -35,7 +36,10 @@ export async function fetchLeaderboardProfiles(
     .select(columns)
     .order('points', { ascending: false });
 
-  if (!viewResult.error) return viewResult;
+  if (!viewResult.error) {
+    const enriched = await enrichProfilesWithPickScores(client, viewResult.data ?? []);
+    return { data: enriched, error: null };
+  }
 
   if (!isMissingLeaderboardSource(viewResult.error)) {
     return viewResult;
@@ -56,14 +60,18 @@ export async function fetchLeaderboardProfiles(
       }
       return out;
     });
-    return { data: rows, error: null };
+    const enriched = await enrichProfilesWithPickScores(client, rows);
+    return { data: enriched, error: null };
   }
 
   console.warn(
     '[leaderboard] RPC get_ranking_leaderboard no disponible; usando public.profiles. Ejecuta supabase/ranking_leaderboard.sql'
   );
 
-  return client.from('profiles').select(columns).order('points', { ascending: false });
+  const fallback = await client.from('profiles').select(columns).order('points', { ascending: false });
+  if (fallback.error) return fallback;
+  const enriched = await enrichProfilesWithPickScores(client, fallback.data ?? []);
+  return { data: enriched, error: null };
 }
 
 /** @deprecated Usar fetchLeaderboardProfiles (async). */

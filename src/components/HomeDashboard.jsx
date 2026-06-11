@@ -110,6 +110,7 @@ export default function HomeDashboard({
   ranking = [],
   profile,
   myCurrentRank,
+  myRankingRow = null,
   predictionActivityFeed = [],
   communityPickProfiles = [],
   communityProfiles = [],
@@ -289,6 +290,9 @@ export default function HomeDashboard({
     </article>
   );
 
+  const myPoints = Number(myRankingRow?.points ?? profile?.points ?? 0);
+  const myExacts = Number(myRankingRow?.exacts ?? profile?.exacts ?? 0);
+
   const insightsBlock = (
     <>
       <article className="home-dash-card home-dash-card--rank">
@@ -297,11 +301,11 @@ export default function HomeDashboard({
         <ul className="home-dash-stat-list">
           <li>
             <span>Puntos</span>
-            <strong>{Number(profile?.points ?? 0)}</strong>
+            <strong>{myPoints}</strong>
           </li>
           <li>
             <span>Exactos</span>
-            <strong>{Number(profile?.exacts ?? 0)}</strong>
+            <strong>{myExacts}</strong>
           </li>
           <li>
             <span>Racha</span>
