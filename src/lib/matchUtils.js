@@ -38,13 +38,21 @@ export function areCommunityTrendsRevealed(match, now = new Date()) {
   return isProfilePickRevealed(match, now);
 }
 
-/** Perfiles: revelar pick solo cuando currentTime >= kickoff. */
-export function isProfilePickRevealed(match, now = new Date()) {
+/** Partido ya comenzó (en vivo, finalizado o kickoff <= ahora). */
+export function hasMatchStarted(match, now = new Date()) {
+  if (!match) return false;
+  if (isMatchLive(match) || isMatchFinished(match)) return true;
+
   const kickoff = match?.kickoff;
   if (!kickoff) return false;
   const kickoffMs = new Date(kickoff).getTime();
   if (Number.isNaN(kickoffMs)) return false;
   return now.getTime() >= kickoffMs;
+}
+
+/** Perfiles / historial: revelar pick cuando el partido ya empezó o terminó. */
+export function isProfilePickRevealed(match, now = new Date()) {
+  return hasMatchStarted(match, now);
 }
 
 export function isPickLocked(match) {

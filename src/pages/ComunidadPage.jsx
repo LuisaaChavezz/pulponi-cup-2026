@@ -19,6 +19,7 @@ export default function ComunidadPage({
   isAdmin = false,
   currentUsername = null,
   onCreateImportantAlert,
+  onApplyFinalResult,
 }) {
   return (
     <>
@@ -40,6 +41,7 @@ export default function ComunidadPage({
               isAdmin={isAdmin}
               currentUsername={currentUsername}
               onCreateImportantAlert={onCreateImportantAlert}
+              onApplyFinalResult={onApplyFinalResult}
               onSelectUser={onSelectUser}
             />
           </div>

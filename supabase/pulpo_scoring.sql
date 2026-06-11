@@ -1,5 +1,6 @@
 -- Índice Pulpo + puntuación real (ejecutar en Supabase SQL Editor)
 -- Seguro para re-ejecutar. Requiere public.profiles y public.matches para RPC.
+-- public.matches.id debe ser TEXT (no UUID). pick_scores.match_id es TEXT.
 -- Ejecutar después de user_profiles_public.sql si pick_scores / RLS ya están listos.
 
 -- ── Columnas de ranking / índice en perfiles ───────────────────────────────
@@ -20,14 +21,11 @@ BEGIN
 END;
 $profiles_cols$;
 
--- ── Puntos por partido y usuario (evita doble conteo) ───────────────────────
+-- ── Puntos por partido y usuario (match_id TEXT → matches.id TEXT) ──────────
 DO $pick_scores_table$
+DECLARE
+  matches_id_type text;
 BEGIN
-  IF to_regclass('public.pick_scores') IS NOT NULL THEN
-    RAISE NOTICE '[pulpo_scoring] pick_scores ya existe; omitiendo CREATE.';
-    RETURN;
-  END IF;
-
   IF to_regclass('public.profiles') IS NULL THEN
     RAISE NOTICE '[pulpo_scoring] pick_scores no creada: falta public.profiles.';
     RETURN;
@@ -38,9 +36,37 @@ BEGIN
     RETURN;
   END IF;
 
+  SELECT c.udt_name
+  INTO matches_id_type
+  FROM information_schema.columns c
+  WHERE c.table_schema = 'public'
+    AND c.table_name = 'matches'
+    AND c.column_name = 'id';
+
+  IF matches_id_type IS DISTINCT FROM 'text' AND matches_id_type IS DISTINCT FROM 'varchar' THEN
+    RAISE NOTICE '[pulpo_scoring] matches.id es % — este script espera TEXT. Adapta manualmente si es otro tipo.', matches_id_type;
+  END IF;
+
+  IF to_regclass('public.pick_scores') IS NOT NULL THEN
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns c
+      WHERE c.table_schema = 'public'
+        AND c.table_name = 'pick_scores'
+        AND c.column_name = 'match_id'
+        AND c.udt_name = 'uuid'
+    ) THEN
+      DROP TABLE public.pick_scores CASCADE;
+      RAISE NOTICE '[pulpo_scoring] pick_scores eliminada (match_id era uuid); recreando como text.';
+    ELSE
+      RAISE NOTICE '[pulpo_scoring] pick_scores ya existe; omitiendo CREATE.';
+      RETURN;
+    END IF;
+  END IF;
+
   CREATE TABLE public.pick_scores (
     profile_id uuid NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
-    match_id uuid NOT NULL REFERENCES public.matches (id) ON DELETE CASCADE,
+    match_id text NOT NULL REFERENCES public.matches (id) ON DELETE CASCADE,
     points_awarded integer NOT NULL DEFAULT 0,
     exact_hit boolean NOT NULL DEFAULT false,
     winner_hit boolean NOT NULL DEFAULT false,
@@ -51,7 +77,7 @@ BEGIN
   CREATE INDEX IF NOT EXISTS pick_scores_match_id_idx ON public.pick_scores (match_id);
   CREATE INDEX IF NOT EXISTS pick_scores_profile_id_idx ON public.pick_scores (profile_id);
 
-  RAISE NOTICE '[pulpo_scoring] pick_scores creada.';
+  RAISE NOTICE '[pulpo_scoring] pick_scores creada (match_id text).';
 END;
 $pick_scores_table$;
 
@@ -169,7 +195,7 @@ BEGIN
         run_streak := 0;
 
         FOR m IN
-          SELECT id, kickoff
+          SELECT id::text AS id, kickoff
           FROM public.matches
           WHERE public._match_is_finished(matches.*)
           ORDER BY kickoff ASC NULLS LAST, id ASC
@@ -219,17 +245,14 @@ BEGIN
         WHERE public._match_is_finished(matches.*)
       LOOP
         scored_matches := scored_matches + 1;
+        mid_text := m.id::text;
 
         FOR prof IN
           SELECT id, picks
           FROM public.profiles
           WHERE picks IS NOT NULL AND picks <> '{}'::jsonb
         LOOP
-          mid_text := m.id::text;
           pick := prof.picks -> mid_text;
-          IF pick IS NULL THEN
-            pick := prof.picks -> (mid_text);
-          END IF;
           IF pick IS NULL THEN
             CONTINUE;
           END IF;
@@ -240,7 +263,7 @@ BEGIN
           INSERT INTO public.pick_scores (
             profile_id, match_id, points_awarded, exact_hit, winner_hit, scored_at
           )
-          VALUES (prof.id, m.id, g.points_awarded, g.exact_hit, g.winner_hit, now())
+          VALUES (prof.id, mid_text, g.points_awarded, g.exact_hit, g.winner_hit, now())
           ON CONFLICT (profile_id, match_id) DO UPDATE SET
             points_awarded = excluded.points_awarded,
             exact_hit = excluded.exact_hit,
@@ -261,7 +284,8 @@ BEGIN
           SELECT count(*)::integer
           FROM public.pick_scores ps
           WHERE ps.profile_id = p.id AND ps.exact_hit
-        ), 0);
+        ), 0)
+      WHERE p.id IS NOT NULL;
 
       PERFORM public.recompute_profile_streaks();
 

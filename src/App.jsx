@@ -1101,6 +1101,7 @@ export default function App() {
                 isAdmin={Boolean(data.profile?.is_admin)}
                 currentUsername={data.profile?.username ?? null}
                 onCreateImportantAlert={data.createEvent}
+                onApplyFinalResult={data.applyManualMatchResult}
               />
             </Suspense>
           ) : null}

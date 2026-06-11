@@ -5,8 +5,14 @@ import { isProfilePickRevealed } from '../lib/matchUtils';
 export const SHOW_PROFILE_ACTIVITY = false;
 
 function isHistoryRowRevealed(row, now) {
-  if (!row?.kickoff) return false;
-  return isProfilePickRevealed({ kickoff: row.kickoff }, now);
+  return isProfilePickRevealed(
+    {
+      kickoff: row.kickoff,
+      status: row.matchRawStatus,
+      api_status: row.matchApiStatus,
+    },
+    now
+  );
 }
 
 function ProfilePageCard({ title, meta, children, className = '' }) {
@@ -157,7 +163,7 @@ export function ProfilePickHistory({ rows, emptyText = 'Todavía no hay predicci
                 <span className="profile-page-history__pick-hidden">
                   <span className="profile-page-history__pick-hidden-title">Predicción enviada</span>
                   <span className="profile-page-history__pick-hidden-hint">
-                    🔒 Oculta hasta el cierre del partido
+                    🔒 Oculta hasta el inicio del partido
                   </span>
                 </span>
               )}

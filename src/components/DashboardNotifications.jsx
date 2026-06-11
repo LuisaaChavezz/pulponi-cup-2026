@@ -15,6 +15,7 @@ import {
   downloadAllPredictionsPdf,
   downloadMatchPredictionsPdf,
 } from '../lib/exportPredictions';
+import AdminMatchResultPanel from './AdminMatchResultPanel';
 
 const PDF_ERROR_MSG = 'No se pudo generar el PDF.';
 
@@ -60,6 +61,7 @@ export default function DashboardNotifications({
   communityPickProfiles = [],
   isAdmin = false,
   currentUsername = null,
+  onApplyFinalResult,
   onCreateImportantAlert,
   onSelectUser,
 }) {
@@ -314,6 +316,13 @@ export default function DashboardNotifications({
           </div>
         )}
       </div>
+
+      <AdminMatchResultPanel
+        matches={matches}
+        currentUsername={currentUsername}
+        isAdmin={isAdmin}
+        onApplyFinalResult={onApplyFinalResult}
+      />
 
       <div className="dash-notifications__section dash-notifications__section--announcements dash-notifications-community-mobile-hide">
         <div className="dash-notifications__head">

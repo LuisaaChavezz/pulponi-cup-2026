@@ -152,11 +152,13 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
         matchLabel: `${match.home_team ?? 'Local'} vs ${match.away_team ?? 'Visitante'}`,
         kickoff: match.kickoff,
         kickoffLabel: formatKickoff(match.kickoff) || '—',
+        matchRawStatus: match.status,
+        matchApiStatus: match.api_status,
         matchStatus,
         pickRevealed: revealed,
-        prediction: revealed ? `${pick.home}–${pick.away}` : null,
+        prediction: `${pick.home}–${pick.away}`,
         finalResult:
-          revealed && finished && match.home_score != null && match.away_score != null
+          finished && match.home_score != null && match.away_score != null
             ? `${match.home_score}–${match.away_score}`
             : '—',
         points: revealed && finished ? points : null,

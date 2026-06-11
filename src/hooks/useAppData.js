@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { resolveAvatarUrl } from '../lib/avatars';
 import { runScoringAndPulpoPipeline } from '../lib/pulpoSync';
+import { applyMatchFinalResult } from '../lib/matchScoring';
+import { canAdminExportPredictions } from '../lib/predictionActivity';
 import { isMatchFinished } from '../lib/matchUtils';
 import { syncWorldCupFixtures } from '../lib/footballApi';
 import { filterWorldCupMatches } from '../lib/worldCupScope';
@@ -310,6 +312,10 @@ export function useAppData(session) {
 
   const onFootballSynced = useCallback(async () => {
     await reloadMatches();
+    const list = matchesRef.current ?? [];
+    if (list.some((m) => isMatchFinished(m))) {
+      await runScoringPipelineRef.current?.(list);
+    }
   }, [reloadMatches]);
 
   const applyMatchRow = useCallback((row) => {
@@ -1270,6 +1276,69 @@ export function useAppData(session) {
     return res;
   }
 
+  const applyManualMatchResult = useCallback(
+    async (matchId, homeScore, awayScore) => {
+      const allowed =
+        profile?.is_admin || canAdminExportPredictions(profile?.username ?? null);
+      if (!userId || !allowed) return { error: 'No autorizado' };
+
+      try {
+        const applyResult = await applyMatchFinalResult(supabase, matchId, homeScore, awayScore, {
+          matches: matchesRef.current,
+        });
+
+        if (applyResult?.error) return applyResult;
+
+        cacheInvalidate('matches:');
+        await loadAllMatchesComplete();
+
+        const pipeline = await runScoringAndPulpoPipeline(supabase, {
+          matches: matchesRef.current,
+          captureRanking: true,
+        });
+
+        if (pipeline?.profiles?.length) {
+          setCommunityPickProfiles(
+            pipeline.profiles.filter(
+              (r) => r.picks && typeof r.picks === 'object' && Object.keys(r.picks).length > 0
+            )
+          );
+        }
+
+        const me = pipeline?.profiles?.find((p) => p.id === userId);
+        if (me) {
+          setProfile((prev) => ({ ...prev, ...me }));
+        } else {
+          await loadProfile();
+        }
+
+        cacheInvalidate('ranking');
+        await loadRanking();
+        await syncAchievementsForProfiles(pipeline?.profiles);
+        loadActivity();
+
+        return {
+          ...applyResult,
+          score: pipeline?.score,
+          pulpo: pipeline?.pulpo,
+        };
+      } catch (e) {
+        console.warn('[applyManualMatchResult]', e?.message ?? e);
+        return { error: e?.message ?? 'Error al puntuar' };
+      }
+    },
+    [
+      userId,
+      profile?.is_admin,
+      profile?.username,
+      loadAllMatchesComplete,
+      loadProfile,
+      loadRanking,
+      loadActivity,
+      syncAchievementsForProfiles,
+    ]
+  );
+
   return {
     profile,
     matches,
@@ -1305,6 +1374,7 @@ export function useAppData(session) {
     reactionRowsByMessage,
     updateProfile,
     createEvent,
+    applyManualMatchResult,
     refreshAll,
     setActivity,
     setPicks,

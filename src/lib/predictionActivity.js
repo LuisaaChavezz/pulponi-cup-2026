@@ -3,6 +3,7 @@ import {
   formatKickoff,
   isMatchLive,
   isPickLocked,
+  isProfilePickRevealed,
   listCarouselUpcomingMatches,
 } from './matchUtils';
 
@@ -126,10 +127,10 @@ function sortMatchesByKickoffDesc(matches) {
   return [...(matches ?? [])].sort((a, b) => kickoffMs(b) - kickoffMs(a));
 }
 
-/** Tras cierre de predicciones (kickoff / en vivo / final): se puede exportar con marcadores. */
-export function isMatchPredictionsExportable(match, _now = new Date(), username = null) {
+/** Tras inicio del partido (kickoff / en vivo / final): se puede exportar con marcadores. */
+export function isMatchPredictionsExportable(match, now = new Date(), username = null) {
   if (canAdminExportPredictions(username)) return Boolean(match);
-  return isPickLocked(match);
+  return isProfilePickRevealed(match, now);
 }
 
 /** Partido por defecto para exportar: en vivo → último partido ya cerrado. */
