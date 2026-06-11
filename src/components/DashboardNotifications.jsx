@@ -59,6 +59,7 @@ export default function DashboardNotifications({
   matches = [],
   communityPickProfiles = [],
   isAdmin = false,
+  currentUsername = null,
   onCreateImportantAlert,
   onSelectUser,
 }) {
@@ -79,8 +80,8 @@ export default function DashboardNotifications({
   );
 
   const exportContext = useMemo(
-    () => resolvePredictionExportContext(matches, now),
-    [matches, now]
+    () => resolvePredictionExportContext(matches, now, currentUsername),
+    [matches, now, currentUsername]
   );
 
   useEffect(() => {
@@ -107,12 +108,19 @@ export default function DashboardNotifications({
 
   const exportRows = useMemo(() => {
     if (!downloadMatch?.id) return [];
-    return buildMatchDownloadRows(profiles, downloadMatch.id, activityLog, downloadMatch, now);
-  }, [downloadMatch, profiles, activityLog, now]);
+    return buildMatchDownloadRows(
+      profiles,
+      downloadMatch.id,
+      activityLog,
+      downloadMatch,
+      now,
+      currentUsername
+    );
+  }, [downloadMatch, profiles, activityLog, now, currentUsername]);
 
   const allExportGroups = useMemo(
-    () => buildAllMatchesExportGroups(profiles, matches, activityLog, now),
-    [profiles, matches, activityLog, now]
+    () => buildAllMatchesExportGroups(profiles, matches, activityLog, now, currentUsername),
+    [profiles, matches, activityLog, now, currentUsername]
   );
 
   const sortedFeed = useMemo(() => {

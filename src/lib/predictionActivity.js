@@ -13,6 +13,20 @@ const PREDICTION_ACTIONS = new Set([
   'prediction_changed',
 ]);
 
+/** Admin temporal: exportar PDF con marcadores antes del cierre (no afecta picks normales). */
+const PREDICTION_EXPORT_ADMIN_USERNAMES = new Set(['luisaachavezz']);
+
+export function normalizeExportUsername(username) {
+  return String(username ?? '')
+    .replace(/^@+/, '')
+    .trim()
+    .toLowerCase();
+}
+
+export function canAdminExportPredictions(username) {
+  return PREDICTION_EXPORT_ADMIN_USERNAMES.has(normalizeExportUsername(username));
+}
+
 export function isPredictionActivityAction(action) {
   return PREDICTION_ACTIONS.has(String(action || '').trim());
 }
@@ -113,13 +127,14 @@ function sortMatchesByKickoffDesc(matches) {
 }
 
 /** Tras cierre de predicciones (kickoff / en vivo / final): se puede exportar con marcadores. */
-export function isMatchPredictionsExportable(match, _now = new Date()) {
+export function isMatchPredictionsExportable(match, _now = new Date(), username = null) {
+  if (canAdminExportPredictions(username)) return Boolean(match);
   return isPickLocked(match);
 }
 
 /** Partido por defecto para exportar: en vivo → último partido ya cerrado. */
-export function pickDefaultExportMatch(matches, now = new Date()) {
-  const exportable = (matches ?? []).filter((m) => isMatchPredictionsExportable(m, now));
+export function pickDefaultExportMatch(matches, now = new Date(), username = null) {
+  const exportable = (matches ?? []).filter((m) => isMatchPredictionsExportable(m, now, username));
   if (!exportable.length) return null;
   const live = exportable.find((m) => isMatchLive(m));
   if (live) return live;
@@ -127,12 +142,14 @@ export function pickDefaultExportMatch(matches, now = new Date()) {
 }
 
 /** @deprecated Usar pickDefaultExportMatch */
-export function pickExportMatch(matches, now = new Date()) {
-  return pickDefaultExportMatch(matches, now);
+export function pickExportMatch(matches, now = new Date(), username = null) {
+  return pickDefaultExportMatch(matches, now, username);
 }
 
-export function listExportableMatches(matches, now = new Date()) {
-  return sortMatchesByKickoffDesc((matches ?? []).filter((m) => isMatchPredictionsExportable(m, now)));
+export function listExportableMatches(matches, now = new Date(), username = null) {
+  return sortMatchesByKickoffDesc(
+    (matches ?? []).filter((m) => isMatchPredictionsExportable(m, now, username))
+  );
 }
 
 export function formatMatchVersusLabel(match) {
@@ -156,13 +173,15 @@ export function getPredictionExportButtonLabel(match, matches, now = new Date())
 /**
  * Partido mostrado en UI y partido con datos exportables (puede diferir si el próximo aún no cerró).
  */
-export function resolvePredictionExportContext(matches, now = new Date()) {
+export function resolvePredictionExportContext(matches, now = new Date(), username = null) {
   const list = matches ?? [];
   const live = list.find((m) => isMatchLive(m));
   if (live) {
     return {
       displayMatch: live,
-      exportMatch: isMatchPredictionsExportable(live, now) ? live : pickDefaultExportMatch(list, now),
+      exportMatch: isMatchPredictionsExportable(live, now, username)
+        ? live
+        : pickDefaultExportMatch(list, now, username),
       buttonLabel: getPredictionExportButtonLabel(live, list, now),
     };
   }
@@ -170,13 +189,13 @@ export function resolvePredictionExportContext(matches, now = new Date()) {
   if (upcoming) {
     return {
       displayMatch: upcoming,
-      exportMatch: isMatchPredictionsExportable(upcoming, now)
+      exportMatch: isMatchPredictionsExportable(upcoming, now, username)
         ? upcoming
-        : pickDefaultExportMatch(list, now),
+        : pickDefaultExportMatch(list, now, username),
       buttonLabel: getPredictionExportButtonLabel(upcoming, list, now),
     };
   }
-  const recent = pickDefaultExportMatch(list, now);
+  const recent = pickDefaultExportMatch(list, now, username);
   return {
     displayMatch: recent,
     exportMatch: recent,
@@ -227,10 +246,11 @@ export function buildMatchDownloadRows(
   matchId,
   activityRows = [],
   match = null,
-  now = new Date()
+  now = new Date(),
+  username = null
 ) {
   const mid = String(matchId);
-  const revealScores = match ? isMatchPredictionsExportable(match, now) : false;
+  const revealScores = match ? isMatchPredictionsExportable(match, now, username) : false;
   const rows = [];
   for (const prof of profileRows ?? []) {
     const pick = getProfilePickForMatch(prof.picks, mid);
@@ -277,8 +297,15 @@ export function buildMatchDownloadRows(
 }
 
 /** @deprecated Usar buildMatchDownloadRows */
-export function buildMatchExportRows(profileRows, matchId, activityRows = [], match = null, now = new Date()) {
-  return buildMatchDownloadRows(profileRows, matchId, activityRows, match, now);
+export function buildMatchExportRows(
+  profileRows,
+  matchId,
+  activityRows = [],
+  match = null,
+  now = new Date(),
+  username = null
+) {
+  return buildMatchDownloadRows(profileRows, matchId, activityRows, match, now, username);
 }
 
 /** Partidos que tienen al menos una predicción guardada. */
@@ -291,13 +318,19 @@ export function listMatchesWithPicks(profileRows, matches) {
 }
 
 /** Grupos por partido cerrado para «Descargar todas las predicciones». */
-export function buildAllMatchesExportGroups(profileRows, matches, activityRows = [], now = new Date()) {
+export function buildAllMatchesExportGroups(
+  profileRows,
+  matches,
+  activityRows = [],
+  now = new Date(),
+  username = null
+) {
   return listMatchesWithPicks(profileRows, matches)
     .map((match) => ({
       match,
       title: buildMatchExportTitle(match),
       kickoffLine: formatExportKickoffLine(match),
-      rows: buildMatchDownloadRows(profileRows, match.id, activityRows, match, now),
+      rows: buildMatchDownloadRows(profileRows, match.id, activityRows, match, now, username),
     }))
     .filter((g) => g.rows.length > 0);
 }

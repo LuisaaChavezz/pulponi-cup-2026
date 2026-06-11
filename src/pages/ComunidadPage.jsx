@@ -17,6 +17,7 @@ export default function ComunidadPage({
   matches = [],
   communityPickProfiles = [],
   isAdmin = false,
+  currentUsername = null,
   onCreateImportantAlert,
 }) {
   return (
@@ -37,6 +38,7 @@ export default function ComunidadPage({
               matches={matches}
               communityPickProfiles={communityPickProfiles}
               isAdmin={isAdmin}
+              currentUsername={currentUsername}
               onCreateImportantAlert={onCreateImportantAlert}
               onSelectUser={onSelectUser}
             />

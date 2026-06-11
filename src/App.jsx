@@ -1099,6 +1099,7 @@ export default function App() {
                 matches={worldCupMatches ?? []}
                 communityPickProfiles={data.communityPickProfiles ?? []}
                 isAdmin={Boolean(data.profile?.is_admin)}
+                currentUsername={data.profile?.username ?? null}
                 onCreateImportantAlert={data.createEvent}
               />
             </Suspense>
