@@ -37,12 +37,13 @@ export default function RankingLeaderboard({
         {visible.length === 0 ? (
           <div className="empty-state ranking-leaderboard__empty">Aún no hay jugadores en el ranking</div>
         ) : (
-          visible.map((r, i) => {
+          visible.map((r) => {
             const username = formatUsername(r);
             const points = Number(r.points ?? 0);
             const exacts = Number(r.exacts ?? 0);
             const streak = Number(r.streak ?? 0);
             const isMe = currentUserId && r.id === currentUserId;
+            const rank = r.rank_position ?? '—';
 
             return (
               <button
@@ -50,9 +51,9 @@ export default function RankingLeaderboard({
                 type="button"
                 className={`rank-row rank-row--link${isMe ? ' rank-row--me' : ''}`}
                 onClick={() => onSelectUser?.(r.id)}
-                aria-label={`Ver perfil de ${username}, puesto ${i + 1}`}
+                aria-label={`Ver perfil de ${username}, puesto ${rank}`}
               >
-                <span className="rank-row__pos">#{i + 1}</span>
+                <span className="rank-row__pos">#{rank}</span>
                 <div className="rank-row__user">
                   <UserAvatar photoUrl={r.photo_url} variant="ranking" className="rank-row__avatar" alt="" />
                   <span className="rank-row__name">{username}</span>

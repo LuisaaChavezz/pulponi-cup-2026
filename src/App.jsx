@@ -586,9 +586,9 @@ export default function App() {
   const unlockedCount = countAchievementsUnlocked(unlockedAchievementIds, achievementCatalog);
   const achievementsTotal = countAchievementsTotal(achievementCatalog);
 
-  const myRankIndex = sortedRanking.findIndex((r) => r.id === session?.user?.id);
+  const myRow = sortedRanking.find((r) => r.id === session?.user?.id);
   const myCurrentRank =
-    myRankIndex >= 0 ? myRankIndex + 1 : myProfileView.data?.rankingSummary?.currentRank ?? null;
+    myRow?.rank_position ?? myProfileView.data?.rankingSummary?.currentRank ?? null;
   const myProfileExtras = myProfileView.data ?? {};
   const myBadgesFromCatalog = achievementCatalog.filter((a) =>
     isAchievementUnlockedById(unlockedAchievementIds, a.id)

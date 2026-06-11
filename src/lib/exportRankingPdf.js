@@ -62,7 +62,9 @@ export function exportRankingPdf(rows) {
     const username = formatUsername(row);
     const truncated = username.length > 28 ? `${username.slice(0, 26)}…` : username;
 
-    pdf.text(String(index + 1), colX[0], y);
+    const rank = row.rank_position ?? index + 1;
+
+    pdf.text(String(rank), colX[0], y);
     pdf.text(truncated, colX[1], y);
     pdf.text(String(Number(row.points ?? 0)), colX[2], y);
     pdf.text(String(Number(row.exacts ?? 0)), colX[3], y);

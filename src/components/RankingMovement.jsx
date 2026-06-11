@@ -132,7 +132,7 @@ export default function RankingMovement({
         <>
           <div className="rm-top5-graph" role="list">
             {top5.map((r, i) => {
-              const rank = r.currentRank ?? i + 1;
+              const rank = r.currentRank ?? r.rank_position ?? 1;
               const barPct = Math.min(100, (r.points / maxTop5) * 100);
               return (
                 <button
@@ -185,7 +185,7 @@ export default function RankingMovement({
               <p className="rm-rest-head">{compact ? 'RESTO DEL RANKING' : 'Resto del ranking'}</p>
               <ol className="rm-rest-list">
                 {visibleRest.map((r) => {
-                  const pos = r.currentRank;
+                  const pos = r.currentRank ?? r.rank_position;
                   return (
                     <li key={r.id}>
                       <button

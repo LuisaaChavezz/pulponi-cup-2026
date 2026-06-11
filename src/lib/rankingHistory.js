@@ -28,7 +28,21 @@ export function selectDisplayName(profile) {
   return 'Jugador';
 }
 
-/** Ordena perfiles por puntos (desc) y asigna rank_position 1..n */
+/**
+ * Ranking estándar con empates (1224): mismos puntos → misma posición; la siguiente salta.
+ * Ej.: cinco jugadores con 3 pts → todos #1; el siguiente con 2 pts → #6.
+ */
+export function computeStandardRankPosition(sortedRows, index, pointsKey = 'points') {
+  if (index <= 0) return 1;
+  const cur = Number(sortedRows[index]?.[pointsKey] ?? 0);
+  const prev = Number(sortedRows[index - 1]?.[pointsKey] ?? 0);
+  if (cur === prev) {
+    return computeStandardRankPosition(sortedRows, index - 1, pointsKey);
+  }
+  return index + 1;
+}
+
+/** Ordena perfiles por puntos (desc) y asigna rank_position con empates (standard rank). */
 export function buildRankedLeaderboard(profiles) {
   const sorted = [...(profiles ?? [])].sort((a, b) => {
     const pa = Number(a.points ?? 0);
@@ -54,7 +68,7 @@ export function buildRankedLeaderboard(profiles) {
     points: Number(row.points ?? 0),
     exacts: Number(row.exacts ?? 0),
     streak: Number(row.streak ?? 0),
-    rank_position: index + 1,
+    rank_position: computeStandardRankPosition(sorted, index),
   }));
 }
 
