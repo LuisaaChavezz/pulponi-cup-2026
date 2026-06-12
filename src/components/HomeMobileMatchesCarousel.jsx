@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import TeamLogo from './TeamLogo';
+import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   displayMatchStatus,
   displayTeamName,
@@ -11,12 +13,14 @@ import {
 } from '../lib/matchUtils';
 
 export default function HomeMobileMatchesCarousel({ matches = [], excludeMatchId = null, onMakePrediction }) {
-  const carouselMatches = (() => {
-    const upcoming = listCarouselUpcomingMatches(matches);
+  const now = useKickoffClock(30_000);
+
+  const carouselMatches = useMemo(() => {
+    const upcoming = listCarouselUpcomingMatches(matches, now);
     if (!upcoming.length) return [];
     if (excludeMatchId == null) return upcoming;
     return upcoming.filter((m) => String(m.id) !== String(excludeMatchId));
-  })();
+  }, [matches, now, excludeMatchId]);
 
   return (
     <article className="home-dash-mobile-carousel pulponi-card">

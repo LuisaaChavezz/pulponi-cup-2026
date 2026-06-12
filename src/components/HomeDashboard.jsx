@@ -13,10 +13,11 @@ import {
   formatCountdownToKickoff,
   formatMatchDate,
   formatMatchTime,
+  formatScoreLine,
   formatVenue,
   formatVenueCity,
+  hasRecordedScores,
   isPickLocked,
-  listCarouselUpcomingMatches,
   pickInicioMatch,
 } from '../lib/matchUtils';
 import { collectMatchPickScores, buildCommunityGeneralInsights } from '../lib/communityPicks';
@@ -134,11 +135,7 @@ export default function HomeDashboard({
   const now = useKickoffClock(1000);
   const isMobileHome = useMobileViewport(767);
 
-  const heroPick = useMemo(() => {
-    const upcoming = listCarouselUpcomingMatches(matches)[0];
-    if (upcoming) return { match: upcoming, mode: 'upcoming' };
-    return pickInicioMatch(matches);
-  }, [matches]);
+  const heroPick = useMemo(() => pickInicioMatch(matches, now), [matches, now]);
 
   const heroMatch = heroPick?.match ?? null;
   const heroMode = heroPick?.mode ?? null;
@@ -175,7 +172,9 @@ export default function HomeDashboard({
     <article className="home-dash-hero">
         <div className="home-dash-hero__glow" aria-hidden />
         <header className="home-dash-hero__head">
-          <span className="home-dash-kicker">PRÓXIMO PARTIDO</span>
+          <span className="home-dash-kicker">
+            {heroMode === 'live' ? 'PARTIDO EN VIVO' : 'PRÓXIMO PARTIDO'}
+          </span>
           {heroMode === 'live' ? <span className="home-dash-live-pill">EN VIVO</span> : null}
         </header>
 
@@ -197,18 +196,22 @@ export default function HomeDashboard({
                 <strong>{displayTeamName(heroMatch.home_team)?.toUpperCase() ?? 'LOCAL'}</strong>
               </div>
               <div className="home-dash-hero__vs">
-                <span>VS</span>
-                {closeCountdown ? (
+                {heroMode === 'live' && hasRecordedScores(heroMatch) ? (
+                  <strong className="home-dash-hero__score">{formatScoreLine(heroMatch)}</strong>
+                ) : (
+                  <span>VS</span>
+                )}
+                {heroMode === 'upcoming' && closeCountdown ? (
                   <div className="home-dash-hero__countdown">
                     <small>CIERRA EN</small>
                     <strong>{closeCountdown}</strong>
                   </div>
-                ) : (
+                ) : heroMode === 'upcoming' ? (
                   <div className="home-dash-hero__countdown home-dash-hero__countdown--closed">
                     <small>PREDICCIONES</small>
                     <strong>CERRADAS</strong>
                   </div>
-                )}
+                ) : null}
               </div>
               <div className="home-dash-team">
                 <TeamLogo

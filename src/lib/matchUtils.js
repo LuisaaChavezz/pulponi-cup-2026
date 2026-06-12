@@ -97,58 +97,47 @@ export function sortMatchesByKickoffAsc(matches) {
   });
 }
 
-/** Partidos programados (NS / TBD / scheduled…), excluye finalizados y en vivo. */
-export function isCarouselUpcomingMatch(match) {
-  if (!match || isMatchFinished(match) || isMatchLive(match)) return false;
-  const raw = String(match?.api_status ?? '').toUpperCase();
-  const norm = String(match?.status ?? '').toLowerCase();
-  if (SCHEDULED_RAW.has(raw)) return true;
-  if (norm === 'scheduled') return true;
-  return uiStatus(match?.status, match?.api_status) === 'Próximo';
+/** Partido aún no iniciado: kickoff en el futuro y no finalizado ni en vivo. */
+export function isMatchUpcoming(match, now = new Date()) {
+  if (!match || isMatchFinished(match) || isMatchLive(match) || hasMatchStarted(match, now)) {
+    return false;
+  }
+  const ms = kickoffMs(match);
+  if (ms == null) return false;
+  return ms > now.getTime();
+}
+
+/** Partidos programados (NS / scheduled) con kickoff futuro — excluye finalizados, en vivo e iniciados. */
+export function isCarouselUpcomingMatch(match, now = new Date()) {
+  return isMatchUpcoming(match, now);
 }
 
 /** Lista ordenada por kickoff para carrusel “Próximos partidos”. */
-export function listCarouselUpcomingMatches(matches) {
+export function listCarouselUpcomingMatches(matches, now = new Date()) {
   if (!Array.isArray(matches) || matches.length === 0) return [];
-  return sortMatchesByKickoffAsc(matches.filter(isCarouselUpcomingMatch));
+  return sortMatchesByKickoffAsc(matches.filter((m) => isMatchUpcoming(m, now)));
 }
 
-function sortMatchesByKickoffDesc(matches) {
-  return matches.slice().sort((a, b) => {
-    const ta = kickoffMs(a);
-    const tb = kickoffMs(b);
-    if (ta == null && tb == null) return 0;
-    if (ta == null) return 1;
-    if (tb == null) return -1;
-    return tb - ta;
-  });
-}
 
 /**
- * Partido único para la card INICIO (y bloque LIVE asociado): en vivo → próximo por kickoff →
- * último finalizado solo si no hay otro candidato.
+ * Partido único para la card INICIO: en vivo → próximo por kickoff (futuro) → null.
  *
- * @returns {{ match: object, mode: 'live'|'upcoming'|'finished_fallback' } | null}
+ * @returns {{ match: object, mode: 'live'|'upcoming' } | null}
  */
-export function pickInicioMatch(matches) {
+export function pickInicioMatch(matches, now = new Date()) {
   if (!Array.isArray(matches) || matches.length === 0) return null;
 
   const live = matches.find((m) => isMatchLive(m));
   if (live) return { match: live, mode: 'live' };
 
-  const notFinished = matches.filter((m) => !isMatchFinished(m));
-  const upcomingSorted = sortMatchesByKickoffAsc(notFinished);
-  if (upcomingSorted.length > 0) return { match: upcomingSorted[0], mode: 'upcoming' };
-
-  const finished = matches.filter((m) => isMatchFinished(m));
-  const finishedSorted = sortMatchesByKickoffDesc(finished);
-  if (finishedSorted.length > 0) return { match: finishedSorted[0], mode: 'finished_fallback' };
+  const upcoming = listCarouselUpcomingMatches(matches, now);
+  if (upcoming.length > 0) return { match: upcoming[0], mode: 'upcoming' };
 
   return null;
 }
 
-export function pickFeaturedMatch(matches) {
-  return pickInicioMatch(matches)?.match ?? null;
+export function pickFeaturedMatch(matches, now = new Date()) {
+  return pickInicioMatch(matches, now)?.match ?? null;
 }
 
 export function formatMatchMinute(match) {
