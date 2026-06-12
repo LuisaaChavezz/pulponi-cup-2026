@@ -151,6 +151,69 @@ export async function scoreAllFinishedMatchesFallback(client, { matches, profile
 }
 
 /**
+ * Puntúa un partido finalizado vía RPC (trigger en Supabase también lo hace al UPDATE).
+ */
+export async function scoreFinishedMatch(
+  client,
+  matchId,
+  { recomputeStreaks = true } = {}
+) {
+  if (!matchId) return { error: 'match_id_required' };
+
+  const { data, error } = await client.rpc('score_finished_match', {
+    p_match_id: String(matchId),
+    p_recompute_streaks: recomputeStreaks,
+  });
+
+  if (!error) {
+    return { ...(data && typeof data === 'object' ? data : {}), fallback: false };
+  }
+
+  if (isRpcMissing(error)) {
+    return { error: 'rpc_missing', match_id: String(matchId) };
+  }
+
+  console.warn('[scoring] score_finished_match', error.message);
+  return { error: error.message, match_id: String(matchId) };
+}
+
+/** Puntúa varios partidos finalizados (idempotente; UPSERT en pick_scores). */
+export async function scoreFinishedMatchesByIds(client, matchIds) {
+  const ids = [...new Set((matchIds ?? []).map((id) => String(id)).filter(Boolean))];
+  if (!ids.length) return { scored_matches: 0, scored_picks: 0, fallback: false };
+
+  let scoredPicks = 0;
+  let scoredMatches = 0;
+  let usedFallback = false;
+
+  for (const matchId of ids) {
+    const result = await scoreFinishedMatch(client, matchId, { recomputeStreaks: false });
+    if (result?.error === 'rpc_missing') {
+      usedFallback = true;
+      break;
+    }
+    if (!result?.error && !result?.skipped) {
+      scoredMatches += 1;
+      scoredPicks += Number(result?.scored_picks ?? 0);
+    }
+  }
+
+  if (usedFallback) {
+    const bulk = await scoreAllFinishedMatches(client);
+    return { ...bulk, fallback: true };
+  }
+
+  if (scoredPicks > 0) {
+    const { error: streakErr } = await client.rpc('recompute_profile_streaks');
+    if (streakErr && !isRpcMissing(streakErr)) {
+      console.warn('[scoring] recompute_profile_streaks', streakErr.message);
+    }
+  }
+
+  return { scored_matches: scoredMatches, scored_picks: scoredPicks, fallback: false };
+}
+
+/**
  * Puntúa partidos finalizados vía RPC (recomendado) o fallback en cliente.
  */
 export async function scoreAllFinishedMatches(

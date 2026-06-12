@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { gradePick, scoreAllFinishedMatches } from './scoringEngine';
+import { gradePick, scoreAllFinishedMatches, scoreFinishedMatchesByIds } from './scoringEngine';
 import { parsePickScore } from './communityPicks';
 import { runScoringAndPulpoPipeline } from './pulpoSync';
 import { isMatchFinished } from './matchUtils';
@@ -101,11 +101,22 @@ export async function applyMatchFinalResult(
 }
 
 /**
- * Tras sincronizar resultados API: puntúa partidos recién finalizados.
+ * Tras sincronizar resultados API: puntúa partidos finalizados y actualiza Pulpo/ranking.
+ * @param {string[]} [finishedMatchIds] — IDs marcados FT en esta sincronización
  */
-export async function scoreFinishedMatchesAfterSync(client, matches, { profiles } = {}) {
-  const finished = (matches ?? []).filter((m) => isMatchFinished(m));
-  if (!finished.length) return { skipped: true, scored_matches: 0 };
+export async function scoreFinishedMatchesAfterSync(
+  client,
+  matches,
+  { profiles, finishedMatchIds } = {}
+) {
+  const ids =
+    finishedMatchIds?.length > 0
+      ? finishedMatchIds
+      : (matches ?? []).filter((m) => isMatchFinished(m)).map((m) => m.id);
+
+  if (ids.length) {
+    await scoreFinishedMatchesByIds(client, ids);
+  }
 
   return runScoringAndPulpoPipeline(client, {
     matches,

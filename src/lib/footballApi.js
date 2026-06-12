@@ -5,6 +5,7 @@ import {
 } from './fifaScheduleSeed';
 import { WORLD_CUP_DEMO_FIXTURES, demoFixtureToMatchRow } from '../data/worldCupDemoFixtures';
 import { FINISHED_API, LIVE_API, normalizeApiStatus } from './footballApiStatus';
+import { scoreFinishedMatchesByIds } from './scoringEngine';
 import { flagEmojiForTeam } from './teamFlags';
 import { mapApiEventsToHighlights } from './highlightsMapper';
 import {
@@ -778,6 +779,27 @@ function apiFixtureAllowedForDbMatch(dbMatch, fixture) {
   return teamsMatchFixture(dbMatch, fixture);
 }
 
+/** Partido con marcador final listo para puntuar (FT o status finished + goles). */
+function patchIndicatesFinished(patch) {
+  if (!patch) return false;
+  const api = String(patch.api_status ?? '').toUpperCase();
+  if (FINISHED_API.has(api)) return true;
+  if (patch.status === 'finished') {
+    return patch.home_score != null && patch.away_score != null;
+  }
+  return false;
+}
+
+async function scoreSyncedFinishedMatches(client, matchIds) {
+  if (!matchIds?.length) return null;
+  try {
+    return await scoreFinishedMatchesByIds(client, matchIds);
+  } catch (e) {
+    console.warn('[footballApi] score after sync', e?.message ?? e);
+    return null;
+  }
+}
+
 /** Solo actualiza marcador/estado/eventos — no sobrescribe calendario ni id de fila (picks). */
 export function buildResultsPatchFromFixture(fixture, events = []) {
   const apiStatus = fixture.fixture?.status?.short ?? 'NS';
@@ -818,6 +840,7 @@ export async function syncLiveScoresToSupabase(client) {
   const wcMatches = (dbMatches ?? []).filter(isWorldCupMatch);
   let updated = 0;
   let ignored = 0;
+  const finishedMatchIds = [];
 
   for (const fixture of liveFixtures) {
     const fid = fixture?.fixture?.id;
@@ -841,13 +864,27 @@ export async function syncLiveScoresToSupabase(client) {
       continue;
     }
     updated += 1;
+    if (patchIndicatesFinished(patch)) {
+      finishedMatchIds.push(String(dbMatch.id));
+    }
+  }
+
+  let scoring = null;
+  if (finishedMatchIds.length) {
+    scoring = await scoreSyncedFinishedMatches(client, finishedMatchIds);
   }
 
   if (updated) {
     console.info(`[API live] ${updated} partidos actualizados (${ignored} ignorados)`);
   }
 
-  return { updated, ignored, source: 'live_scores' };
+  return {
+    updated,
+    ignored,
+    scoring,
+    finishedMatchIds,
+    source: 'live_scores',
+  };
 }
 
 export async function syncMatchesToSupabase(client) {
@@ -872,6 +909,7 @@ export async function syncMatchesToSupabase(client) {
 
   let updated = 0;
   let ignored = 0;
+  const finishedMatchIds = [];
 
   for (const dbMatch of wcMatches) {
     const fixture = findMatchingFixture(dbMatch, fixtures);
@@ -892,9 +930,23 @@ export async function syncMatchesToSupabase(client) {
       continue;
     }
     updated += 1;
+    if (patchIndicatesFinished(patch)) {
+      finishedMatchIds.push(String(dbMatch.id));
+    }
   }
 
-  return { updated, ignored, source: 'api_results' };
+  let scoring = null;
+  if (finishedMatchIds.length) {
+    scoring = await scoreSyncedFinishedMatches(client, finishedMatchIds);
+  }
+
+  return {
+    updated,
+    ignored,
+    scoring,
+    finishedMatchIds,
+    source: 'api_results',
+  };
 }
 
 /** Importa calendario FIFA y/o fixtures API; funciona con o sin API key. */

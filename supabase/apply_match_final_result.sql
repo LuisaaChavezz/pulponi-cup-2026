@@ -23,11 +23,8 @@ BEGIN
     SET search_path = public
     AS $body$
     DECLARE
-      prof record;
-      pick jsonb;
-      g record;
-      scored_picks integer := 0;
       caller_username text;
+      score_result jsonb;
     BEGIN
       SELECT lower(trim(replace(coalesce(username, ''), '@', '')))
       INTO caller_username
@@ -55,53 +52,15 @@ BEGIN
         RETURN jsonb_build_object('error', 'match_not_found');
       END IF;
 
-      FOR prof IN
-        SELECT id, picks
-        FROM public.profiles
-        WHERE picks IS NOT NULL AND picks <> '{}'::jsonb
-      LOOP
-        pick := prof.picks -> p_match_id;
-        IF pick IS NULL THEN
-          CONTINUE;
-        END IF;
+      -- Trigger puntúa al UPDATE; llamada explícita por si el trigger aún no está instalado.
+      score_result := public.score_finished_match(p_match_id, true);
 
-        SELECT * INTO g
-        FROM public._grade_pick(pick, p_home_score, p_away_score);
-
-        INSERT INTO public.pick_scores (
-          profile_id, match_id, points_awarded, exact_hit, winner_hit, scored_at
-        )
-        VALUES (prof.id, p_match_id, g.points_awarded, g.exact_hit, g.winner_hit, now())
-        ON CONFLICT (profile_id, match_id) DO UPDATE SET
-          points_awarded = excluded.points_awarded,
-          exact_hit = excluded.exact_hit,
-          winner_hit = excluded.winner_hit,
-          scored_at = now();
-
-        scored_picks := scored_picks + 1;
-      END LOOP;
-
-      UPDATE public.profiles p SET
-        points = coalesce((
-          SELECT sum(ps.points_awarded)::integer
-          FROM public.pick_scores ps
-          WHERE ps.profile_id = p.id
-        ), 0),
-        exacts = coalesce((
-          SELECT count(*)::integer
-          FROM public.pick_scores ps
-          WHERE ps.profile_id = p.id AND ps.exact_hit
-        ), 0)
-      WHERE p.id IS NOT NULL;
-
-      PERFORM public.recompute_profile_streaks();
-
-      RETURN jsonb_build_object(
-        'match_id', p_match_id,
-        'home_score', p_home_score,
-        'away_score', p_away_score,
-        'scored_picks', scored_picks
-      );
+      RETURN score_result
+        || jsonb_build_object(
+          'home_score', p_home_score,
+          'away_score', p_away_score,
+          'via', 'admin_rpc'
+        );
     END;
     $body$;
   $fn$;
