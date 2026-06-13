@@ -37,7 +37,7 @@
   max-height: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  object-position: center center;
+  object-position: center;
   border-radius: 9999px;
 }
 
@@ -85,22 +85,6 @@
   border: 0;
   box-shadow: none;
   background: #050505;
-}
-
-.avatar-frame--logo-profile {
-  padding: 6px;
-  box-sizing: border-box;
-}
-
-.avatar-frame--xs.avatar-frame--logo-profile,
-.avatar-frame--chat.avatar-frame--logo-profile {
-  padding: 4px;
-}
-
-.avatar-frame--logo-profile > img {
-  object-fit: contain;
-  object-position: center center;
-  border-radius: 9999px;
 }
 
 /* Chat: forzar 32px aunque use --sm legacy */
@@ -152,14 +136,9 @@
 .profile-photo:not(.profile-page__avatar-wrap) .avatar-frame > img {
   border-radius: 9999px !important;
   object-fit: cover;
-  object-position: center center;
+  object-position: center;
   width: 100%;
   height: 100%;
-}
-
-.profile-photo:not(.profile-page__avatar-wrap).avatar-frame--logo-profile > img,
-.profile-photo:not(.profile-page__avatar-wrap) .avatar-frame.avatar-frame--logo-profile > img {
-  object-fit: contain;
 }
 
 /* Miniaturas del selector de avatar (perfil) */
@@ -181,15 +160,8 @@
   height: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  object-position: center center;
+  object-position: center;
   border-radius: 9999px;
-}
-
-.avatar-option-frame--logo img {
-  object-fit: contain;
-  object-position: center center;
-  padding: 8px;
-  box-sizing: border-box;
 }
 
 /* Actividad reciente (feed legacy) */
@@ -215,13 +187,7 @@
   max-height: none;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  object-position: center center;
+  object-position: center;
   border-radius: 9999px;
   display: block;
-}
-
-.dash-activity-feed .activity-row--feed > .avatar-frame.avatar-frame--logo-profile > img {
-  object-fit: contain;
-  object-position: center center;
-  padding: 0;
 }

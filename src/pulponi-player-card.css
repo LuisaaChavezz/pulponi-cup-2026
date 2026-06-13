@@ -78,11 +78,6 @@
 }
 
 /* Halo blur: solo detrás del avatar, no toda la tarjeta */
-.pulponi-player-card__photo--logo {
-  object-fit: contain !important;
-  padding: 10px !important;
-  box-sizing: border-box !important;
-}
 
 .pulponi-player-card__halo {
   position: absolute;
@@ -165,7 +160,7 @@ label .pulponi-player-card__photo {
   max-height: 96px !important;
   border-radius: 9999px !important;
   object-fit: cover !important;
-  object-position: center center !important;
+  object-position: center !important;
   display: block !important;
   flex: 0 0 96px !important;
   aspect-ratio: 1 / 1;

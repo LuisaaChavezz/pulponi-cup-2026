@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isLogoAvatar, isPresetAvatar, PRESET_AVATARS } from '../lib/avatars';
+import { isPresetAvatar, PRESET_AVATARS } from '../lib/avatars';
 
 export default function AvatarSelector({ currentPhotoUrl, onSelect }) {
   const [savingId, setSavingId] = useState(null);
@@ -40,9 +40,7 @@ export default function AvatarSelector({ currentPhotoUrl, onSelect }) {
               aria-label={avatar.label}
               title={avatar.label}
             >
-              <span
-                className={`avatar-option-frame${isLogoAvatar(avatar.src) ? ' avatar-option-frame--logo' : ''}`}
-              >
+              <span className="avatar-option-frame">
                 <img src={avatar.src} alt="" />
               </span>
               <span className="avatar-option-label">{avatar.label}</span>

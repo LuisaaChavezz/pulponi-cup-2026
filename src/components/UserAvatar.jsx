@@ -1,4 +1,4 @@
-import { isLogoAvatar, resolveAvatarUrl } from '../lib/avatars';
+import { resolveAvatarUrl } from '../lib/avatars';
 
 const VARIANT_CLASS = {
   chat: 'avatar-frame--chat',
@@ -16,15 +16,12 @@ export default function UserAvatar({
   className = '',
   size,
   variant,
-  profile = false,
 }) {
   const src = avatarUrl ?? resolveAvatarUrl(photoUrl);
-  const logo = isLogoAvatar(src);
   const classes = [
     'avatar-frame',
     variant ? VARIANT_CLASS[variant] : '',
     className,
-    profile && logo ? 'avatar-frame--logo-profile' : '',
   ]
     .filter(Boolean)
     .join(' ');
