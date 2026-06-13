@@ -181,31 +181,26 @@ export function useAppData(session) {
   }, [userId, session?.user?.email]);
 
   const loadMatchesChunk = useCallback(
-    async ({ offset = 0, limit = MATCHES_CHUNK, append = false, finishLoading = true, forceFresh = false } = {}) => {
-      const cacheKey = `matches:${offset}:${limit}`;
-      let rows = forceFresh ? null : cacheGet(cacheKey);
-
-      if (!rows) {
-        const { data, error } = await timedQuery(`matches[${offset}-${offset + limit - 1}]`, () =>
-          supabase
-            .from('matches')
-            .select('*')
-            .order('kickoff', { ascending: true })
-            .range(offset, offset + limit - 1)
-        );
-        if (error) {
-          console.warn('[loadMatchesChunk]', error?.message ?? error);
-          if (finishLoading) setMatchesLoading(false);
-          return 0;
-        }
-        rows = data?.length ? filterWorldCupMatches(normalizeMatches(data)) : [];
-        if (!forceFresh) cacheSet(cacheKey, rows, 15_000);
+    async ({ offset = 0, limit = MATCHES_CHUNK, append = false, finishLoading = true } = {}) => {
+      const { data, error } = await timedQuery(`matches[${offset}-${offset + limit - 1}]`, () =>
+        supabase
+          .from('matches')
+          .select('*')
+          .order('kickoff', { ascending: true })
+          .range(offset, offset + limit - 1)
+      );
+      if (error) {
+        console.warn('[loadMatchesChunk]', error?.message ?? error);
+        if (finishLoading) setMatchesLoading(false);
+        return 0;
       }
+      const rows = data?.length ? filterWorldCupMatches(normalizeMatches(data)) : [];
 
       if (append) {
         setMatches((prev) => mergeMatchesSorted(prev, rows));
       } else {
         setMatches(rows);
+        matchesRef.current = rows;
       }
       if (finishLoading) setMatchesLoading(false);
       return rows.length;
@@ -213,10 +208,8 @@ export function useAppData(session) {
     []
   );
 
-  const loadAllMatchesComplete = useCallback(async ({ forceFresh = false } = {}) => {
-    if (matchesFullyLoadedRef.current && !forceFresh) return matchesRef.current.length;
-
-    if (loadAllMatchesPromiseRef.current && !forceFresh) {
+  const loadAllMatchesComplete = useCallback(async () => {
+    if (loadAllMatchesPromiseRef.current) {
       return loadAllMatchesPromiseRef.current;
     }
 
@@ -224,33 +217,27 @@ export function useAppData(session) {
       loadingMoreMatchesRef.current = true;
       setMatchesLoading(true);
       try {
-        const cacheKey = 'matches:all';
-        let rows = forceFresh ? null : cacheGet(cacheKey);
-
-        if (!rows?.length) {
-          const { data, error } = await timedQuery('matches:all', () =>
-            supabase
-              .from('matches')
-              .select('*')
-              .order('kickoff', { ascending: true })
-              .range(0, MATCHES_HARD_LIMIT - 1)
-          );
-          if (error) {
-            console.warn('[loadAllMatchesComplete]', error?.message ?? error);
-            return matchesRef.current.length;
-          }
-          rows = data?.length ? filterWorldCupMatches(normalizeMatches(data)) : [];
-          if (rows.length && !forceFresh) cacheSet(cacheKey, rows, 15_000);
+        const { data, error } = await timedQuery('matches:all', () =>
+          supabase
+            .from('matches')
+            .select('*')
+            .order('kickoff', { ascending: true })
+            .range(0, MATCHES_HARD_LIMIT - 1)
+        );
+        if (error) {
+          console.warn('[loadAllMatchesComplete]', error?.message ?? error);
+          return matchesRef.current.length;
         }
+        const rows = data?.length ? filterWorldCupMatches(normalizeMatches(data)) : [];
 
-        if (rows?.length) {
+        if (rows.length) {
           setMatches(rows);
           matchesRef.current = rows;
         }
 
         matchesFullyLoadedRef.current = true;
         setMatchesFullyLoaded(true);
-        return rows?.length ?? 0;
+        return rows.length;
       } finally {
         loadingMoreMatchesRef.current = false;
         setMatchesLoading(false);
@@ -265,12 +252,14 @@ export function useAppData(session) {
   const ensureAllMatchesLoaded = loadAllMatchesComplete;
 
   const reloadMatches = useCallback(async () => {
-    cacheInvalidate('matches:');
     loadAllMatchesPromiseRef.current = null;
     matchesFullyLoadedRef.current = false;
     setMatchesFullyLoaded(false);
-    return loadAllMatchesComplete({ forceFresh: true });
+    return loadAllMatchesComplete();
   }, [loadAllMatchesComplete]);
+
+  const reloadMatchesRef = useRef(reloadMatches);
+  reloadMatchesRef.current = reloadMatches;
 
   const syncWorldCupBackground = useCallback(async () => {
     if (!userId || syncInFlightRef.current) return;
@@ -304,10 +293,9 @@ export function useAppData(session) {
           limit: MATCHES_CHUNK,
           append: false,
           finishLoading: false,
-          forceFresh: true,
         });
         if (n > 0) setMatchSyncNotice(null);
-        void loadAllMatchesComplete({ forceFresh: true });
+        void loadAllMatchesComplete();
         if (n > 0) await runScoringPipelineRef.current?.();
       } catch (e) {
         console.warn('[reloadMatches]', e?.message ?? e);
@@ -329,7 +317,6 @@ export function useAppData(session) {
   const applyMatchRow = useCallback((row) => {
     if (!row?.id) return;
     const normalized = normalizeMatchRow(row);
-    cacheInvalidate('matches:');
     setMatches((prev) => {
       const idx = prev.findIndex((m) => m.id === normalized.id);
       const next = idx >= 0 ? [...prev] : [...prev, normalized];
@@ -1029,6 +1016,18 @@ export function useAppData(session) {
       supabase.removeChannel(matchesChannel);
       supabase.removeChannel(pickScoresChannel);
     };
+  }, [userId]);
+
+  // Al volver a la pestaña, traer kickoffs actualizados desde Supabase (sin caché local).
+  useEffect(() => {
+    if (!userId) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void reloadMatchesRef.current?.();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [userId]);
 
   async function savePick(matchId, homePick, awayPick, advancesTeam = null) {
