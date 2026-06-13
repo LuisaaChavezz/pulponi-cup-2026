@@ -209,7 +209,9 @@ async function upsertOfficialRowsByOfficialId(client, rows) {
         skipped += 1;
         continue;
       }
-      const { error } = await client.from('matches').update(row).eq('id', existing.id);
+      // Conservar kickoff ya guardado (p. ej. corrección manual en Supabase).
+      const { kickoff: _omitKickoff, ...rowWithoutKickoff } = row;
+      const { error } = await client.from('matches').update(rowWithoutKickoff).eq('id', existing.id);
       if (error) {
         errors.push(error);
         skipped += 1;

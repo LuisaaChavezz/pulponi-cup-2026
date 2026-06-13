@@ -144,7 +144,7 @@ export default function HomeDashboard({
     if (!heroMatch?.kickoff) return null;
     const ms = new Date(heroMatch.kickoff).getTime();
     if (Number.isNaN(ms)) return null;
-    if (isPickLocked(heroMatch) || ms <= now.getTime()) return null;
+    if (isPickLocked(heroMatch, now) || ms <= now.getTime()) return null;
     return formatCountdownToKickoff(ms, now);
   }, [heroMatch, now]);
 

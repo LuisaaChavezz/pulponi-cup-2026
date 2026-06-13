@@ -181,9 +181,9 @@ export function useAppData(session) {
   }, [userId, session?.user?.email]);
 
   const loadMatchesChunk = useCallback(
-    async ({ offset = 0, limit = MATCHES_CHUNK, append = false, finishLoading = true } = {}) => {
+    async ({ offset = 0, limit = MATCHES_CHUNK, append = false, finishLoading = true, forceFresh = false } = {}) => {
       const cacheKey = `matches:${offset}:${limit}`;
-      let rows = cacheGet(cacheKey);
+      let rows = forceFresh ? null : cacheGet(cacheKey);
 
       if (!rows) {
         const { data, error } = await timedQuery(`matches[${offset}-${offset + limit - 1}]`, () =>
@@ -199,7 +199,7 @@ export function useAppData(session) {
           return 0;
         }
         rows = data?.length ? filterWorldCupMatches(normalizeMatches(data)) : [];
-        cacheSet(cacheKey, rows, 90_000);
+        if (!forceFresh) cacheSet(cacheKey, rows, 15_000);
       }
 
       if (append) {
@@ -213,10 +213,10 @@ export function useAppData(session) {
     []
   );
 
-  const loadAllMatchesComplete = useCallback(async () => {
-    if (matchesFullyLoadedRef.current) return matchesRef.current.length;
+  const loadAllMatchesComplete = useCallback(async ({ forceFresh = false } = {}) => {
+    if (matchesFullyLoadedRef.current && !forceFresh) return matchesRef.current.length;
 
-    if (loadAllMatchesPromiseRef.current) {
+    if (loadAllMatchesPromiseRef.current && !forceFresh) {
       return loadAllMatchesPromiseRef.current;
     }
 
@@ -225,7 +225,7 @@ export function useAppData(session) {
       setMatchesLoading(true);
       try {
         const cacheKey = 'matches:all';
-        let rows = cacheGet(cacheKey);
+        let rows = forceFresh ? null : cacheGet(cacheKey);
 
         if (!rows?.length) {
           const { data, error } = await timedQuery('matches:all', () =>
@@ -240,7 +240,7 @@ export function useAppData(session) {
             return matchesRef.current.length;
           }
           rows = data?.length ? filterWorldCupMatches(normalizeMatches(data)) : [];
-          if (rows.length) cacheSet(cacheKey, rows, 90_000);
+          if (rows.length && !forceFresh) cacheSet(cacheKey, rows, 15_000);
         }
 
         if (rows?.length) {
@@ -269,7 +269,7 @@ export function useAppData(session) {
     loadAllMatchesPromiseRef.current = null;
     matchesFullyLoadedRef.current = false;
     setMatchesFullyLoaded(false);
-    return loadAllMatchesComplete();
+    return loadAllMatchesComplete({ forceFresh: true });
   }, [loadAllMatchesComplete]);
 
   const syncWorldCupBackground = useCallback(async () => {
@@ -299,9 +299,15 @@ export function useAppData(session) {
         cacheInvalidate('matches:');
         matchesFullyLoadedRef.current = false;
         setMatchesFullyLoaded(false);
-        const n = await loadMatchesChunk({ offset: 0, limit: MATCHES_CHUNK, append: false, finishLoading: false });
+        const n = await loadMatchesChunk({
+          offset: 0,
+          limit: MATCHES_CHUNK,
+          append: false,
+          finishLoading: false,
+          forceFresh: true,
+        });
         if (n > 0) setMatchSyncNotice(null);
-        void loadAllMatchesComplete();
+        void loadAllMatchesComplete({ forceFresh: true });
         if (n > 0) await runScoringPipelineRef.current?.();
       } catch (e) {
         console.warn('[reloadMatches]', e?.message ?? e);
@@ -323,6 +329,7 @@ export function useAppData(session) {
   const applyMatchRow = useCallback((row) => {
     if (!row?.id) return;
     const normalized = normalizeMatchRow(row);
+    cacheInvalidate('matches:');
     setMatches((prev) => {
       const idx = prev.findIndex((m) => m.id === normalized.id);
       const next = idx >= 0 ? [...prev] : [...prev, normalized];

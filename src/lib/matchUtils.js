@@ -1,3 +1,6 @@
+/** Zona horaria de referencia para fechas/horas de partido en la UI. */
+export const MATCH_DISPLAY_TIMEZONE = 'America/Mexico_City';
+
 const FINISHED_RAW = new Set(['FT', 'AET', 'PEN']);
 const LIVE_RAW = new Set(['LIVE', '1H', '2H']);
 const HALFTIME_RAW = new Set(['HT']);
@@ -55,7 +58,7 @@ export function isProfilePickRevealed(match, now = new Date()) {
   return hasMatchStarted(match, now);
 }
 
-export function isPickLocked(match) {
+export function isPickLocked(match, now = new Date()) {
   const raw = String(match?.api_status ?? '').toUpperCase();
   const norm = String(match?.status ?? '').toLowerCase();
   const label = uiStatus(match?.status, match?.api_status);
@@ -64,11 +67,9 @@ export function isPickLocked(match) {
   if (FINISHED_NORM.has(norm) || LIVE_NORM.has(norm) || HALFTIME_NORM.has(norm)) return true;
   if (label === 'En vivo' || label === 'Medio tiempo' || label === 'Final') return true;
 
-  if (match?.kickoff) {
-    const kickoffTime = new Date(match.kickoff).getTime();
-    if (!Number.isNaN(kickoffTime) && kickoffTime - PICK_CLOSE_MS_BEFORE_KICKOFF <= Date.now()) {
-      return true;
-    }
+  const kickoffMs = kickoffMsFromIso(match?.kickoff);
+  if (kickoffMs != null && kickoffMs - PICK_CLOSE_MS_BEFORE_KICKOFF <= now.getTime()) {
+    return true;
   }
 
   if (SCHEDULED_RAW.has(raw) || norm === 'scheduled') return false;
@@ -79,11 +80,14 @@ export function showLivePill(match) {
   return uiStatus(match?.status, match?.api_status) === 'En vivo';
 }
 
-function kickoffMs(m) {
-  const k = m?.kickoff;
-  if (!k) return null;
-  const t = new Date(k).getTime();
+function kickoffMsFromIso(kickoff) {
+  if (!kickoff) return null;
+  const t = new Date(kickoff).getTime();
   return Number.isNaN(t) ? null : t;
+}
+
+function kickoffMs(m) {
+  return kickoffMsFromIso(m?.kickoff);
 }
 
 export function sortMatchesByKickoffAsc(matches) {
@@ -171,6 +175,7 @@ export function formatKickoff(kickoff) {
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: MATCH_DISPLAY_TIMEZONE,
   });
 }
 
@@ -181,6 +186,7 @@ export function formatMatchDate(kickoff) {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: MATCH_DISPLAY_TIMEZONE,
   });
 }
 
@@ -190,6 +196,7 @@ export function formatMatchDateShort(kickoff) {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    timeZone: MATCH_DISPLAY_TIMEZONE,
   });
 }
 
@@ -198,6 +205,7 @@ export function formatMatchTime(kickoff) {
   return new Date(kickoff).toLocaleTimeString('es-MX', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: MATCH_DISPLAY_TIMEZONE,
   });
 }
 

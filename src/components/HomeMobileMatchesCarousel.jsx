@@ -33,7 +33,7 @@ export default function HomeMobileMatchesCarousel({ matches = [], excludeMatchId
         <div className="home-dash-mobile-carousel__track" role="list">
           {carouselMatches.map((match) => {
             const venueLine = [formatVenue(match), formatVenueCity(match)].filter(Boolean).join(' · ');
-            const locked = isPickLocked(match);
+            const locked = isPickLocked(match, now);
             const status = displayMatchStatus(match);
 
             return (
