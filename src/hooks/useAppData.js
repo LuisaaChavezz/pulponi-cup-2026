@@ -173,7 +173,7 @@ export function useAppData(session) {
     }
     const normalizedPicks = normalizePicksKeys(data.picks);
     const row = { ...data, picks: normalizedPicks };
-    const enriched = await enrichProfileWithPickScores(supabase, row);
+    const enriched = await enrichProfileWithPickScores(supabase, row, matchesRef.current ?? []);
     cacheSet(`profile:${userId}`, enriched, 120_000);
     setProfile(enriched);
     setPicks(normalizedPicks);

@@ -7,9 +7,16 @@ const ACTIVE_RULES = ACHIEVEMENT_CATALOG.filter((a) => a.active);
 function resolvePerformanceStats(profile, statsByProfileId) {
   const derived = statsByProfileId?.get?.(String(profile?.id));
   return {
+    points: derived?.points ?? Number(profile?.points ?? 0),
     exacts: derived?.exacts ?? Number(profile?.exacts ?? 0),
     streak: derived?.streak ?? Number(profile?.streak ?? 0),
   };
+}
+
+function resolvePulpoIndex(profile, context) {
+  const fromMap = context.pulpoIndexByProfileId?.get?.(String(profile?.id));
+  if (fromMap != null && Number.isFinite(Number(fromMap))) return Number(fromMap);
+  return Number(profile?.pulpo_index ?? 0);
 }
 
 export const PULPO_FUTBOLERO_OFICIAL_ID = 'pulpo-futbolero-oficial';
@@ -32,7 +39,10 @@ function pickFromProfile(profile, matchId) {
  * ¿Exacto acertado con marcador elegido por <5% de la comunidad?
  */
 export function profileHasRiskyExactHit(profileId, pickScoreRows, communityProfiles) {
-  const exactRows = (pickScoreRows ?? []).filter((r) => r.profile_id === profileId && r.exact_hit);
+  const pid = String(profileId);
+  const exactRows = (pickScoreRows ?? []).filter(
+    (r) => String(r.profile_id) === pid && r.exact_hit
+  );
   if (!exactRows.length) return false;
 
   for (const row of exactRows) {
@@ -79,11 +89,12 @@ export function evaluateAchievementIdsForProfile(profile, context = {}) {
     rankingHistoryRows = [],
     recentJornadaIds = [],
     statsByProfileId = null,
+    pulpoIndexByProfileId = null,
   } = context;
 
   const earned = [];
   const { exacts, streak } = resolvePerformanceStats(profile, statsByProfileId);
-  const pulpoIndex = Number(profile?.pulpo_index ?? 0);
+  const pulpoIndex = resolvePulpoIndex(profile, { pulpoIndexByProfileId, statsByProfileId });
   const ranked = rankedProfiles.length ? rankedProfiles : buildRankedLeaderboard([profile]);
   const me = ranked.find((r) => r.id === profile.id);
   const rank = me?.rank_position ?? null;

@@ -7,6 +7,7 @@ import {
   applyPerformanceStatsToProfiles,
   buildPerformanceStatsByProfile,
 } from './pickScoreStats';
+import { computePulpoDerivedStats } from './pulpoIndex';
 
 export const PARLAY_TODO_O_NADA_ID = 'parlay-todo-o-nada';
 export const QUINIELA_ACEPTASTE_EL_RETO_ID = 'quiniela-aceptaste-el-reto';
@@ -107,7 +108,9 @@ export async function syncEnrollmentAchievementsForUser(client, userId, username
 }
 
 async function loadMatchesForAchievements(client) {
-  const { data, error } = await client.from('matches').select('id, kickoff');
+  const { data, error } = await client
+    .from('matches')
+    .select('id, kickoff, home_score, away_score, status, api_status');
   if (error) {
     console.warn('[achievementSync] matches', error.message);
     return [];
@@ -118,7 +121,7 @@ async function loadMatchesForAchievements(client) {
 async function loadPickScores(client) {
   const { data, error } = await client
     .from('pick_scores')
-    .select('profile_id, match_id, exact_hit, winner_hit');
+    .select('profile_id, match_id, points_awarded, exact_hit, winner_hit');
   if (error) {
     console.warn('[achievementSync] pick_scores', error.message);
     return [];
@@ -211,9 +214,9 @@ async function loadExistingUserBadgeKeys(client) {
 async function grantAchievements(client, grants) {
   if (!grants.length) return { inserted: 0, newUnlocks: [] };
 
-  const { data, error } = await client.rpc('grant_user_achievements', {
-    grants: grants.map(({ profile_id, badge_id }) => ({ profile_id, badge_id })),
-  });
+  const payload = grants.map(({ profile_id, badge_id }) => ({ profile_id, badge_id }));
+
+  const { data, error } = await client.rpc('grant_user_achievements', { grants: payload });
 
   if (!error) {
     const newUnlocks = data?.new_unlocks ?? [];
@@ -225,21 +228,30 @@ async function grantAchievements(client, grants) {
 
   if (!/function.*does not exist|42883|PGRST202|not find/i.test(String(error.message ?? error))) {
     console.warn('[achievementSync] RPC grant_user_achievements', error.message);
-    return { inserted: 0, newUnlocks: [], error: error.message };
   }
 
-  let inserted = 0;
-  const newUnlocks = [];
-  for (const row of grants) {
-    const { error: insErr } = await client.from('user_badges').insert(row);
-    if (!insErr) {
-      inserted += 1;
-      newUnlocks.push(row);
-    } else if (!/duplicate|unique|23505/i.test(String(insErr.message ?? insErr))) {
-      console.warn('[achievementSync] user_badges insert', insErr.message);
-    }
-  }
-  return { inserted, newUnlocks, fallback: true };
+  return upsertUserBadgeRows(client, grants);
+}
+
+function enrichProfilesForAchievementEval(profiles, pickScoreRows, matchRows, communityProfiles) {
+  const statsByProfileId = buildPerformanceStatsByProfile(pickScoreRows, matchRows);
+  const pulpoIndexByProfileId = new Map();
+
+  const enriched = applyPerformanceStatsToProfiles(profiles, statsByProfileId).map((profile) => {
+    const perf = statsByProfileId.get(String(profile.id));
+    const pulpoStats = computePulpoDerivedStats({
+      profile,
+      picks: profile.picks,
+      matches: matchRows,
+      communityPickProfiles: communityProfiles,
+      userId: profile.id,
+      performanceStats: perf,
+    });
+    pulpoIndexByProfileId.set(String(profile.id), pulpoStats.index);
+    return { ...profile, pulpo_index: pulpoStats.index };
+  });
+
+  return { profiles: enriched, statsByProfileId, pulpoIndexByProfileId };
 }
 
 /**
@@ -270,7 +282,13 @@ export async function syncAllAchievements(
   ]);
 
   const statsByProfileId = buildPerformanceStatsByProfile(pickScoreRows, matchRows);
-  profs = applyPerformanceStatsToProfiles(profs, statsByProfileId);
+  const { profiles: enrichedProfiles, pulpoIndexByProfileId } = enrichProfilesForAchievementEval(
+    profs,
+    pickScoreRows,
+    matchRows,
+    community
+  );
+  profs = enrichedProfiles;
 
   const rankedProfiles = buildRankedLeaderboard(profs);
   const context = {
@@ -278,6 +296,7 @@ export async function syncAllAchievements(
     pickScoreRows,
     communityProfiles: community,
     statsByProfileId,
+    pulpoIndexByProfileId,
     ...historyCtx,
   };
 

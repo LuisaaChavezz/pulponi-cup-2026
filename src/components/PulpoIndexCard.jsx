@@ -1,18 +1,32 @@
 import { useMemo } from 'react';
 import { computePulpoDerivedStats, formatPulpoIndexLine } from '../lib/pulpoIndex';
+import { getPerformanceStatsForProfile } from '../lib/pickScoreStats';
 
-export default function PulpoIndexCard({ profile, picks, matches, communityPickProfiles, userId }) {
-  const stats = useMemo(
-    () =>
-      computePulpoDerivedStats({
-        profile,
-        picks,
-        matches,
-        communityPickProfiles,
-        userId,
-      }),
-    [profile, picks, matches, communityPickProfiles, userId]
-  );
+export default function PulpoIndexCard({
+  profile,
+  picks,
+  matches,
+  communityPickProfiles,
+  userId,
+  pickScoreRows = null,
+  performanceStats = null,
+}) {
+  const stats = useMemo(() => {
+    const perf =
+      performanceStats ??
+      (pickScoreRows?.length && profile?.id
+        ? getPerformanceStatsForProfile(profile.id, pickScoreRows, matches)
+        : null);
+
+    return computePulpoDerivedStats({
+      profile,
+      picks,
+      matches,
+      communityPickProfiles,
+      userId,
+      performanceStats: perf?.predicted != null ? perf : null,
+    });
+  }, [profile, picks, matches, communityPickProfiles, userId, pickScoreRows, performanceStats]);
 
   const levelSlug = stats.level.slug;
 

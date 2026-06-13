@@ -57,22 +57,25 @@ function wasRiskyPick(matchId, home, away, communityProfiles) {
 }
 
 /**
- * Métricas derivadas de picks + partidos finalizados + comunidad.
+ * Métricas e índice Pulpo desde pick_scores (performanceStats) + picks/partidos para riesgo.
+ * Siempre recalcula el índice; no usa pulpo_index=0 persistido como valor mostrado.
  */
-/**
- * Stats para UI: usa valores persistidos en profile cuando existen;
- * siempre recalcula componentes derivados (riesgo, consistencia) desde datos reales.
- */
-export function computePulpoDerivedStats({ profile, picks, matches, communityPickProfiles, userId }) {
-  const points = Number(profile?.points ?? 0);
-  const exacts = Number(profile?.exacts ?? 0);
-  const streak = Number(profile?.streak ?? 0);
-  const storedStats =
-    profile?.pulpo_stats && typeof profile.pulpo_stats === 'object' ? profile.pulpo_stats : null;
+export function computePulpoDerivedStats({
+  profile,
+  picks,
+  matches,
+  communityPickProfiles,
+  userId: _userId,
+  performanceStats = null,
+}) {
+  const fromPickScores = performanceStats != null && performanceStats.predicted != null;
+  const points = Number(fromPickScores ? performanceStats.points : profile?.points ?? 0);
+  const exacts = Number(fromPickScores ? performanceStats.exacts : profile?.exacts ?? 0);
+  const streak = Number(fromPickScores ? performanceStats.streak : profile?.streak ?? 0);
 
   let riskyHits = 0;
-  let graded = 0;
-  let correctWinners = 0;
+  let graded = fromPickScores ? Number(performanceStats.predicted ?? 0) : 0;
+  let correctWinners = fromPickScores ? Number(performanceStats.correctResults ?? 0) : 0;
 
   const pickMap = picks && typeof picks === 'object' ? picks : {};
 
@@ -84,8 +87,10 @@ export function computePulpoDerivedStats({ profile, picks, matches, communityPic
     const pick = parsePickScore(pickMap[match.id]);
     if (!pick) continue;
 
-    graded += 1;
-    if (pickCorrectWinner(pick, final)) correctWinners += 1;
+    if (!fromPickScores) {
+      graded += 1;
+      if (pickCorrectWinner(pick, final)) correctWinners += 1;
+    }
 
     if (isExactPick(pick, final) && wasRiskyPick(match.id, pick.home, pick.away, communityPickProfiles)) {
       riskyHits += 1;
@@ -102,13 +107,10 @@ export function computePulpoDerivedStats({ profile, picks, matches, communityPic
     riskyHits * PULPO_WEIGHTS.riskyHits +
     consistencyBonus;
 
-  const computedIndex = Math.min(100, Math.max(0, Math.round(raw)));
-  const storedIndex = Number(profile?.pulpo_index);
-  const index =
-    Number.isFinite(storedIndex) && storedIndex >= 0 && storedIndex <= 100
-      ? Math.round(storedIndex)
-      : computedIndex;
+  const index = Math.min(100, Math.max(0, Math.round(raw)));
   const level = getPulpoLevel(index);
+  const storedStats =
+    profile?.pulpo_stats && typeof profile.pulpo_stats === 'object' ? profile.pulpo_stats : null;
 
   return {
     index,

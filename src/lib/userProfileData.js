@@ -5,7 +5,7 @@ import { formatKickoff, isMatchFinished, isProfilePickRevealed, uiStatus } from 
 import { formatActivityLogMessage } from './activityMessages';
 import { getAchievementById } from '../data/achievements';
 import { computePulpoDerivedStats } from './pulpoIndex';
-import { aggregatePickScoreRowsForProfile, enrichProfilesWithPickScores } from './pickScoreStats';
+import { aggregatePickScoreRowsForProfile, enrichProfilesWithPickScores, getPerformanceStatsForProfile } from './pickScoreStats';
 
 function pickMap(profile) {
   const raw = profile?.picks;
@@ -349,12 +349,14 @@ export async function loadPublicProfile(
 
     let pulpoStats = null;
     try {
+      const performanceStats = getPerformanceStatsForProfile(profileId, pickScoreRows ?? [], matches);
       pulpoStats = computePulpoDerivedStats({
-        profile,
+        profile: profileWithScores,
         picks: pickMap(profile),
         matches,
         communityPickProfiles: communityProfiles,
         userId: profileId,
+        performanceStats,
       });
     } catch (e) {
       console.warn('[loadPublicProfile] pulpoStats', e?.message ?? e);

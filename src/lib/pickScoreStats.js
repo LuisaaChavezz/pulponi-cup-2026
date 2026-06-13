@@ -53,7 +53,7 @@ export function applyPickScoreAggregatesToProfiles(profiles, aggregatesMap) {
   });
 }
 
-/** exacts + streak derivados de pick_scores (fuente de verdad para logros). */
+/** exacts + streak + points derivados de pick_scores (fuente de verdad para ranking y logros). */
 export function buildPerformanceStatsByProfile(pickScoreRows, matches = []) {
   const matchesById = new Map((matches ?? []).map((m) => [String(m.id), m]));
   const rowsByProfile = new Map();
@@ -68,12 +68,28 @@ export function buildPerformanceStatsByProfile(pickScoreRows, matches = []) {
   const statsByProfileId = new Map();
   for (const [pid, rows] of rowsByProfile) {
     statsByProfileId.set(pid, {
+      points: rows.reduce((sum, r) => sum + Number(r.points_awarded ?? 0), 0),
       exacts: rows.filter((r) => r.exact_hit).length,
       streak: computeStreakFromPickScores(rows, matchesById),
+      predicted: rows.length,
+      correctResults: rows.filter((r) => r.winner_hit).length,
     });
   }
 
   return statsByProfileId;
+}
+
+export function getPerformanceStatsForProfile(profileId, pickScoreRows, matches = []) {
+  const map = buildPerformanceStatsByProfile(pickScoreRows, matches);
+  return (
+    map.get(String(profileId)) ?? {
+      points: 0,
+      exacts: 0,
+      streak: 0,
+      predicted: 0,
+      correctResults: 0,
+    }
+  );
 }
 
 export function applyPerformanceStatsToProfiles(profiles, statsByProfileId) {
@@ -82,7 +98,12 @@ export function applyPerformanceStatsToProfiles(profiles, statsByProfileId) {
   return (profiles ?? []).map((profile) => {
     const stats = statsByProfileId.get(String(profile.id));
     if (!stats) return profile;
-    return { ...profile, exacts: stats.exacts, streak: stats.streak };
+    return {
+      ...profile,
+      points: stats.points,
+      exacts: stats.exacts,
+      streak: stats.streak,
+    };
   });
 }
 
@@ -107,12 +128,12 @@ export async function enrichProfilesWithPickScores(client, profiles) {
   return applyPickScoreAggregatesToProfiles(profiles, map);
 }
 
-export async function enrichProfileWithPickScores(client, profile) {
+export async function enrichProfileWithPickScores(client, profile, matches = []) {
   if (!client || !profile?.id) return profile;
 
   const { data, error } = await client
     .from('pick_scores')
-    .select('profile_id, points_awarded, exact_hit, winner_hit')
+    .select('profile_id, match_id, points_awarded, exact_hit, winner_hit')
     .eq('profile_id', profile.id);
 
   if (error) {
@@ -120,10 +141,12 @@ export async function enrichProfileWithPickScores(client, profile) {
     return profile;
   }
 
-  const agg = aggregatePickScoreRowsForProfile(data ?? []);
+  const rows = data ?? [];
+  const performanceStats = getPerformanceStatsForProfile(profile.id, rows, matches);
   return {
     ...profile,
-    points: agg.points,
-    exacts: agg.exacts,
+    points: performanceStats.points,
+    exacts: performanceStats.exacts,
+    streak: performanceStats.streak,
   };
 }
