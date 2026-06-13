@@ -18,10 +18,12 @@ import { filterWorldCupMatches } from './lib/worldCupScope';
 import {
   countMatchPredictionStatuses,
   filterMatchesForList,
+  filterMatchesWithOpenPicks,
   getMatchPredictionUiState,
   listMatchDayFilterOptions,
 } from './lib/matchListFilters';
 import { useMatchSync } from './hooks/useMatchSync';
+import { useKickoffClock } from './hooks/useKickoffClock';
 import { useMobileViewport } from './hooks/useMobileViewport';
 import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
@@ -125,6 +127,7 @@ export default function App() {
   const [matchPredictionFilter, setMatchPredictionFilter] = useState('all');
 
   const data = useAppData(session);
+  const now = useKickoffClock(30_000);
   const isMobileViewport = useMobileViewport(767);
   const appRenderCountRef = useRef(0);
   appRenderCountRef.current += 1;
@@ -173,32 +176,37 @@ export default function App() {
     return sortMatchesByKickoffAsc(list);
   }, [data.matches]);
 
+  const openPickMatches = useMemo(
+    () => filterMatchesWithOpenPicks(worldCupMatches, now),
+    [worldCupMatches, now]
+  );
+
   const matchDayOptions = useMemo(
-    () => listMatchDayFilterOptions(worldCupMatches),
-    [worldCupMatches]
+    () => listMatchDayFilterOptions(openPickMatches),
+    [openPickMatches]
   );
 
   const partidosBaseFiltered = useMemo(
     () =>
-      filterMatchesForList(worldCupMatches, {
+      filterMatchesForList(openPickMatches, {
         search: matchSearch,
         status: matchStatusFilter,
         day: matchDayFilter,
         picks: data.picks,
       }),
-    [worldCupMatches, matchSearch, matchStatusFilter, matchDayFilter, data.picks]
+    [openPickMatches, matchSearch, matchStatusFilter, matchDayFilter, data.picks]
   );
 
   const filteredPartidos = useMemo(
     () =>
-      filterMatchesForList(worldCupMatches, {
+      filterMatchesForList(openPickMatches, {
         search: matchSearch,
         status: matchStatusFilter,
         day: matchDayFilter,
         predictionStatus: matchPredictionFilter,
         picks: data.picks,
       }),
-    [worldCupMatches, matchSearch, matchStatusFilter, matchDayFilter, matchPredictionFilter, data.picks]
+    [openPickMatches, matchSearch, matchStatusFilter, matchDayFilter, matchPredictionFilter, data.picks]
   );
 
   const predictionStats = useMemo(
@@ -920,8 +928,8 @@ export default function App() {
               <p className="matches-toolbar__count">
                 Mostrando {filteredPartidos.length} partido
                 {filteredPartidos.length === 1 ? '' : 's'}
-                {filteredPartidos.length !== worldCupMatches.length
-                  ? ` de ${worldCupMatches.length}`
+                {filteredPartidos.length !== openPickMatches.length
+                  ? ` de ${openPickMatches.length}`
                   : ''}
               </p>
               <p className="matches-toolbar__stats">
@@ -994,7 +1002,9 @@ export default function App() {
             <p className="muted sync-footnote">
               {matchSearch.trim()
                 ? 'No encontramos partidos con esa búsqueda.'
-                : 'No hay partidos que coincidan con los filtros.'}
+                : openPickMatches.length === 0
+                  ? 'No hay partidos con predicción abierta.'
+                  : 'No hay partidos que coincidan con los filtros.'}
             </p>
           ) : (
             <div className="matches-grid matches-grid--continuous">

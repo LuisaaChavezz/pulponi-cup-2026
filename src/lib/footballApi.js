@@ -248,7 +248,7 @@ function scoresFromFixture(fixture) {
   };
 }
 
-/** Fila mínima para insert inicial (campos solicitados + status normalizado). */
+/** Fila mínima para insert inicial (campos solicitados + status normalizado). kickoff solo en insert — no en updates API. */
 export function fixtureToSyncRow(fixture) {
   const apiStatus = fixture.fixture?.status?.short ?? 'NS';
   const venue = fixture.fixture?.venue;
@@ -583,11 +583,11 @@ async function applyApiFixturesSync(client, plan) {
       const apiStatus = item.fixture.fixture?.status?.short ?? 'NS';
       const needsEvents = LIVE_API.has(apiStatus) || FINISHED_API.has(apiStatus);
       const events = needsEvents ? await fetchFixtureEvents(fid) : [];
-      const patch = {
+      const patch = omitKickoff({
         ...buildResultsPatchFromFixture(item.fixture, events),
         provisional: false,
         is_demo: false,
-      };
+      });
 
       const { error } = await client.from('matches').update(patch).eq('id', item.targetId);
       if (error) throw error;
@@ -629,6 +629,7 @@ async function upsertApiFixtures(client, fixtures, { logPreview = false } = {}) 
   }
 
   const result = await applyApiFixturesSync(client, plan);
+  await applyManualKickoffCorrections(client);
 
   if (logPreview) {
     console.log(`Sync completado: ${result.updated} actualizados, ${result.skipped ?? 0} ignorados.`);
@@ -800,12 +801,19 @@ async function scoreSyncedFinishedMatches(client, matchIds) {
   }
 }
 
-/** Solo actualiza marcador/estado/eventos — no sobrescribe calendario ni id de fila (picks). */
+/** Quita kickoff de un patch de update (API no debe sobrescribir horarios ya corregidos). */
+function omitKickoff(fields) {
+  if (!fields || typeof fields !== 'object') return fields;
+  const { kickoff: _omitKickoff, ...rest } = fields;
+  return rest;
+}
+
+/** Solo actualiza marcador/estado/eventos — no sobrescribe kickoff ni id de fila (picks). */
 export function buildResultsPatchFromFixture(fixture, events = []) {
   const apiStatus = fixture.fixture?.status?.short ?? 'NS';
   const goals = mapGoals(fixture, events);
 
-  return {
+  return omitKickoff({
     api_fixture_id: fixture.fixture?.id,
     league_id: fixture.league?.id ?? null,
     season: fixture.league?.season ?? null,
@@ -820,7 +828,46 @@ export function buildResultsPatchFromFixture(fixture, events = []) {
     penalties: mapPenalties(fixture),
     winner: resolveWinner(fixture),
     updated_at: new Date().toISOString(),
-  };
+  });
+}
+
+/** Correcciones manuales de kickoff tras sync API (horarios FIFA distintos a API-Football). */
+async function applyManualKickoffCorrections(client) {
+  const rules = [
+    {
+      home_team: 'Australia',
+      away_team: 'Turquía',
+      oldKickoffMs: Date.parse('2026-06-13T04:00:00+00:00'),
+      newKickoff: '2026-06-14T04:00:00+00:00',
+    },
+  ];
+
+  for (const rule of rules) {
+    const { data: rows, error: selectError } = await client
+      .from('matches')
+      .select('id, kickoff')
+      .eq('home_team', rule.home_team)
+      .eq('away_team', rule.away_team);
+
+    if (selectError) {
+      logSupabaseWarn('applyManualKickoffCorrections select', selectError);
+      continue;
+    }
+
+    for (const row of rows ?? []) {
+      const kickoffMs = new Date(row.kickoff).getTime();
+      if (Number.isNaN(kickoffMs) || kickoffMs !== rule.oldKickoffMs) continue;
+
+      const { error: updateError } = await client
+        .from('matches')
+        .update({ kickoff: rule.newKickoff })
+        .eq('id', row.id);
+
+      if (updateError) {
+        logSupabaseWarn('applyManualKickoffCorrections update', updateError);
+      }
+    }
+  }
 }
 
 /** Actualiza solo partidos en vivo (marcador, minuto, estado, eventos). */
@@ -855,7 +902,7 @@ export async function syncLiveScoresToSupabase(client) {
     const apiStatus = fixture.fixture?.status?.short ?? 'NS';
     const needsEvents = LIVE_API.has(apiStatus) || FINISHED_API.has(apiStatus);
     const events = needsEvents ? await fetchFixtureEvents(fid) : [];
-    const patch = buildResultsPatchFromFixture(fixture, events);
+    const patch = omitKickoff(buildResultsPatchFromFixture(fixture, events));
 
     const { error: updateError } = await client.from('matches').update(patch).eq('id', dbMatch.id);
     if (updateError) {
@@ -921,7 +968,7 @@ export async function syncMatchesToSupabase(client) {
     const apiStatus = fixture.fixture?.status?.short ?? 'NS';
     const needsEvents = LIVE_API.has(apiStatus) || FINISHED_API.has(apiStatus);
     const events = needsEvents ? await fetchFixtureEvents(fixture.fixture.id) : [];
-    const patch = buildResultsPatchFromFixture(fixture, events);
+    const patch = omitKickoff(buildResultsPatchFromFixture(fixture, events));
 
     const { error: updateError } = await client.from('matches').update(patch).eq('id', dbMatch.id);
     if (updateError) {
@@ -939,6 +986,8 @@ export async function syncMatchesToSupabase(client) {
   if (finishedMatchIds.length) {
     scoring = await scoreSyncedFinishedMatches(client, finishedMatchIds);
   }
+
+  await applyManualKickoffCorrections(client);
 
   return {
     updated,

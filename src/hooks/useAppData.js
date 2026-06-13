@@ -505,7 +505,12 @@ export function useAppData(session) {
     async (matchList) => {
       if (!userId || scoringInFlightRef.current) return;
       const list = matchList ?? matchesRef.current;
-      if (!list.some((m) => isMatchFinished(m))) return;
+      const hasFinished = list.some((m) => isMatchFinished(m));
+
+      if (!hasFinished) {
+        await syncAchievementsForProfiles();
+        return;
+      }
 
       scoringInFlightRef.current = true;
       try {
@@ -1006,6 +1011,7 @@ export function useAppData(session) {
         () => {
           void loadRankingRef.current?.();
           void loadProfileRef.current?.();
+          void syncAchievementsForProfilesRef.current?.();
         }
       )
       .subscribe();

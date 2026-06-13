@@ -1,4 +1,4 @@
-import { displayMatchStatus, isMatchFinished, isMatchLive, isPickLocked } from './matchUtils';
+import { displayMatchStatus, isMatchFinished, isMatchLive, isMatchWithOpenPicks, isPickLocked } from './matchUtils';
 import { parsePickScore } from './communityPicks';
 
 /** Texto de búsqueda: minúsculas, sin acentos, espacios colapsados. */
@@ -72,6 +72,11 @@ export function countMatchPredictionStatuses(matches, picks) {
     if (!isPickLocked(m) && !hasUserMatchPick(picks, m.id)) pending += 1;
   }
   return { pending, sent, closed };
+}
+
+/** Solo partidos con predicción abierta (kickoff futuro, sin resultado). */
+export function filterMatchesWithOpenPicks(matches, now = new Date()) {
+  return (matches ?? []).filter((m) => isMatchWithOpenPicks(m, now));
 }
 
 export function filterMatchesForList(

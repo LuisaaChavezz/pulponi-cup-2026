@@ -111,6 +111,14 @@ export function isMatchUpcoming(match, now = new Date()) {
   return ms > now.getTime();
 }
 
+/** Partido visible en lista principal: kickoff futuro y ventana de predicción abierta. */
+export function isMatchWithOpenPicks(match, now = new Date()) {
+  if (!match || isMatchFinished(match) || isMatchLive(match)) return false;
+  const ms = kickoffMs(match);
+  if (ms == null || ms <= now.getTime()) return false;
+  return !isPickLocked(match, now);
+}
+
 /** Partidos programados (NS / scheduled) con kickoff futuro — excluye finalizados, en vivo e iniciados. */
 export function isCarouselUpcomingMatch(match, now = new Date()) {
   return isMatchUpcoming(match, now);

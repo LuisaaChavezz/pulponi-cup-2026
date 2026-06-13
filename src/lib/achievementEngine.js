@@ -4,6 +4,14 @@ import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 
 const ACTIVE_RULES = ACHIEVEMENT_CATALOG.filter((a) => a.active);
 
+function resolvePerformanceStats(profile, statsByProfileId) {
+  const derived = statsByProfileId?.get?.(String(profile?.id));
+  return {
+    exacts: derived?.exacts ?? Number(profile?.exacts ?? 0),
+    streak: derived?.streak ?? Number(profile?.streak ?? 0),
+  };
+}
+
 export const PULPO_FUTBOLERO_OFICIAL_ID = 'pulpo-futbolero-oficial';
 
 /** Arranque del Mundial 2026 — desbloqueo automático al abrir la app. */
@@ -70,11 +78,11 @@ export function evaluateAchievementIdsForProfile(profile, context = {}) {
     communityProfiles = [],
     rankingHistoryRows = [],
     recentJornadaIds = [],
+    statsByProfileId = null,
   } = context;
 
   const earned = [];
-  const exacts = Number(profile?.exacts ?? 0);
-  const streak = Number(profile?.streak ?? 0);
+  const { exacts, streak } = resolvePerformanceStats(profile, statsByProfileId);
   const pulpoIndex = Number(profile?.pulpo_index ?? 0);
   const ranked = rankedProfiles.length ? rankedProfiles : buildRankedLeaderboard([profile]);
   const me = ranked.find((r) => r.id === profile.id);

@@ -2,6 +2,8 @@
  * Agregados de puntuación desde public.pick_scores (fuente de verdad del ranking).
  */
 
+import { computeStreakFromPickScores } from './scoringEngine';
+
 export function aggregatePickScoresByProfile(rows) {
   const map = new Map();
   for (const row of rows ?? []) {
@@ -48,6 +50,39 @@ export function applyPickScoreAggregatesToProfiles(profiles, aggregatesMap) {
       points: agg.points,
       exacts: agg.exacts,
     };
+  });
+}
+
+/** exacts + streak derivados de pick_scores (fuente de verdad para logros). */
+export function buildPerformanceStatsByProfile(pickScoreRows, matches = []) {
+  const matchesById = new Map((matches ?? []).map((m) => [String(m.id), m]));
+  const rowsByProfile = new Map();
+
+  for (const row of pickScoreRows ?? []) {
+    const pid = String(row.profile_id ?? '');
+    if (!pid) continue;
+    if (!rowsByProfile.has(pid)) rowsByProfile.set(pid, []);
+    rowsByProfile.get(pid).push(row);
+  }
+
+  const statsByProfileId = new Map();
+  for (const [pid, rows] of rowsByProfile) {
+    statsByProfileId.set(pid, {
+      exacts: rows.filter((r) => r.exact_hit).length,
+      streak: computeStreakFromPickScores(rows, matchesById),
+    });
+  }
+
+  return statsByProfileId;
+}
+
+export function applyPerformanceStatsToProfiles(profiles, statsByProfileId) {
+  if (!statsByProfileId?.size) return profiles ?? [];
+
+  return (profiles ?? []).map((profile) => {
+    const stats = statsByProfileId.get(String(profile.id));
+    if (!stats) return profile;
+    return { ...profile, exacts: stats.exacts, streak: stats.streak };
   });
 }
 

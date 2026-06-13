@@ -81,15 +81,19 @@ export async function runScoringAndPulpoPipeline(
 ) {
   const scoreResult = await scoreAllFinishedMatches(client, { matches });
 
-  const { data: refreshed } = await client.from('profiles').select(
-    'id, username, name, photo_url, points, exacts, streak, picks, pulpo_index, pulpo_stats'
-  );
-  const afterScore = refreshed ?? [];
+  const profileColumns =
+    'id, username, name, photo_url, points, exacts, streak, picks, pulpo_index, pulpo_stats';
+
+  const { data: afterScore } = await client.from('profiles').select(profileColumns);
+  let profilesForReturn = afterScore ?? [];
 
   const pulpoResult = await syncAllPulpoIndexes(client, {
     matches,
-    profiles: afterScore,
+    profiles: profilesForReturn,
   });
+
+  const { data: afterPulpo } = await client.from('profiles').select(profileColumns);
+  if (afterPulpo?.length) profilesForReturn = afterPulpo;
 
   let rankingCaptured = false;
   if (captureRanking) {
@@ -106,6 +110,6 @@ export async function runScoringAndPulpoPipeline(
     score: scoreResult,
     pulpo: pulpoResult,
     rankingCaptured,
-    profiles: afterScore,
+    profiles: profilesForReturn,
   };
 }

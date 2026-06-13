@@ -3,6 +3,10 @@ import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 import { buildAchievementGrants } from './achievementEngine';
 import { buildRankedLeaderboard } from './rankingHistory';
 import { fetchLeaderboardProfiles, LEADERBOARD_ACHIEVEMENT_COLUMNS } from './leaderboardQuery';
+import {
+  applyPerformanceStatsToProfiles,
+  buildPerformanceStatsByProfile,
+} from './pickScoreStats';
 
 export const PARLAY_TODO_O_NADA_ID = 'parlay-todo-o-nada';
 export const QUINIELA_ACEPTASTE_EL_RETO_ID = 'quiniela-aceptaste-el-reto';
@@ -102,6 +106,15 @@ export async function syncEnrollmentAchievementsForUser(client, userId, username
   return result;
 }
 
+async function loadMatchesForAchievements(client) {
+  const { data, error } = await client.from('matches').select('id, kickoff');
+  if (error) {
+    console.warn('[achievementSync] matches', error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 async function loadPickScores(client) {
   const { data, error } = await client
     .from('pick_scores')
@@ -150,7 +163,7 @@ async function upsertUserBadgeRows(client, rows) {
 
   const { data, error } = await client
     .from('user_badges')
-    .insert(payload, { onConflict: 'profile_id,badge_id', ignoreDuplicates: true })
+    .upsert(payload, { onConflict: 'profile_id,badge_id', ignoreDuplicates: true })
     .select('profile_id, badge_id, earned_at');
 
   if (error) {
@@ -198,7 +211,9 @@ async function loadExistingUserBadgeKeys(client) {
 async function grantAchievements(client, grants) {
   if (!grants.length) return { inserted: 0, newUnlocks: [] };
 
-  const { data, error } = await client.rpc('grant_user_achievements', { grants });
+  const { data, error } = await client.rpc('grant_user_achievements', {
+    grants: grants.map(({ profile_id, badge_id }) => ({ profile_id, badge_id })),
+  });
 
   if (!error) {
     const newUnlocks = data?.new_unlocks ?? [];
@@ -247,17 +262,22 @@ export async function syncAllAchievements(
     community = data ?? [];
   }
 
-  const [pickScoreRows, existingKeys, historyCtx] = await Promise.all([
+  const [pickScoreRows, existingKeys, historyCtx, matchRows] = await Promise.all([
     loadPickScores(client),
     loadExistingUserBadgeKeys(client),
     loadRankingHistoryContext(client),
+    loadMatchesForAchievements(client),
   ]);
+
+  const statsByProfileId = buildPerformanceStatsByProfile(pickScoreRows, matchRows);
+  profs = applyPerformanceStatsToProfiles(profs, statsByProfileId);
 
   const rankedProfiles = buildRankedLeaderboard(profs);
   const context = {
     rankedProfiles,
     pickScoreRows,
     communityProfiles: community,
+    statsByProfileId,
     ...historyCtx,
   };
 
