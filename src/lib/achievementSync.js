@@ -241,10 +241,6 @@ function enrichProfilesForAchievementEval(profiles, pickScoreRows, matchRows, co
     const perf = statsByProfileId.get(String(profile.id));
     const pulpoStats = computePulpoDerivedStats({
       profile,
-      picks: profile.picks,
-      matches: matchRows,
-      communityPickProfiles: communityProfiles,
-      userId: profile.id,
       performanceStats: perf,
     });
     pulpoIndexByProfileId.set(String(profile.id), pulpoStats.index);

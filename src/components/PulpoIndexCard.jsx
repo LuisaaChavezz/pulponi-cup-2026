@@ -20,13 +20,9 @@ export default function PulpoIndexCard({
 
     return computePulpoDerivedStats({
       profile,
-      picks,
-      matches,
-      communityPickProfiles,
-      userId,
       performanceStats: perf?.predicted != null ? perf : null,
     });
-  }, [profile, picks, matches, communityPickProfiles, userId, pickScoreRows, performanceStats]);
+  }, [profile, pickScoreRows, matches, performanceStats]);
 
   const levelSlug = stats.level.slug;
 
@@ -61,27 +57,30 @@ export default function PulpoIndexCard({
 
       <ul className="pulpo-index__breakdown">
         <li>
-          <span>Puntos</span>
-          <span>{stats.points} ×2</span>
-        </li>
-        <li>
           <span>Exactos</span>
-          <span>{stats.exacts} ×5</span>
-        </li>
-        <li>
-          <span>Racha</span>
-          <span>{stats.streak} ×3</span>
-        </li>
-        <li>
-          <span>Riesgosos acertados</span>
-          <span>{stats.riskyHits} ×8</span>
-        </li>
-        <li>
-          <span>Consistencia</span>
           <span>
-            {stats.gradedPicks > 0 ? `${stats.consistencyPct}%` : '—'}
-            {stats.consistencyBonus > 0 ? ` (+${stats.consistencyBonus})` : ''}
+            {stats.totalPicks > 0
+              ? `${Math.round((stats.exacts / stats.totalPicks) * 100)}% ×0.5 (+${stats.exactTerm})`
+              : '—'}
           </span>
+        </li>
+        <li>
+          <span>Ganadores</span>
+          <span>
+            {stats.totalPicks > 0
+              ? `${Math.round((stats.winners / stats.totalPicks) * 100)}% ×0.3 (+${stats.winnerTerm})`
+              : '—'}
+          </span>
+        </li>
+        <li>
+          <span>Racha actual</span>
+          <span>
+            {stats.streak > 0 ? `${stats.streak} ×5 (máx 20 → +${stats.streakTerm})` : `+${stats.streakTerm}`}
+          </span>
+        </li>
+        <li>
+          <span>Picks puntuados</span>
+          <span>{stats.totalPicks || '—'}</span>
         </li>
       </ul>
     </div>

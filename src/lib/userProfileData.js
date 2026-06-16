@@ -352,10 +352,6 @@ export async function loadPublicProfile(
       const performanceStats = getPerformanceStatsForProfile(profileId, pickScoreRows ?? [], matches);
       pulpoStats = computePulpoDerivedStats({
         profile: profileWithScores,
-        picks: pickMap(profile),
-        matches,
-        communityPickProfiles: communityProfiles,
-        userId: profileId,
         performanceStats,
       });
     } catch (e) {

@@ -38,10 +38,6 @@ export async function syncAllPulpoIndexes(client, { matches, profiles, pickScore
     const performanceStats = statsByProfileId.get(String(prof.id));
     const stats = computePulpoDerivedStats({
       profile: prof,
-      picks,
-      matches,
-      communityPickProfiles: profiles,
-      userId: prof.id,
       performanceStats,
     });
 
@@ -51,10 +47,13 @@ export async function syncAllPulpoIndexes(client, { matches, profiles, pickScore
       pulpo_stats: {
         level: stats.level.slug,
         title: stats.level.title,
-        riskyHits: stats.riskyHits,
-        consistencyPct: stats.consistencyPct,
-        consistencyBonus: stats.consistencyBonus,
-        gradedPicks: stats.gradedPicks,
+        exactTerm: stats.exactTerm,
+        winnerTerm: stats.winnerTerm,
+        streakTerm: stats.streakTerm,
+        totalPicks: stats.totalPicks,
+        exacts: stats.exacts,
+        winners: stats.winners,
+        streak: stats.streak,
         raw: stats.raw,
         computed_at: new Date().toISOString(),
       },
@@ -120,10 +119,6 @@ export async function runScoringAndPulpoPipeline(
       const perf = statsByProfileId.get(String(profile.id));
       const pulpoStats = computePulpoDerivedStats({
         profile,
-        picks: profile.picks,
-        matches,
-        communityPickProfiles: profilesForReturn,
-        userId: profile.id,
         performanceStats: perf,
       });
       return { ...profile, pulpo_index: pulpoStats.index, pulpo_stats: profile.pulpo_stats ?? {} };
