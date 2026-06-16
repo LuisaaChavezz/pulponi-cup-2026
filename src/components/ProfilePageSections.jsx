@@ -77,7 +77,7 @@ export function ProfileBadgesList({ badges, emptyText = 'Sin badges desbloqueado
       {badges.map((b) => (
         <li key={b.id} className="profile-page-badge-item">
           <span className="profile-page-badge-item__icon" aria-hidden>
-            <BadgeIcon badgeId={b.id} icon={b.icon} iconSrc={b.iconSrc} alt={b.name} />
+            <BadgeIcon badgeId={b.id} name={b.name} icon={b.icon} iconSrc={b.iconSrc} alt={b.name} />
           </span>
           <div>
             <strong>{b.name}</strong>

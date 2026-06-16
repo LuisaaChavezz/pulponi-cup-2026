@@ -36,7 +36,7 @@ export default function ProfileAchievementsStrip({
         <div className="profile-achievements__row badges-row" aria-label="Logros desbloqueados">
           {display.map((a) => (
             <span key={a.id} className="profile-achievements__badge" title={a.name}>
-              <BadgeIcon badgeId={a.id} icon={a.icon} iconSrc={a.iconSrc} alt="" />
+              <BadgeIcon badgeId={a.id} name={a.name} icon={a.icon} iconSrc={a.iconSrc} alt="" />
             </span>
           ))}
         </div>

@@ -14,7 +14,7 @@ export const ACHIEVEMENT_CATALOG = [
   {
     id: 'francotirador-pro',
     name: 'Francotirador Pro',
-    icon: '🎯🎯',
+    icon: '🎯',
     description: 'Tres exactos. Ojo de águila activado.',
     requirement: 'Acertar 3 marcadores exactos.',
     active: true,
@@ -220,13 +220,14 @@ export function resolveBadgePresentation(badgeId, dbBadge = null, catalog = ACHI
   const staticDef = getAchievementById(badgeId);
   const fromCatalog = catalog?.find((a) => a.id === badgeId) ?? staticDef;
   const remote = dbBadge && typeof dbBadge === 'object' ? dbBadge : null;
+  const name = asBadgeLabel(
+    staticDef?.name ?? fromCatalog?.name ?? remote?.name,
+    asBadgeLabel(badgeId, 'Logro')
+  );
   return {
-    name: asBadgeLabel(
-      staticDef?.name ?? fromCatalog?.name ?? remote?.name,
-      asBadgeLabel(badgeId, 'Logro')
-    ),
+    name,
     icon: asBadgeLabel(staticDef?.icon ?? fromCatalog?.icon ?? remote?.icon, '🏆'),
-    iconSrc: getBadgeIconImage(badgeId),
+    iconSrc: getBadgeIconImage(badgeId, { name }),
     description: asBadgeLabel(
       staticDef?.description ?? fromCatalog?.description ?? remote?.description,
       ''
@@ -343,7 +344,7 @@ export function buildUnlockedBadgesForDisplay(
     .map((a) => ({
       id: a.id,
       icon: a.icon,
-      iconSrc: getBadgeIconImage(a.id),
+      iconSrc: getBadgeIconImage(a.id, { name: a.name }),
       name: a.name,
       description: a.description,
       earnedAt: null,

@@ -45,7 +45,7 @@ export default function RulesBadgesSection({
                 .join(' ')}
             >
               <span className="rules-badges__icon" aria-hidden="true">
-                <BadgeIcon badgeId={badge.id} icon={badge.icon} alt="" />
+                <BadgeIcon badgeId={badge.id} name={badge.name} icon={badge.icon} alt="" />
               </span>
               <strong className="rules-badges__name">{badge.name}</strong>
               <p className="rules-badges__desc">{badge.requirement}</p>
