@@ -20,6 +20,7 @@ import {
   isPickLocked,
   pickInicioMatch,
 } from '../lib/matchUtils';
+import { collectMatchPickScores, buildCommunityGeneralInsights } from '../lib/communityPicks';
 import { ACTIVITY_TYPE_BADGE } from '../lib/recentActivityFeed';
 
 function formatUsername(row) {
