@@ -1,3 +1,5 @@
+import { getBadgeIconImage } from './badgeAssets';
+
 /** Catálogo Pulponi — sincronizado con supabase/achievements.sql */
 
 export const ACHIEVEMENT_CATALOG = [
@@ -60,7 +62,7 @@ export const ACHIEVEMENT_CATALOG = [
   {
     id: 'el-elegido',
     name: 'Trono Kraken',
-    icon: '👑',
+    icon: '🔱',
     description: 'El Kraken eligió al mejor. Defiéndelo o piérdelo.',
     requirement: 'Ser el #1 del ranking y recibir el trono del pulpo.',
     active: true,
@@ -224,6 +226,7 @@ export function resolveBadgePresentation(badgeId, dbBadge = null, catalog = ACHI
       asBadgeLabel(badgeId, 'Logro')
     ),
     icon: asBadgeLabel(staticDef?.icon ?? fromCatalog?.icon ?? remote?.icon, '🏆'),
+    iconSrc: getBadgeIconImage(badgeId),
     description: asBadgeLabel(
       staticDef?.description ?? fromCatalog?.description ?? remote?.description,
       ''
@@ -292,6 +295,7 @@ export function buildUnlockedBadgesForProfile(
     return {
       id: badgeId,
       icon: display.icon,
+      iconSrc: display.iconSrc,
       name: display.name,
       description: display.description,
       earnedAt: row.earned_at ?? row.earnedAt ?? null,
@@ -326,6 +330,7 @@ export function buildUnlockedBadgesForDisplay(
         return {
           id: badgeId,
           icon: display.icon,
+          iconSrc: display.iconSrc,
           name: display.name,
           description: display.description,
           earnedAt: row.earned_at ?? row.earnedAt ?? null,
@@ -338,6 +343,7 @@ export function buildUnlockedBadgesForDisplay(
     .map((a) => ({
       id: a.id,
       icon: a.icon,
+      iconSrc: getBadgeIconImage(a.id),
       name: a.name,
       description: a.description,
       earnedAt: null,

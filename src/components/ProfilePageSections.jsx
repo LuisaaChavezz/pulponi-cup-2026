@@ -1,6 +1,7 @@
 /** Oculto en UI; activity_log y carga en hooks siguen activos. Cambiar a true para reactivar. */
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import { isProfilePickRevealed } from '../lib/matchUtils';
+import BadgeIcon from './BadgeIcon';
 
 export const SHOW_PROFILE_ACTIVITY = false;
 
@@ -76,7 +77,7 @@ export function ProfileBadgesList({ badges, emptyText = 'Sin badges desbloqueado
       {badges.map((b) => (
         <li key={b.id} className="profile-page-badge-item">
           <span className="profile-page-badge-item__icon" aria-hidden>
-            {b.icon}
+            <BadgeIcon badgeId={b.id} icon={b.icon} iconSrc={b.iconSrc} alt={b.name} />
           </span>
           <div>
             <strong>{b.name}</strong>

@@ -47,6 +47,7 @@ export function mapBadgeUnlockActivityRow(row, index = 0) {
     badgeId,
     badgeName: display?.name ?? badgeId ?? 'Logro',
     badgeIcon: display?.icon ?? '🏆',
+    badgeIconSrc: display?.iconSrc ?? null,
     avatarUrl: resolveAvatarUrl(prof?.photo_url),
     text: `${formatActivityUsername(prof)} desbloqueó ${display?.name ?? badgeId ?? 'un logro'}`,
     at: earnedAt && !Number.isNaN(earnedAt.getTime()) ? earnedAt : null,

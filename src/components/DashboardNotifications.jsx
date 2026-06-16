@@ -17,6 +17,7 @@ import {
 } from '../lib/exportPredictions';
 import AdminMatchResultPanel from './AdminMatchResultPanel';
 import ElegidoAdminHistory from './ElegidoAdminHistory';
+import BadgeIcon from './BadgeIcon';
 import { ACTIVITY_TYPE_BADGE } from '../lib/recentActivityFeed';
 
 const PDF_ERROR_MSG = 'No se pudo generar el PDF.';
@@ -30,7 +31,12 @@ function PredictionActivityItem({ item, onSelectUser }) {
     <>
       {isBadge ? (
         <span className="dash-notifications__pred-badge-icon" aria-hidden>
-          {item.badgeIcon}
+          <BadgeIcon
+            badgeId={item.badgeId}
+            icon={item.badgeIcon}
+            iconSrc={item.badgeIconSrc}
+            alt=""
+          />
         </span>
       ) : (
         <UserAvatar avatarUrl={item.avatarUrl} variant="chat" alt="" />

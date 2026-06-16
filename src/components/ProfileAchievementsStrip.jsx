@@ -3,6 +3,7 @@ import {
   buildUnlockedBadgesForProfile,
   countAchievementsTotal,
 } from '../data/achievements';
+import BadgeIcon from './BadgeIcon';
 
 export default function ProfileAchievementsStrip({
   catalog = ACHIEVEMENT_CATALOG,
@@ -35,7 +36,7 @@ export default function ProfileAchievementsStrip({
         <div className="profile-achievements__row badges-row" aria-label="Logros desbloqueados">
           {display.map((a) => (
             <span key={a.id} className="profile-achievements__badge" title={a.name}>
-              {a.icon}
+              <BadgeIcon badgeId={a.id} icon={a.icon} iconSrc={a.iconSrc} alt="" />
             </span>
           ))}
         </div>

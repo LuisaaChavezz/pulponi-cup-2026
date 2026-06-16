@@ -1,4 +1,5 @@
 import { ACHIEVEMENT_CATALOG, isAchievementUnlockedById, userHasBadge } from '../data/achievements';
+import BadgeIcon from './BadgeIcon';
 
 const ACTIVE_BADGES = ACHIEVEMENT_CATALOG.filter((badge) => badge.active);
 
@@ -44,7 +45,7 @@ export default function RulesBadgesSection({
                 .join(' ')}
             >
               <span className="rules-badges__icon" aria-hidden="true">
-                {badge.icon}
+                <BadgeIcon badgeId={badge.id} icon={badge.icon} alt="" />
               </span>
               <strong className="rules-badges__name">{badge.name}</strong>
               <p className="rules-badges__desc">{badge.requirement}</p>

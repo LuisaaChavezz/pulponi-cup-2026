@@ -7,6 +7,7 @@ import MatchChat from './MatchChat';
 import HomeMobileRankingSummary from './HomeMobileRankingSummary';
 import HomeMobileMatchesCarousel from './HomeMobileMatchesCarousel';
 import RankingMovement from './RankingMovement';
+import BadgeIcon from './BadgeIcon';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   displayTeamName,
@@ -388,7 +389,12 @@ export default function HomeDashboard({
                   >
                     {isBadge ? (
                       <span className="home-dash-activity__badge-icon" aria-hidden>
-                        {item.badgeIcon}
+                        <BadgeIcon
+                          badgeId={item.badgeId}
+                          icon={item.badgeIcon}
+                          iconSrc={item.badgeIconSrc}
+                          alt=""
+                        />
                       </span>
                     ) : (
                       <UserAvatar

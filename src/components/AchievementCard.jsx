@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+import BadgeIcon from './BadgeIcon';
+
 export default function AchievementCard({ achievement, unlocked, personal = false }) {
   const [open, setOpen] = useState(false);
 
@@ -8,7 +10,7 @@ export default function AchievementCard({ achievement, unlocked, personal = fals
       className={`achievement-card${unlocked ? ' achievement-card--unlocked' : ' achievement-card--locked'}`}
     >
       <div className="achievement-icon" aria-hidden="true">
-        {achievement.icon}
+        <BadgeIcon badgeId={achievement.id} icon={achievement.icon} alt="" />
       </div>
       <h3 className="achievement-name">{achievement.name}</h3>
       <p className="achievement-description">{achievement.description}</p>

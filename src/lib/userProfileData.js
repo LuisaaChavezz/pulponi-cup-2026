@@ -363,6 +363,7 @@ export function mapUserBadges(userBadgeRows, achievementCatalog, profileId = nul
       return {
         id: row.badge_id,
         icon: display.icon,
+        iconSrc: display.iconSrc,
         name: display.name,
         description: display.description,
         earnedAt: row.earned_at,
