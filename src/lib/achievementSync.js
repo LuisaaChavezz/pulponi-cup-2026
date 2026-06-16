@@ -359,7 +359,10 @@ export async function loadAchievementCatalog(client) {
     return {
       id: row.id,
       name: staticDef?.name ?? row.name ?? row.id,
-      icon: staticDef?.icon ?? row.icon ?? '🏆',
+      icon:
+        typeof row.icon === 'string' && row.icon.startsWith('http')
+          ? row.icon
+          : staticDef?.icon ?? row.icon ?? '🏆',
       description: staticDef?.description ?? row.description ?? '',
       requirement: staticDef?.requirement ?? row.requirement_text ?? '',
       active: staticDef?.active ?? row.active !== false,

@@ -6,6 +6,7 @@ export const EL_ELEGIDO_BADGE_ICON =
 
 export function isBadgeImageIcon(icon) {
   if (typeof icon !== 'string' || !icon) return false;
+  if (icon.startsWith('http://') || icon.startsWith('https://')) return true;
   if (icon.startsWith('data:image/')) return true;
   if (/\.(png|jpe?g|webp|gif|svg)(\?|#|$)/i.test(icon)) return true;
   if (icon.startsWith('/') && icon.includes('/assets/')) return true;
@@ -238,7 +239,12 @@ export function resolveBadgePresentation(badgeId, dbBadge = null, catalog = ACHI
     staticDef?.name ?? fromCatalog?.name ?? remote?.name,
     asBadgeLabel(badgeId, 'Logro')
   );
-  const icon = asBadgeLabel(staticDef?.icon ?? fromCatalog?.icon ?? remote?.icon, '🏆');
+  const remoteIcon = remote?.icon;
+  const catalogIcon = staticDef?.icon ?? fromCatalog?.icon ?? remoteIcon;
+  const icon = asBadgeLabel(
+    typeof remoteIcon === 'string' && remoteIcon.startsWith('http') ? remoteIcon : catalogIcon,
+    '🏆'
+  );
   return {
     name,
     icon,
