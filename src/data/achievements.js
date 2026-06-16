@@ -1,6 +1,18 @@
-import { getBadgeIconImage } from './badgeAssets';
+import tronoKrakenIcon from '../assets/badges/trono-kraken.png';
 
 /** Catálogo Pulponi — sincronizado con supabase/achievements.sql */
+
+export function isBadgeImageIcon(icon) {
+  if (typeof icon !== 'string' || !icon) return false;
+  if (icon.startsWith('data:image/')) return true;
+  if (/\.(png|jpe?g|webp|gif|svg)(\?|#|$)/i.test(icon)) return true;
+  if (icon.startsWith('/') && icon.includes('/assets/')) return true;
+  return false;
+}
+
+function resolveBadgeIconSrc(icon) {
+  return isBadgeImageIcon(icon) ? icon : null;
+}
 
 export const ACHIEVEMENT_CATALOG = [
   {
@@ -62,7 +74,7 @@ export const ACHIEVEMENT_CATALOG = [
   {
     id: 'el-elegido',
     name: 'Trono Kraken',
-    icon: '🔱',
+    icon: tronoKrakenIcon,
     description: 'El Kraken eligió al mejor. Defiéndelo o piérdelo.',
     requirement: 'Ser el #1 del ranking y recibir el trono del pulpo.',
     active: true,
@@ -224,10 +236,11 @@ export function resolveBadgePresentation(badgeId, dbBadge = null, catalog = ACHI
     staticDef?.name ?? fromCatalog?.name ?? remote?.name,
     asBadgeLabel(badgeId, 'Logro')
   );
+  const icon = asBadgeLabel(staticDef?.icon ?? fromCatalog?.icon ?? remote?.icon, '🏆');
   return {
     name,
-    icon: asBadgeLabel(staticDef?.icon ?? fromCatalog?.icon ?? remote?.icon, '🏆'),
-    iconSrc: getBadgeIconImage(badgeId, { name }),
+    icon,
+    iconSrc: resolveBadgeIconSrc(icon),
     description: asBadgeLabel(
       staticDef?.description ?? fromCatalog?.description ?? remote?.description,
       ''
@@ -344,7 +357,7 @@ export function buildUnlockedBadgesForDisplay(
     .map((a) => ({
       id: a.id,
       icon: a.icon,
-      iconSrc: getBadgeIconImage(a.id, { name: a.name }),
+      iconSrc: resolveBadgeIconSrc(a.icon),
       name: a.name,
       description: a.description,
       earnedAt: null,

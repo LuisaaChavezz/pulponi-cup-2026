@@ -1,4 +1,4 @@
-import { getBadgeIconImage } from '../data/badgeAssets';
+import { isBadgeImageIcon } from '../data/achievements';
 
 export default function BadgeIcon({
   badgeId = null,
@@ -9,7 +9,7 @@ export default function BadgeIcon({
   className = '',
 }) {
   const lookupName = name || alt;
-  const src = iconSrc ?? getBadgeIconImage(badgeId, { name: lookupName });
+  const src = iconSrc ?? (isBadgeImageIcon(icon) ? icon : null);
 
   if (src) {
     return (
