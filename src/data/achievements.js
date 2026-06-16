@@ -1,6 +1,6 @@
 /** URL pública del ícono Trono Kraken (el-elegido). */
 export const EL_ELEGIDO_BADGE_ICON =
-  'https://lkqvrsnzlfjeppdjtwvm.supabase.co/storage/v1/object/public/badges/magnific_trono-con-un-kraken-senta_jSf7OS4LD0%20(1).png';
+  'https://lkqvrsnzlfjeppdjtwvm.supabase.co/storage/v1/object/public/badges/trono-kraken.png';
 
 /** Catálogo Pulponi — sincronizado con supabase/achievements.sql */
 
