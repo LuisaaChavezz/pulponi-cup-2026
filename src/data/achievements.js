@@ -1,6 +1,5 @@
-/** URL pública del ícono Trono Kraken (el-elegido). */
-export const EL_ELEGIDO_BADGE_ICON =
-  'https://lkqvrsnzlfjeppdjtwvm.supabase.co/storage/v1/object/public/badges/trono-kraken.png';
+/** Ruta local del ícono Trono Kraken (el-elegido). */
+export const EL_ELEGIDO_BADGE_ICON = '/trono-kraken.png';
 
 /** Catálogo Pulponi — sincronizado con supabase/achievements.sql */
 
@@ -9,6 +8,7 @@ export function isBadgeImageIcon(icon) {
   if (icon.startsWith('http://') || icon.startsWith('https://')) return true;
   if (icon.startsWith('data:image/')) return true;
   if (/\.(png|jpe?g|webp|gif|svg)(\?|#|$)/i.test(icon)) return true;
+  if (icon.startsWith('/') && /\.(png|jpe?g|webp|gif|svg)(\?|#|$)/i.test(icon)) return true;
   if (icon.startsWith('/') && icon.includes('/assets/')) return true;
   return false;
 }

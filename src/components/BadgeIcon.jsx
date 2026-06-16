@@ -1,5 +1,9 @@
-function pickHttpIcon(...values) {
-  return values.find((value) => typeof value === 'string' && value.startsWith('http')) ?? null;
+function isRenderableImageIcon(value) {
+  return typeof value === 'string' && (value.startsWith('http') || value.startsWith('/'));
+}
+
+function pickImageIcon(...values) {
+  return values.find(isRenderableImageIcon) ?? null;
 }
 
 export default function BadgeIcon({
@@ -11,9 +15,9 @@ export default function BadgeIcon({
   className = '',
 }) {
   const badgeName = name || alt;
-  const resolvedIcon = pickHttpIcon(icon, iconSrc) ?? iconSrc ?? icon;
+  const resolvedIcon = pickImageIcon(icon, iconSrc) ?? iconSrc ?? icon;
 
-  const content = resolvedIcon?.startsWith('http') ? (
+  const content = isRenderableImageIcon(resolvedIcon) ? (
     <img
       src={resolvedIcon}
       alt={badgeName || 'Badge'}
