@@ -102,6 +102,7 @@ export function usePublicProfile(profileId, { matches, communityPickProfiles, ac
         .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, scheduleReload)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'user_badges' }, scheduleReload)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'pick_scores' }, scheduleReload)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, scheduleReload)
         .subscribe((status) => {
           if (status === 'CHANNEL_ERROR') {
             console.warn('[usePublicProfile] realtime channel error');

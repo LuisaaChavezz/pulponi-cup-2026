@@ -1,7 +1,7 @@
 import { parsePickScore, collectMatchPickScores } from './communityPicks';
 import { buildRankedLeaderboard, getProfileRankingSummary } from './rankingHistory';
 import { LEADERBOARD_PUBLIC_COLUMNS, LEADERBOARD_SOURCE } from './leaderboardQuery';
-import { formatKickoff, isMatchFinished, isProfilePickRevealed, uiStatus } from './matchUtils';
+import { formatKickoff, hasRecordedScores, isProfilePickRevealed, matchHasFinalScore, uiStatus } from './matchUtils';
 import { formatActivityLogMessage } from './activityMessages';
 import { filterUserBadgeRowsForProfile, resolveBadgePresentation } from '../data/achievements';
 import { computePulpoDerivedStats } from './pulpoIndex';
@@ -13,7 +13,59 @@ function pickMap(profile) {
 }
 
 function matchesById(matches) {
-  return new Map((matches ?? []).map((m) => [String(m.id), m]));
+  const map = new Map();
+  for (const m of matches ?? []) {
+    if (m?.id != null) map.set(String(m.id), m);
+    if (m?.official_id) map.set(String(m.official_id), m);
+  }
+  return map;
+}
+
+function formatFinalScoreLabel(match) {
+  if (!match || !hasRecordedScores(match)) return '—';
+  const home = Math.round(Number(match.home_score));
+  const away = Math.round(Number(match.away_score));
+  if (!Number.isFinite(home) || !Number.isFinite(away)) return '—';
+  return `${home}–${away}`;
+}
+
+function pickHistoryStatusFromScore(ps) {
+  if (!ps) return null;
+  if (ps.exact_hit) return { status: 'Acertó', statusClass: 'exact' };
+  if (ps.winner_hit) return { status: 'Ganador', statusClass: 'winner' };
+  return { status: 'Falló', statusClass: 'miss' };
+}
+
+async function ensureMatchesForPicks(client, profile, matches) {
+  const picks = pickMap(profile);
+  const keys = Object.keys(picks);
+  if (!keys.length) return matches ?? [];
+
+  const index = matchesById(matches);
+  const missing = keys.filter((key) => !index.has(String(key)));
+  if (!missing.length) return matches ?? [];
+
+  const extra = [];
+  const byId = await safeQuery(
+    client.from('matches').select('*').in('id', missing),
+    'matches by id for pick history'
+  );
+  if (Array.isArray(byId)) extra.push(...byId);
+
+  const foundKeys = new Set(extra.flatMap((m) => [String(m.id), m.official_id ? String(m.official_id) : null].filter(Boolean)));
+  const stillMissing = missing.filter((key) => !foundKeys.has(String(key)));
+  if (stillMissing.length) {
+    const byOfficial = await safeQuery(
+      client.from('matches').select('*').in('official_id', stillMissing),
+      'matches by official_id for pick history'
+    );
+    if (Array.isArray(byOfficial)) extra.push(...byOfficial);
+  }
+
+  if (!extra.length) return matches ?? [];
+  const merged = new Map((matches ?? []).map((m) => [String(m.id), m]));
+  for (const row of extra) merged.set(String(row.id), row);
+  return [...merged.values()];
 }
 
 const EMPTY_STATS = {
@@ -122,35 +174,34 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
       const match = matchIndex.get(String(matchId));
       if (!match) continue;
 
-      const ps = scoreByMatch.get(String(matchId));
-      const finished = isMatchFinished(match);
+      const ps =
+        scoreByMatch.get(String(matchId)) ??
+        scoreByMatch.get(String(match.id)) ??
+        (match.official_id ? scoreByMatch.get(String(match.official_id)) : null);
+      const hasResult = matchHasFinalScore(match);
       const revealed = isProfilePickRevealed(match);
       const matchStatus = uiStatus(match.status, match.api_status);
+      const scored = pickHistoryStatusFromScore(ps);
 
-      let status = 'Pendiente';
-      let points = 0;
+      let status = matchStatus;
       let statusClass = 'pending';
+      let points = null;
 
-      if (finished) {
-        if (ps) {
+      if (hasResult) {
+        if (scored) {
+          status = scored.status;
+          statusClass = scored.statusClass;
           points = Number(ps.points_awarded ?? 0);
-          if (ps.exact_hit) {
-            status = 'Marcador exacto';
-            statusClass = 'exact';
-          } else if (ps.winner_hit) {
-            status = 'Acertó resultado';
-            statusClass = 'winner';
-          } else {
-            status = 'Falló';
-            statusClass = 'miss';
-          }
         } else {
-          status = 'Falló';
-          statusClass = 'miss';
+          status = 'Final';
+          statusClass = 'finished';
         }
       } else if (revealed) {
         status = matchStatus;
         statusClass = 'pending';
+      } else {
+        status = 'Próximo';
+        statusClass = 'locked';
       }
 
       rows.push({
@@ -162,14 +213,12 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
         matchApiStatus: match.api_status,
         matchStatus,
         pickRevealed: revealed,
+        hasResult,
         prediction: `${pick.home}–${pick.away}`,
-        finalResult:
-          finished && match.home_score != null && match.away_score != null
-            ? `${match.home_score}–${match.away_score}`
-            : '—',
-        points: revealed && finished ? points : null,
-        status: revealed ? status : matchStatus,
-        statusClass: revealed ? statusClass : 'locked',
+        finalResult: formatFinalScoreLabel(match),
+        points,
+        status: revealed || hasResult ? status : 'Próximo',
+        statusClass: revealed || hasResult ? statusClass : 'locked',
       });
     }
 
@@ -286,6 +335,7 @@ export async function loadPublicProfile(
     }
 
     const profile = profileRes.data;
+    const matchesForHistory = await ensureMatchesForPicks(client, profile, matches);
 
     const [
       allProfilesRows,
@@ -343,15 +393,20 @@ export async function loadPublicProfile(
       points: scoredProfile.points,
       exacts: scoredProfile.exacts,
     };
-    const matchIndex = matchesById(matches);
+    const matchIndex = matchesById(matchesForHistory);
     const stats = buildUserStats(
       profileWithScores,
       pickScoreRows ?? [],
-      matches,
+      matchesForHistory,
       communityProfiles,
       rankingSummary
     );
-    const pickHistory = buildPickHistoryRows(profileWithScores, pickScoreRows ?? [], matches, communityProfiles);
+    const pickHistory = buildPickHistoryRows(
+      profileWithScores,
+      pickScoreRows ?? [],
+      matchesForHistory,
+      communityProfiles
+    );
     const badges = mapUserBadges(userBadgeRows ?? [], achievementCatalog, profileId);
     const activity = mapUserActivityRows(activityRows ?? [], profile, matchIndex);
 

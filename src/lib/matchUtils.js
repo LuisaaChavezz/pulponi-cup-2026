@@ -36,6 +36,13 @@ export function isMatchFinished(match) {
   return uiStatus(match?.status, match?.api_status) === 'Final';
 }
 
+/** Marcador final disponible (FT o goles registrados en matches). */
+export function matchHasFinalScore(match) {
+  if (!match) return false;
+  if (isMatchFinished(match)) return true;
+  return hasRecordedScores(match);
+}
+
 /** Tendencias de comunidad visibles solo desde el kickoff (sin cambiar guardado de picks). */
 export function areCommunityTrendsRevealed(match, now = new Date()) {
   return isProfilePickRevealed(match, now);

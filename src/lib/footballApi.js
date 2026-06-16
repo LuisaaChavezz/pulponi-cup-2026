@@ -40,7 +40,7 @@ async function getDefaultSupabaseClient() {
 }
 
 function getApiKey() {
-  return envVar('VITE_FOOTBALL_API_KEY').trim();
+  return envVar('FOOTBALL_API_KEY').trim() || envVar('VITE_FOOTBALL_API_KEY').trim();
 }
 
 export function getLeagueId() {
