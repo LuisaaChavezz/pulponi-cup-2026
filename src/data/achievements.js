@@ -1,4 +1,6 @@
-import tronoKrakenIcon from '../assets/badges/trono-kraken.png';
+/** Ruta pública del ícono Trono Kraken (el-elegido). */
+export const EL_ELEGIDO_BADGE_ICON =
+  '/badges/magnific_trono-con-un-kraken-senta_jSf7OS4LD0__1_.png';
 
 /** Catálogo Pulponi — sincronizado con supabase/achievements.sql */
 
@@ -74,7 +76,7 @@ export const ACHIEVEMENT_CATALOG = [
   {
     id: 'el-elegido',
     name: 'Trono Kraken',
-    icon: tronoKrakenIcon,
+    icon: EL_ELEGIDO_BADGE_ICON,
     description: 'El Kraken eligió al mejor. Defiéndelo o piérdelo.',
     requirement: 'Ser el #1 del ranking y recibir el trono del pulpo.',
     active: true,
