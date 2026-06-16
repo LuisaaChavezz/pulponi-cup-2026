@@ -198,10 +198,13 @@ export async function scoreFinishedMatch(
   matchId,
   { recomputeStreaks = true } = {}
 ) {
-  if (!matchId) return { error: 'match_id_required' };
+  const resolvedMatchId = String(matchId ?? '').trim();
+  if (!resolvedMatchId || resolvedMatchId === 'undefined' || resolvedMatchId === 'null') {
+    return { error: 'match_id_required' };
+  }
 
   const { data, error } = await client.rpc('score_finished_match', {
-    p_match_id: String(matchId),
+    p_match_id: resolvedMatchId,
     p_recompute_streaks: recomputeStreaks,
   });
 
@@ -210,11 +213,11 @@ export async function scoreFinishedMatch(
   }
 
   if (isRpcMissing(error)) {
-    return { error: 'rpc_missing', match_id: String(matchId) };
+    return { error: 'rpc_missing', match_id: resolvedMatchId };
   }
 
   console.warn('[scoring] score_finished_match', error.message);
-  return { error: error.message, match_id: String(matchId) };
+  return { error: error.message, match_id: resolvedMatchId };
 }
 
 /** Puntúa varios partidos finalizados (idempotente; UPSERT en pick_scores). */

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { resolveAvatarUrl } from '../lib/avatars';
 import { runScoringAndPulpoPipeline, refreshPulpoIndexesAfterPickScores } from '../lib/pulpoSync';
-import { applyMatchFinalResult } from '../lib/matchScoring';
+import { applyMatchFinalResult, normalizeMatchId } from '../lib/matchScoring';
 import { canAdminExportPredictions } from '../lib/predictionActivity';
 import { isMatchFinished } from '../lib/matchUtils';
 import { syncWorldCupFixtures } from '../lib/footballApi';
@@ -1323,19 +1323,30 @@ export function useAppData(session) {
         profile?.is_admin || canAdminExportPredictions(profile?.username ?? null);
       if (!userId || !allowed) return { error: 'No autorizado' };
 
+      const resolvedMatchId = normalizeMatchId(matchId);
+      if (!resolvedMatchId) return { error: 'match_id_required' };
+
       try {
-        const applyResult = await applyMatchFinalResult(supabase, matchId, homeScore, awayScore, {
-          matches: matchesRef.current,
-        });
+        const applyResult = await applyMatchFinalResult(
+          supabase,
+          resolvedMatchId,
+          homeScore,
+          awayScore,
+          {
+            matches: matchesRef.current,
+          }
+        );
 
         if (applyResult?.error) return applyResult;
 
         cacheInvalidate('matches:');
         await loadAllMatchesComplete();
 
+        // apply_match_final_result ya puntúa vía score_finished_match(p_match_id).
         const pipeline = await runScoringAndPulpoPipeline(supabase, {
           matches: matchesRef.current,
           captureRanking: true,
+          skipScoring: true,
         });
 
         if (pipeline?.profiles?.length) {

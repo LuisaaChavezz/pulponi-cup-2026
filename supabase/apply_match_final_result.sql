@@ -39,6 +39,10 @@ BEGIN
         RETURN jsonb_build_object('error', 'not_authorized');
       END IF;
 
+      IF p_match_id IS NULL OR trim(p_match_id) = '' THEN
+        RETURN jsonb_build_object('error', 'match_id_required');
+      END IF;
+
       UPDATE public.matches
       SET
         home_score = greatest(0, p_home_score),

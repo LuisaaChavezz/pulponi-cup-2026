@@ -37,6 +37,13 @@ export function buildFinalResultPatch(homeScore, awayScore) {
   };
 }
 
+/** ID estable de partido para RPC / pick_scores (uuid u official_id). */
+export function normalizeMatchId(matchId) {
+  const id = String(matchId ?? '').trim();
+  if (!id || id === 'undefined' || id === 'null') return '';
+  return id;
+}
+
 function isRpcMissing(error) {
   const msg = String(error?.message ?? error ?? '');
   const code = String(error?.code ?? '');
@@ -58,7 +65,8 @@ export async function applyMatchFinalResult(
   { matches = [], profiles } = {}
 ) {
   if (!client) client = supabase;
-  if (!matchId) return { error: 'match_id_required' };
+  const resolvedMatchId = normalizeMatchId(matchId);
+  if (!resolvedMatchId) return { error: 'match_id_required' };
 
   const home = Math.max(0, Math.round(Number(homeScore)));
   const away = Math.max(0, Math.round(Number(awayScore)));
@@ -67,7 +75,7 @@ export async function applyMatchFinalResult(
   }
 
   const { data: rpcData, error: rpcError } = await client.rpc('apply_match_final_result', {
-    p_match_id: String(matchId),
+    p_match_id: resolvedMatchId,
     p_home_score: home,
     p_away_score: away,
   });
@@ -84,16 +92,19 @@ export async function applyMatchFinalResult(
   }
 
   const patch = buildFinalResultPatch(home, away);
-  const { error: updateError } = await client.from('matches').update(patch).eq('id', matchId);
+  const { error: updateError } = await client
+    .from('matches')
+    .update(patch)
+    .eq('id', resolvedMatchId);
   if (updateError) {
     console.warn('[matchScoring] match update', updateError.message);
     return { error: updateError.message };
   }
 
-  const scoreResult = await scoreAllFinishedMatches(client, { matches, profiles });
+  const scoreResult = await scoreFinishedMatchesByIds(client, [resolvedMatchId]);
   return {
     ...scoreResult,
-    match_id: String(matchId),
+    match_id: resolvedMatchId,
     home_score: home,
     away_score: away,
     via: 'fallback',

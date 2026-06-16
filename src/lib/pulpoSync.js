@@ -118,9 +118,11 @@ export async function syncAllPulpoIndexes(client, { matches, profiles, pickScore
  */
 export async function runScoringAndPulpoPipeline(
   client = supabase,
-  { matches, profiles, captureRanking = true } = {}
+  { matches, profiles, captureRanking = true, skipScoring = false } = {}
 ) {
-  const scoreResult = await scoreAllFinishedMatches(client, { matches });
+  const scoreResult = skipScoring
+    ? { skipped: true, scored_matches: 0, scored_picks: 0 }
+    : await scoreAllFinishedMatches(client, { matches });
 
   const profileColumns =
     'id, username, name, photo_url, points, exacts, streak, picks, pulpo_index, pulpo_stats';
