@@ -1,7 +1,7 @@
 function isRenderableImageIcon(value) {
   return (
     typeof value === 'string' &&
-    (value.startsWith('http') || value.startsWith('/') || value.startsWith('data:image'))
+    (value.startsWith('http') || value.startsWith('/') || value.startsWith('data:'))
   );
 }
 
@@ -19,20 +19,21 @@ export default function BadgeIcon({
   size = 40,
 }) {
   const badgeName = name || alt;
-  const resolvedIcon = pickImageIcon(icon, iconSrc) ?? iconSrc ?? icon;
+  const badge = { icon: pickImageIcon(icon, iconSrc) ?? iconSrc ?? icon, name: badgeName };
 
-  const content = isRenderableImageIcon(resolvedIcon) ? (
-    <img
-      src={resolvedIcon}
-      alt={badgeName || 'Badge'}
-      className="badge-icon-img"
-      style={{ width: `${size}px`, height: `${size}px`, objectFit: 'contain' }}
-      loading="lazy"
-      decoding="async"
-    />
-  ) : (
-    <span className="badge-emoji">{resolvedIcon}</span>
-  );
+  const content =
+    badge.icon?.startsWith('http') || badge.icon?.startsWith('data:') || badge.icon?.startsWith('/') ? (
+      <img
+        src={badge.icon}
+        alt={badge.name || 'Badge'}
+        className="badge-icon-img"
+        style={{ width: `${size}px`, height: `${size}px`, objectFit: 'contain' }}
+        loading="lazy"
+        decoding="async"
+      />
+    ) : (
+      <span className="badge-emoji">{badge.icon}</span>
+    );
 
   if (className) {
     return <span className={className}>{content}</span>;
