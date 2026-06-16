@@ -1,12 +1,3 @@
-import { isBadgeImageIcon } from '../data/achievements';
-
-function resolveBadgeImageSrc(icon, iconSrc) {
-  if (iconSrc) return iconSrc;
-  if (typeof icon !== 'string' || !icon) return null;
-  if (icon.startsWith('http') || isBadgeImageIcon(icon)) return icon;
-  return null;
-}
-
 export default function BadgeIcon({
   badgeId = null,
   name = '',
@@ -15,24 +6,21 @@ export default function BadgeIcon({
   alt = '',
   className = '',
 }) {
-  const lookupName = name || alt;
-  const src = resolveBadgeImageSrc(icon, iconSrc);
+  const badge = { icon: iconSrc ?? icon, name: name || alt };
 
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={lookupName || 'Badge'}
-        className={['badge-icon-img', className].filter(Boolean).join(' ')}
-        loading="lazy"
-        decoding="async"
-      />
-    );
+  const content = badge.icon?.startsWith('http') ? (
+    <img
+      src={badge.icon}
+      alt={badge.name}
+      style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+    />
+  ) : (
+    <span>{badge.icon}</span>
+  );
+
+  if (className) {
+    return <span className={className}>{content}</span>;
   }
 
-  return (
-    <span className={['badge-emoji', className].filter(Boolean).join(' ')} aria-hidden>
-      {icon ?? null}
-    </span>
-  );
+  return content;
 }
