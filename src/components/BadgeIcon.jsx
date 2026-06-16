@@ -1,7 +1,7 @@
 function isRenderableImageIcon(value) {
   return (
     typeof value === 'string' &&
-    (value.startsWith('http') || value.startsWith('/') || value.startsWith('data:'))
+    (value.startsWith('http') || badge.icon?.startsWith('data:') || value.startsWith('/') || value.startsWith('data:'))
   );
 }
 
@@ -22,7 +22,7 @@ export default function BadgeIcon({
   const badge = { icon: pickImageIcon(icon, iconSrc) ?? iconSrc ?? icon, name: badgeName };
 
   const content =
-    badge.icon?.startsWith('http') || badge.icon?.startsWith('data:') || badge.icon?.startsWith('/') ? (
+    badge.icon?.startsWith('http') || badge.icon?.startsWith('data:') || badge.icon?.startsWith('data:') || badge.icon?.startsWith('/') ? (
       <img
         src={badge.icon}
         alt={badge.name || 'Badge'}
