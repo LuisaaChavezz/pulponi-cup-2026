@@ -58,6 +58,14 @@ export const ACHIEVEMENT_CATALOG = [
     active: true,
   },
   {
+    id: 'el-elegido',
+    name: 'El Elegido',
+    icon: '🔱',
+    description: 'El pulpo eligió al mejor. Defiéndelo o piérdelo.',
+    requirement: 'Ser elegido por el pulpo como el mejor del ranking.',
+    active: true,
+  },
+  {
     id: 'pick-salvaje',
     name: 'Pick Salvaje',
     icon: '⚡',

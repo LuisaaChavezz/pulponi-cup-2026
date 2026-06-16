@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "seed:fifa": "node scripts/seed-fifa-provisional.mjs",
     "sync:matches": "npx vite-node scripts/sync-matches-api.mjs",
-    "sync:worldcup": "npx vite-node scripts/sync-worldcup.mjs"
+    "sync:worldcup": "npx vite-node scripts/sync-worldcup.mjs",
+    "recompute:pulpo": "npx vite-node scripts/recompute-pulpo-indexes.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0",

@@ -248,6 +248,11 @@ export async function scoreFinishedMatchesByIds(client, matchIds) {
     if (streakErr && !isRpcMissing(streakErr)) {
       console.warn('[scoring] recompute_profile_streaks', streakErr.message);
     }
+
+    const { error: pulpoErr } = await client.rpc('recompute_all_pulpo_indexes');
+    if (pulpoErr && !isRpcMissing(pulpoErr)) {
+      console.warn('[scoring] recompute_all_pulpo_indexes', pulpoErr.message);
+    }
   }
 
   return { scored_matches: scoredMatches, scored_picks: scoredPicks, fallback: false };

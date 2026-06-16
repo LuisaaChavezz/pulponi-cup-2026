@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { resolveAvatarUrl } from '../lib/avatars';
-import { runScoringAndPulpoPipeline } from '../lib/pulpoSync';
+import { runScoringAndPulpoPipeline, refreshPulpoIndexesAfterPickScores } from '../lib/pulpoSync';
 import { applyMatchFinalResult } from '../lib/matchScoring';
 import { canAdminExportPredictions } from '../lib/predictionActivity';
 import { isMatchFinished } from '../lib/matchUtils';
@@ -1009,9 +1009,14 @@ export function useAppData(session) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pick_scores' },
         () => {
-          void loadRankingRef.current?.();
-          void loadProfileRef.current?.();
-          void syncAchievementsForProfilesRef.current?.();
+          void (async () => {
+            const refresh = await refreshPulpoIndexesAfterPickScores(supabase, {
+              matches: matchesRef.current,
+            });
+            void loadRankingRef.current?.();
+            void loadProfileRef.current?.();
+            void syncAchievementsForProfilesRef.current?.(refresh?.profiles);
+          })();
         }
       )
       .subscribe();

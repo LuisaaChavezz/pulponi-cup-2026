@@ -105,6 +105,9 @@ BEGIN
         PERFORM public._recompute_profiles_from_pick_scores(affected_profiles);
         IF p_recompute_streaks THEN
           PERFORM public.recompute_profile_streaks();
+          IF to_regprocedure('public.recompute_all_pulpo_indexes()') IS NOT NULL THEN
+            PERFORM public.recompute_all_pulpo_indexes();
+          END IF;
         END IF;
       END IF;
 
@@ -146,6 +149,9 @@ BEGIN
 
       IF scored_picks > 0 THEN
         PERFORM public.recompute_profile_streaks();
+        IF to_regprocedure('public.recompute_all_pulpo_indexes()') IS NOT NULL THEN
+          PERFORM public.recompute_all_pulpo_indexes();
+        END IF;
       END IF;
 
       RETURN jsonb_build_object(

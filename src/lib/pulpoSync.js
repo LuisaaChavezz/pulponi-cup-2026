@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { computePulpoDerivedStats } from './pulpoIndex';
+import { computePulpoDerivedStats, getPulpoLevel } from './pulpoIndex';
 import {
   applyPerformanceStatsToProfiles,
   buildPerformanceStatsByProfile,
@@ -23,19 +23,54 @@ async function loadPickScoresForPulpo(client) {
 }
 
 /**
- * Calcula índice Pulpo para todos los perfiles con picks y lo persiste (RPC batch).
+ * Recalcula pulpo_index en Supabase (RPC batch). Fallback: syncAllPulpoIndexes en cliente.
+ */
+export async function recomputeAllPulpoIndexes(client) {
+  const { data, error } = await client.rpc('recompute_all_pulpo_indexes');
+
+  if (!error) {
+    return { updated: Number(data ?? 0), fallback: false };
+  }
+
+  if (isRpcMissing(error)) {
+    return null;
+  }
+
+  console.warn('[pulpoSync] RPC recompute_all_pulpo_indexes', error.message);
+  return { updated: 0, error: error.message, fallback: false };
+}
+
+function buildPulpoStatsPayload(stats) {
+  return {
+    level: stats.level.slug,
+    title: stats.level.title,
+    exactTerm: stats.exactTerm,
+    winnerTerm: stats.winnerTerm,
+    streakTerm: stats.streakTerm,
+    totalPicks: stats.totalPicks,
+    exacts: stats.exacts,
+    winners: stats.winners,
+    streak: stats.streak,
+    raw: stats.raw,
+    computed_at: new Date().toISOString(),
+  };
+}
+
+/**
+ * Calcula índice Pulpo para perfiles con pick_scores y lo persiste (RPC batch).
  */
 export async function syncAllPulpoIndexes(client, { matches, profiles, pickScoreRows: pickScoreRowsInput }) {
   const pickScoreRows = pickScoreRowsInput ?? (await loadPickScoresForPulpo(client));
   const statsByProfileId = buildPerformanceStatsByProfile(pickScoreRows, matches);
+  const profileById = new Map((profiles ?? []).map((prof) => [String(prof.id), prof]));
   const updates = [];
 
-  for (const prof of profiles ?? []) {
-    if (!prof?.id) continue;
-    const picks = prof.picks && typeof prof.picks === 'object' ? prof.picks : {};
-    if (!Object.keys(picks).length) continue;
+  for (const [profileId, performanceStats] of statsByProfileId) {
+    if (!performanceStats?.predicted) continue;
 
-    const performanceStats = statsByProfileId.get(String(prof.id));
+    const prof = profileById.get(profileId);
+    if (!prof) continue;
+
     const stats = computePulpoDerivedStats({
       profile: prof,
       performanceStats,
@@ -44,19 +79,7 @@ export async function syncAllPulpoIndexes(client, { matches, profiles, pickScore
     updates.push({
       profile_id: prof.id,
       pulpo_index: stats.index,
-      pulpo_stats: {
-        level: stats.level.slug,
-        title: stats.level.title,
-        exactTerm: stats.exactTerm,
-        winnerTerm: stats.winnerTerm,
-        streakTerm: stats.streakTerm,
-        totalPicks: stats.totalPicks,
-        exacts: stats.exacts,
-        winners: stats.winners,
-        streak: stats.streak,
-        raw: stats.raw,
-        computed_at: new Date().toISOString(),
-      },
+      pulpo_stats: buildPulpoStatsPayload(stats),
     });
   }
 
@@ -107,11 +130,19 @@ export async function runScoringAndPulpoPipeline(
 
   const pickScoreRows = await loadPickScoresForPulpo(client);
 
-  const pulpoResult = await syncAllPulpoIndexes(client, {
-    matches,
-    profiles: profilesForReturn,
-    pickScoreRows,
-  });
+  let pulpoResult = await recomputeAllPulpoIndexes(client);
+  if (pulpoResult == null) {
+    pulpoResult = await syncAllPulpoIndexes(client, {
+      matches,
+      profiles: profilesForReturn,
+      pickScoreRows,
+    });
+  }
+
+  const { data: afterPulpo } = await client.from('profiles').select(profileColumns);
+  if (afterPulpo?.length) {
+    profilesForReturn = afterPulpo;
+  }
 
   const statsByProfileId = buildPerformanceStatsByProfile(pickScoreRows, matches);
   profilesForReturn = applyPerformanceStatsToProfiles(profilesForReturn, statsByProfileId).map(
@@ -121,17 +152,14 @@ export async function runScoringAndPulpoPipeline(
         profile,
         performanceStats: perf,
       });
-      return { ...profile, pulpo_index: pulpoStats.index, pulpo_stats: profile.pulpo_stats ?? {} };
+      const level = getPulpoLevel(profile.pulpo_index ?? pulpoStats.index);
+      return {
+        ...profile,
+        pulpo_index: Number(profile.pulpo_index ?? pulpoStats.index),
+        pulpo_stats: profile.pulpo_stats?.computed_at ? profile.pulpo_stats : buildPulpoStatsPayload(pulpoStats),
+      };
     }
   );
-
-  const { data: afterPulpo } = await client.from('profiles').select(profileColumns);
-  if (afterPulpo?.length) {
-    profilesForReturn = afterPulpo.map((row) => {
-      const local = profilesForReturn.find((p) => p.id === row.id);
-      return local ? { ...row, pulpo_index: local.pulpo_index } : row;
-    });
-  }
 
   let rankingCaptured = false;
   if (captureRanking) {
@@ -150,4 +178,26 @@ export async function runScoringAndPulpoPipeline(
     rankingCaptured,
     profiles: profilesForReturn,
   };
+}
+
+/**
+ * Tras cambios en pick_scores (realtime): recalcula índices y devuelve perfiles actualizados.
+ */
+export async function refreshPulpoIndexesAfterPickScores(client = supabase, { matches } = {}) {
+  const profileColumns =
+    'id, username, name, photo_url, points, exacts, streak, picks, pulpo_index, pulpo_stats';
+
+  let pulpoResult = await recomputeAllPulpoIndexes(client);
+  if (pulpoResult == null) {
+    const { data: profiles } = await client.from('profiles').select(profileColumns);
+    const pickScoreRows = await loadPickScoresForPulpo(client);
+    pulpoResult = await syncAllPulpoIndexes(client, {
+      matches,
+      profiles: profiles ?? [],
+      pickScoreRows,
+    });
+  }
+
+  const { data: profiles } = await client.from('profiles').select(profileColumns);
+  return { pulpo: pulpoResult, profiles: profiles ?? [] };
 }

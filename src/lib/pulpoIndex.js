@@ -19,7 +19,8 @@ export function getPulpoLevel(index) {
 }
 
 /**
- * Índice Pulpo desde pick_scores:
+ * Índice Pulpo:
+ * exactos/ganadores/total desde pick_scores; racha_actual = profiles.streak
  * ROUND((exactos/total×100×0.5) + (ganadores/total×100×0.3) + LEAST(racha×5, 20))
  */
 export function computePulpoIndexFromPickScores({
@@ -59,7 +60,7 @@ export function computePulpoDerivedStats({
   const exacts = Number(fromPickScores ? performanceStats.exacts : profile?.exacts ?? 0);
   const winners = Number(fromPickScores ? performanceStats.correctResults : 0);
   const totalPicks = Number(fromPickScores ? performanceStats.predicted : 0);
-  const streak = Number(fromPickScores ? performanceStats.streak : profile?.streak ?? 0);
+  const streak = Number(profile?.streak ?? 0);
 
   const exactTerm =
     totalPicks > 0 ? Math.round((exacts / totalPicks) * 100 * PULPO_INDEX_WEIGHTS.exactRate) : 0;

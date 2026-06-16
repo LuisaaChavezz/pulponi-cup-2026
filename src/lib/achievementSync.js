@@ -243,8 +243,9 @@ function enrichProfilesForAchievementEval(profiles, pickScoreRows, matchRows, co
       profile,
       performanceStats: perf,
     });
-    pulpoIndexByProfileId.set(String(profile.id), pulpoStats.index);
-    return { ...profile, pulpo_index: pulpoStats.index };
+    const pulpoIndex = Number(profile.pulpo_index ?? pulpoStats.index);
+    pulpoIndexByProfileId.set(String(profile.id), pulpoIndex);
+    return { ...profile, pulpo_index: pulpoIndex };
   });
 
   return { profiles: enriched, statsByProfileId, pulpoIndexByProfileId };
@@ -342,19 +343,19 @@ export async function loadUserAchievementIds(client, userId) {
 export async function loadAchievementCatalog(client) {
   const { data, error } = await client
     .from('badges')
-    .select('id, name, description, icon')
-    .order('id', { ascending: true });
+    .select('id, name, description, icon, requirement_text, active, sort_order')
+    .order('sort_order', { ascending: true });
 
   if (error || !data?.length) return null;
   return data.map((row) => {
     const staticDef = ACHIEVEMENT_CATALOG.find((a) => a.id === row.id);
     return {
       id: row.id,
-      name: row.name,
+      name: row.name ?? staticDef?.name ?? row.id,
       icon: row.icon ?? staticDef?.icon ?? '🏆',
       description: row.description ?? staticDef?.description ?? '',
-      requirement: staticDef?.requirement ?? '',
-      active: staticDef?.active !== false,
+      requirement: staticDef?.requirement ?? row.requirement_text ?? '',
+      active: staticDef?.active ?? row.active !== false,
     };
   });
 }

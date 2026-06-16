@@ -75,6 +75,10 @@ BEGIN
 
       PERFORM public.recompute_profile_streaks();
 
+      IF to_regprocedure('public.recompute_all_pulpo_indexes()') IS NOT NULL THEN
+        PERFORM public.recompute_all_pulpo_indexes();
+      END IF;
+
       RETURN jsonb_build_object(
         'scored_matches', scored_matches,
         'scored_picks', scored_picks
