@@ -208,14 +208,26 @@ export function getAchievementById(id) {
 }
 
 /** Nombre, icono y descripción para UI: el catálogo estático gana sobre Supabase. */
+function asBadgeLabel(value, fallback = '') {
+  if (value == null) return fallback;
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  return fallback;
+}
+
 export function resolveBadgePresentation(badgeId, dbBadge = null, catalog = ACHIEVEMENT_CATALOG) {
   const staticDef = getAchievementById(badgeId);
   const fromCatalog = catalog?.find((a) => a.id === badgeId) ?? staticDef;
   const remote = dbBadge && typeof dbBadge === 'object' ? dbBadge : null;
   return {
-    name: staticDef?.name ?? fromCatalog?.name ?? remote?.name ?? badgeId,
-    icon: staticDef?.icon ?? fromCatalog?.icon ?? remote?.icon ?? '🏆',
-    description: staticDef?.description ?? fromCatalog?.description ?? remote?.description ?? '',
+    name: asBadgeLabel(
+      staticDef?.name ?? fromCatalog?.name ?? remote?.name,
+      asBadgeLabel(badgeId, 'Logro')
+    ),
+    icon: asBadgeLabel(staticDef?.icon ?? fromCatalog?.icon ?? remote?.icon, '🏆'),
+    description: asBadgeLabel(
+      staticDef?.description ?? fromCatalog?.description ?? remote?.description,
+      ''
+    ),
   };
 }
 

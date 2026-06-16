@@ -250,6 +250,21 @@ export default function App() {
     achievementCatalog,
   });
 
+  const sessionUserId = session?.user?.id ?? null;
+  const isAdmin = Boolean(data.profile?.is_admin);
+  const { rows: sessionUserBadgeRows } = useProfileUserBadges(sessionUserId);
+  const elegidoTransferAlerts = useElegidoTransferAlerts({
+    enabled: Boolean(sessionUserId),
+    isAdmin,
+  });
+
+  const visiblePendingUnlock = useMemo(() => {
+    const badgeId = data.pendingUnlock?.badgeId;
+    if (!badgeId || !sessionUserId) return null;
+    if (isNotificationDismissed(badgeUnlockNotificationKey(sessionUserId, badgeId))) return null;
+    return data.pendingUnlock;
+  }, [data.pendingUnlock, sessionUserId]);
+
   useEffect(() => {
     console.log('[WORLD CUP MATCHES]', worldCupMatches.length);
   }, [worldCupMatches]);
@@ -600,21 +615,6 @@ export default function App() {
     String(profile?.username ?? '').replace(/^@+/, '').trim() ||
     'Jugador';
   const avatarUrl = resolveAvatarUrl(profile?.photo_url);
-
-  const sessionUserId = session?.user?.id ?? null;
-  const isAdmin = Boolean(data.profile?.is_admin);
-  const { rows: sessionUserBadgeRows } = useProfileUserBadges(sessionUserId);
-  const elegidoTransferAlerts = useElegidoTransferAlerts({
-    enabled: Boolean(sessionUserId),
-    isAdmin,
-  });
-
-  const visiblePendingUnlock = useMemo(() => {
-    const badgeId = data.pendingUnlock?.badgeId;
-    if (!badgeId || !sessionUserId) return null;
-    if (isNotificationDismissed(badgeUnlockNotificationKey(sessionUserId, badgeId))) return null;
-    return data.pendingUnlock;
-  }, [data.pendingUnlock, sessionUserId]);
 
   const unlockedAchievementIds = getUnlockedBadgeIdsFromRows(sessionUserBadgeRows, sessionUserId);
   const myBadges = buildUnlockedBadgesForProfile(
