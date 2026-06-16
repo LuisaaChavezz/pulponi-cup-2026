@@ -36,36 +36,98 @@ function pickHistoryStatusFromScore(ps) {
   return { status: 'Falló', statusClass: 'miss' };
 }
 
-async function ensureMatchesForPicks(client, profile, matches) {
-  const picks = pickMap(profile);
-  const keys = Object.keys(picks);
-  if (!keys.length) return matches ?? [];
-
-  const index = matchesById(matches);
-  const missing = keys.filter((key) => !index.has(String(key)));
-  if (!missing.length) return matches ?? [];
-
-  const extra = [];
-  const byId = await safeQuery(
-    client.from('matches').select('*').in('id', missing),
-    'matches by id for pick history'
+function lookupPickScore(matchId, match, scoreByMatch) {
+  return (
+    scoreByMatch.get(String(matchId)) ??
+    (match?.id != null ? scoreByMatch.get(String(match.id)) : null) ??
+    (match?.official_id ? scoreByMatch.get(String(match.official_id)) : null)
   );
-  if (Array.isArray(byId)) extra.push(...byId);
+}
 
-  const foundKeys = new Set(extra.flatMap((m) => [String(m.id), m.official_id ? String(m.official_id) : null].filter(Boolean)));
-  const stillMissing = missing.filter((key) => !foundKeys.has(String(key)));
-  if (stillMissing.length) {
-    const byOfficial = await safeQuery(
-      client.from('matches').select('*').in('official_id', stillMissing),
-      'matches by official_id for pick history'
-    );
-    if (Array.isArray(byOfficial)) extra.push(...byOfficial);
+const MATCH_HISTORY_COLUMNS =
+  'id, official_id, home_team, away_team, kickoff, status, api_status, home_score, away_score';
+
+/** Carga partidos desde Supabase para historial (no depende del catálogo en memoria). */
+async function loadMatchesForProfileHistory(client, profile, pickScoreRows, cachedMatches = []) {
+  const wanted = new Set();
+  for (const key of Object.keys(pickMap(profile))) {
+    if (key) wanted.add(String(key));
+  }
+  for (const row of pickScoreRows ?? []) {
+    if (row?.match_id != null) wanted.add(String(row.match_id));
   }
 
-  if (!extra.length) return matches ?? [];
-  const merged = new Map((matches ?? []).map((m) => [String(m.id), m]));
-  for (const row of extra) merged.set(String(row.id), row);
-  return [...merged.values()];
+  const byKey = new Map();
+  for (const m of cachedMatches ?? []) {
+    if (m?.id != null) byKey.set(String(m.id), m);
+    if (m?.official_id) byKey.set(String(m.official_id), m);
+  }
+
+  const missing = [...wanted].filter((id) => !byKey.has(id));
+  const CHUNK = 80;
+
+  for (let i = 0; i < missing.length; i += CHUNK) {
+    const chunk = missing.slice(i, i + CHUNK);
+    const byId = await safeQuery(
+      client.from('matches').select(MATCH_HISTORY_COLUMNS).in('id', chunk),
+      'matches.id for history',
+      null
+    );
+    if (Array.isArray(byId)) {
+      for (const m of byId) {
+        byKey.set(String(m.id), m);
+        if (m.official_id) byKey.set(String(m.official_id), m);
+      }
+    }
+
+    const stillMissing = chunk.filter((id) => !byKey.has(id));
+    if (!stillMissing.length) continue;
+
+    const byOfficial = await safeQuery(
+      client.from('matches').select(MATCH_HISTORY_COLUMNS).in('official_id', stillMissing),
+      'matches.official_id for history',
+      null
+    );
+    if (Array.isArray(byOfficial)) {
+      for (const m of byOfficial) {
+        byKey.set(String(m.id), m);
+        if (m.official_id) byKey.set(String(m.official_id), m);
+      }
+    }
+  }
+
+  const unique = new Map();
+  for (const m of byKey.values()) {
+    if (m?.id != null) unique.set(String(m.id), m);
+  }
+  return [...unique.values()];
+}
+
+async function loadProfileRow(client, profileId) {
+  const fromView = await client
+    .from(LEADERBOARD_SOURCE)
+    .select(LEADERBOARD_PUBLIC_COLUMNS)
+    .eq('id', profileId)
+    .maybeSingle();
+
+  if (!fromView.error && fromView.data) return fromView.data;
+
+  if (fromView.error) {
+    console.warn('[loadPublicProfile] ranking_leaderboard', fromView.error.message);
+  }
+
+  const fromProfiles = await client
+    .from('profiles')
+    .select(LEADERBOARD_PUBLIC_COLUMNS)
+    .eq('id', profileId)
+    .maybeSingle();
+
+  if (fromProfiles.error) {
+    console.warn('[loadPublicProfile] profiles', fromProfiles.error.message);
+    return null;
+  }
+
+  return fromProfiles.data ?? null;
 }
 
 const EMPTY_STATS = {
@@ -174,11 +236,9 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
       const match = matchIndex.get(String(matchId));
       if (!match) continue;
 
-      const ps =
-        scoreByMatch.get(String(matchId)) ??
-        scoreByMatch.get(String(match.id)) ??
-        (match.official_id ? scoreByMatch.get(String(match.official_id)) : null);
-      const hasResult = matchHasFinalScore(match);
+      const ps = lookupPickScore(matchId, match, scoreByMatch);
+      const hasScoring = Boolean(ps);
+      const hasResult = matchHasFinalScore(match) || hasScoring;
       const revealed = isProfilePickRevealed(match);
       const matchStatus = uiStatus(match.status, match.api_status);
       const scored = pickHistoryStatusFromScore(ps);
@@ -187,15 +247,13 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
       let statusClass = 'pending';
       let points = null;
 
-      if (hasResult) {
-        if (scored) {
-          status = scored.status;
-          statusClass = scored.statusClass;
-          points = Number(ps.points_awarded ?? 0);
-        } else {
-          status = 'Final';
-          statusClass = 'finished';
-        }
+      if (hasScoring && scored) {
+        status = scored.status;
+        statusClass = scored.statusClass;
+        points = Number(ps.points_awarded ?? 0);
+      } else if (hasResult) {
+        status = 'Final';
+        statusClass = 'finished';
       } else if (revealed) {
         status = matchStatus;
         statusClass = 'pending';
@@ -214,11 +272,12 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
         matchStatus,
         pickRevealed: revealed,
         hasResult,
+        hasScoring,
         prediction: `${pick.home}–${pick.away}`,
         finalResult: formatFinalScoreLabel(match),
         points,
-        status: revealed || hasResult ? status : 'Próximo',
-        statusClass: revealed || hasResult ? statusClass : 'locked',
+        status,
+        statusClass,
       });
     }
 
@@ -323,40 +382,31 @@ export async function loadPublicProfile(
   if (!profileId || !client) return null;
 
   try {
-    const profileRes = await client
-      .from(LEADERBOARD_SOURCE)
-      .select(LEADERBOARD_PUBLIC_COLUMNS)
-      .eq('id', profileId)
-      .maybeSingle();
+    const profile = await loadProfileRow(client, profileId);
+    if (!profile) return null;
 
-    if (profileRes.error || !profileRes.data) {
-      console.warn('[loadPublicProfile]', profileRes.error?.message ?? 'not found');
-      return null;
-    }
+    const pickScoreRows = await safeQuery(
+      client
+        .from('pick_scores')
+        .select('match_id, points_awarded, exact_hit, winner_hit, scored_at')
+        .eq('profile_id', profileId),
+      'pick_scores'
+    );
 
-    const profile = profileRes.data;
-    const matchesForHistory = await ensureMatchesForPicks(client, profile, matches);
-
-    const [
-      allProfilesRows,
+    const matchesForHistory = await loadMatchesForProfileHistory(
+      client,
+      profile,
       pickScoreRows,
-      userBadgeRows,
-      historyRows,
-      activityRows,
-    ] = await Promise.all([
+      matches
+    );
+
+    const [allProfilesRows, userBadgeRows, historyRows, activityRows] = await Promise.all([
       safeQuery(
         client
           .from(LEADERBOARD_SOURCE)
           .select('id, username, name, photo_url, points, exacts, streak')
           .order('points', { ascending: false }),
         'ranking_leaderboard'
-      ),
-      safeQuery(
-        client
-          .from('pick_scores')
-          .select('match_id, points_awarded, exact_hit, winner_hit, scored_at')
-          .eq('profile_id', profileId),
-        'pick_scores'
       ),
       loadUserBadges(client, profileId),
       safeQuery(
@@ -412,7 +462,11 @@ export async function loadPublicProfile(
 
     let pulpoStats = null;
     try {
-      const performanceStats = getPerformanceStatsForProfile(profileId, pickScoreRows ?? [], matches);
+      const performanceStats = getPerformanceStatsForProfile(
+        profileId,
+        pickScoreRows ?? [],
+        matchesForHistory
+      );
       pulpoStats = computePulpoDerivedStats({
         profile: profileWithScores,
         performanceStats,
@@ -421,10 +475,16 @@ export async function loadPublicProfile(
       console.warn('[loadPublicProfile] pulpoStats', e?.message ?? e);
     }
 
+    const dbPulpoIndex = Number(profile?.pulpo_index ?? 0);
+    const resolvedPulpoIndex =
+      dbPulpoIndex > 0
+        ? dbPulpoIndex
+        : Number(pulpoStats?.index ?? stats.pulpoIndex ?? 0);
+
     return {
-      profile: profileWithScores,
+      profile: { ...profileWithScores, pulpo_index: resolvedPulpoIndex },
       rankingSummary,
-      stats: { ...stats, pulpoIndex: pulpoStats?.index ?? stats.pulpoIndex ?? 0 },
+      stats: { ...stats, pulpoIndex: resolvedPulpoIndex },
       pickHistory: pickHistory ?? [],
       badges: badges ?? [],
       activity: activity ?? [],

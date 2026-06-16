@@ -145,8 +145,8 @@ export function ProfilePickHistory({ rows, emptyText = 'Todavía no hay predicci
         </div>
         {list.map((row) => {
           const revealed = isHistoryRowRevealed(row, now);
-          const showResult = Boolean(row.hasResult);
-          const statusClass = revealed || showResult ? row.statusClass : 'locked';
+          const showScores = Boolean(row.hasResult || row.hasScoring);
+          const statusClass = revealed || showScores ? row.statusClass : 'locked';
           return (
             <div
               key={row.matchId}
@@ -169,13 +169,13 @@ export function ProfilePickHistory({ rows, emptyText = 'Todavía no hay predicci
                 </span>
               )}
               <span className="profile-page-history__mono">
-                {showResult ? row.finalResult : '—'}
+                {showScores ? row.finalResult : '—'}
               </span>
               <span className="profile-page-history__pts">
-                {showResult && row.points != null ? row.points : '—'}
+                {showScores && row.points != null ? row.points : '—'}
               </span>
               <span className={`profile-page-history__status profile-page-history__status--${statusClass}`}>
-                {revealed || showResult ? row.status : row.matchStatus ?? 'Próximo'}
+                {showScores ? row.status : revealed ? row.status : row.matchStatus ?? 'Próximo'}
               </span>
             </div>
           );

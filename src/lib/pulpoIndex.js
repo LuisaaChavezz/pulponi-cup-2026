@@ -54,7 +54,8 @@ export function computePulpoDerivedStats({
   profile,
   performanceStats = null,
 }) {
-  const fromPickScores = performanceStats != null && performanceStats.predicted != null;
+  const fromPickScores =
+    performanceStats != null && Number(performanceStats.predicted) > 0;
 
   const points = Number(fromPickScores ? performanceStats.points : profile?.points ?? 0);
   const exacts = Number(fromPickScores ? performanceStats.exacts : profile?.exacts ?? 0);

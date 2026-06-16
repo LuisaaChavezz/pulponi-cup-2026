@@ -53,9 +53,11 @@ export default function ProfilePage({
           username={profile?.username ?? displayUser.replace('@', '')}
           displayName={displayName}
           rank={myCurrentRank}
-          points={profile?.points ?? 0}
-          exacts={profile?.exacts ?? 0}
-          streak={profile?.streak ?? 0}
+          points={myProfileExtras.stats?.points ?? profile?.points ?? 0}
+          exacts={myProfileExtras.stats?.exacts ?? profile?.exacts ?? 0}
+          pulpoIndex={myProfileExtras.stats?.pulpoIndex ?? profile?.pulpo_index ?? 0}
+          showPulpoIndex
+          streak={myProfileExtras.stats?.currentStreak ?? profile?.streak ?? 0}
           verified
           uploadLabel="Subir foto"
           onUpload={onAvatarUpload}
