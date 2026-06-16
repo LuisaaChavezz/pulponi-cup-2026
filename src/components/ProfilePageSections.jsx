@@ -77,10 +77,12 @@ export function ProfileBadgesList({ badges, emptyText = 'Sin badges desbloqueado
       {badges.map((b) => {
         const isImageIcon =
           typeof b.icon === 'string' &&
-          (b.icon.startsWith('http') || b.icon.startsWith('/'));
+          (b.icon.startsWith('http') || b.icon.startsWith('/') || b.icon.startsWith('data:image'));
         const isImageIconSrc =
           typeof b.iconSrc === 'string' &&
-          (b.iconSrc.startsWith('http') || b.iconSrc.startsWith('/'));
+          (b.iconSrc.startsWith('http') ||
+            b.iconSrc.startsWith('/') ||
+            b.iconSrc.startsWith('data:image'));
 
         return (
         <li key={b.id} className="profile-page-badge-item">

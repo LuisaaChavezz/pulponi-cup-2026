@@ -1,5 +1,8 @@
 function isRenderableImageIcon(value) {
-  return typeof value === 'string' && (value.startsWith('http') || value.startsWith('/'));
+  return (
+    typeof value === 'string' &&
+    (value.startsWith('http') || value.startsWith('/') || value.startsWith('data:image'))
+  );
 }
 
 function pickImageIcon(...values) {
