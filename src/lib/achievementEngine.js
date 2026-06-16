@@ -1,8 +1,8 @@
 import { collectMatchPickScores, parsePickScore } from './communityPicks';
 import { buildRankedLeaderboard } from './rankingHistory';
-import { ACHIEVEMENT_CATALOG } from '../data/achievements';
+import { ACHIEVEMENT_CATALOG, getAutoGrantAchievements, isManualAchievement } from '../data/achievements';
 
-const ACTIVE_RULES = ACHIEVEMENT_CATALOG.filter((a) => a.active);
+const ACTIVE_RULES = getAutoGrantAchievements(ACHIEVEMENT_CATALOG);
 
 function resolvePerformanceStats(profile, statsByProfileId) {
   const derived = statsByProfileId?.get?.(String(profile?.id));
@@ -117,7 +117,7 @@ export function evaluateAchievementIdsForProfile(profile, context = {}) {
     earned.push(PULPO_FUTBOLERO_OFICIAL_ID);
   }
 
-  return earned.filter((id) => ACTIVE_RULES.some((a) => a.id === id));
+  return earned.filter((id) => ACTIVE_RULES.some((a) => a.id === id) && !isManualAchievement(id));
 }
 
 export function buildAchievementGrants(profiles, context, existingKeys = new Set()) {
@@ -127,6 +127,7 @@ export function buildAchievementGrants(profiles, context, existingKeys = new Set
     if (!profile?.id) continue;
     const earnedIds = evaluateAchievementIdsForProfile(profile, context);
     for (const badgeId of earnedIds) {
+      if (isManualAchievement(badgeId)) continue;
       const key = `${profile.id}:${badgeId}`;
       if (existingKeys.has(key)) continue;
       grants.push({ profile_id: profile.id, badge_id: badgeId });

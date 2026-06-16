@@ -29,6 +29,7 @@ export default function ProfilePage({
   sessionUserId,
   myProfileExtras,
   unlockedAchievementIds,
+  userBadgeRows,
   achievementCatalog,
   achievementsTotal,
   unlockedCount,
@@ -91,8 +92,9 @@ export default function ProfilePage({
 
           <ProfilePageCard title="Badges" meta={`${unlockedCount} / ${achievementsTotal}`}>
             <ProfileAchievementsStrip
-              unlockedIds={unlockedAchievementIds}
               catalog={achievementCatalog}
+              userBadgeRows={userBadgeRows}
+              profileId={sessionUserId}
               onViewAll={onViewAllAchievements}
             />
             <ProfileBadgesList badges={myBadges} />

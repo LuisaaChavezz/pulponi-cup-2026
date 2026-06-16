@@ -20,7 +20,7 @@ import {
   isPickLocked,
   pickInicioMatch,
 } from '../lib/matchUtils';
-import { collectMatchPickScores, buildCommunityGeneralInsights } from '../lib/communityPicks';
+import { ACTIVITY_TYPE_BADGE } from '../lib/recentActivityFeed';
 
 function formatUsername(row) {
   const name = String(row?.name ?? '').trim();
@@ -370,7 +370,8 @@ export default function HomeDashboard({
         ) : (
           <ul className="home-dash-activity home-dash-activity-scroll">
             {recentActivity.map((item) => {
-              const parts = parseActivityParts(item.text);
+              const isBadge = item.type === ACTIVITY_TYPE_BADGE;
+              const parts = isBadge ? null : parseActivityParts(item.text);
               return (
                 <li key={item.id}>
                   <button
@@ -378,20 +379,44 @@ export default function HomeDashboard({
                     className="home-dash-activity__row profile-link-btn"
                     onClick={() => onSelectUser?.(item.profile_id)}
                     disabled={!item.profile_id || !onSelectUser}
-                    aria-label={parts.match ? `Ver perfil: ${parts.action}` : `Ver perfil: ${parts.action}`}
+                    aria-label={
+                      isBadge
+                        ? `Ver perfil: ${item.username} desbloqueó ${item.badgeName}`
+                        : `Ver perfil: ${parts?.action ?? item.text}`
+                    }
                   >
-                    <UserAvatar avatarUrl={item.avatarUrl} variant="community" className="home-dash-activity__avatar" alt="" />
+                    {isBadge ? (
+                      <span className="home-dash-activity__badge-icon" aria-hidden>
+                        {item.badgeIcon}
+                      </span>
+                    ) : (
+                      <UserAvatar
+                        avatarUrl={item.avatarUrl}
+                        variant="community"
+                        className="home-dash-activity__avatar"
+                        alt=""
+                      />
+                    )}
                     <div className="home-dash-activity__copy">
-                      <p>
-                        <strong>{parts.action}</strong>
-                        {parts.match ? (
-                          <>
-                            {' '}
-                            — <span>{parts.match}</span>
-                          </>
-                        ) : null}
-                      </p>
-                      <time dateTime={item.at?.toISOString?.() ?? ''}>{formatRelativeTime(item.at, now)}</time>
+                      {isBadge ? (
+                        <p>
+                          <strong>{item.username}</strong> desbloqueó{' '}
+                          <strong>{item.badgeName}</strong>
+                        </p>
+                      ) : (
+                        <p>
+                          <strong>{parts.action}</strong>
+                          {parts.match ? (
+                            <>
+                              {' '}
+                              — <span>{parts.match}</span>
+                            </>
+                          ) : null}
+                        </p>
+                      )}
+                      <time dateTime={item.at?.toISOString?.() ?? ''}>
+                        {formatRelativeTime(item.at, now)}
+                      </time>
                     </div>
                   </button>
                 </li>

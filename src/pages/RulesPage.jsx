@@ -1,6 +1,10 @@
 import RulesBadgesSection from '../components/RulesBadgesSection';
 
-export default function RulesPage() {
+export default function RulesPage({
+  unlockedAchievementIds = null,
+  userBadgeRows = [],
+  profileId = null,
+}) {
   return (
     <>
       <div className="section-title">
@@ -84,7 +88,11 @@ export default function RulesPage() {
           </p>
         </details>
       </div>
-      <RulesBadgesSection />
+      <RulesBadgesSection
+        unlockedAchievementIds={unlockedAchievementIds}
+        userBadgeRows={userBadgeRows}
+        profileId={profileId}
+      />
     </>
   );
 }

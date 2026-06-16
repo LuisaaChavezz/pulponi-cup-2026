@@ -16,6 +16,8 @@ import {
   downloadMatchPredictionsPdf,
 } from '../lib/exportPredictions';
 import AdminMatchResultPanel from './AdminMatchResultPanel';
+import ElegidoAdminHistory from './ElegidoAdminHistory';
+import { ACTIVITY_TYPE_BADGE } from '../lib/recentActivityFeed';
 
 const PDF_ERROR_MSG = 'No se pudo generar el PDF.';
 
@@ -23,11 +25,24 @@ const PREDICTION_FEED_RECENT_COUNT = 5;
 
 function PredictionActivityItem({ item, onSelectUser }) {
   const profileId = item?.profile_id ?? item?.profileId ?? null;
+  const isBadge = item?.type === ACTIVITY_TYPE_BADGE;
   const content = (
     <>
-      <UserAvatar avatarUrl={item.avatarUrl} variant="chat" alt="" />
+      {isBadge ? (
+        <span className="dash-notifications__pred-badge-icon" aria-hidden>
+          {item.badgeIcon}
+        </span>
+      ) : (
+        <UserAvatar avatarUrl={item.avatarUrl} variant="chat" alt="" />
+      )}
       <div className="dash-notifications__pred-copy">
-        <p>{item?.text ?? 'Sin información todavía'}</p>
+        {isBadge ? (
+          <p>
+            <strong>{item.username}</strong> desbloqueó <strong>{item.badgeName}</strong>
+          </p>
+        ) : (
+          <p>{item?.text ?? 'Sin información todavía'}</p>
+        )}
         {item.at ? (
           <time dateTime={item.at.toISOString()}>{formatExportTime(item.at)}</time>
         ) : null}
@@ -64,6 +79,8 @@ export default function DashboardNotifications({
   onApplyFinalResult,
   onCreateImportantAlert,
   onSelectUser,
+  elegidoTransfers = [],
+  elegidoTransfersLoading = false,
 }) {
   const now = useKickoffClock(1000);
   const [title, setTitle] = useState('');
@@ -323,6 +340,10 @@ export default function DashboardNotifications({
         isAdmin={isAdmin}
         onApplyFinalResult={onApplyFinalResult}
       />
+
+      {isAdmin ? (
+        <ElegidoAdminHistory transfers={elegidoTransfers} loading={elegidoTransfersLoading} />
+      ) : null}
 
       <div className="dash-notifications__section dash-notifications__section--announcements dash-notifications-community-mobile-hide">
         <div className="dash-notifications__head">

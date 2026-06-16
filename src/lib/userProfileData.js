@@ -3,7 +3,7 @@ import { buildRankedLeaderboard, getProfileRankingSummary } from './rankingHisto
 import { LEADERBOARD_PUBLIC_COLUMNS, LEADERBOARD_SOURCE } from './leaderboardQuery';
 import { formatKickoff, isMatchFinished, isProfilePickRevealed, uiStatus } from './matchUtils';
 import { formatActivityLogMessage } from './activityMessages';
-import { getAchievementById } from '../data/achievements';
+import { filterUserBadgeRowsForProfile, resolveBadgePresentation } from '../data/achievements';
 import { computePulpoDerivedStats } from './pulpoIndex';
 import { aggregatePickScoreRowsForProfile, enrichProfilesWithPickScores, getPerformanceStatsForProfile } from './pickScoreStats';
 
@@ -48,20 +48,25 @@ async function loadUserBadges(client, profileId) {
   const withJoin = await safeQuery(
     client
       .from('user_badges')
-      .select('badge_id, earned_at, badges ( id, name, description, icon )')
+      .select('profile_id, badge_id, earned_at, badges ( id, name, description, icon )')
       .eq('profile_id', profileId)
       .order('earned_at', { ascending: false }),
     'user_badges'
   );
-  if (Array.isArray(withJoin)) return withJoin;
-  return safeQuery(
+  if (Array.isArray(withJoin)) {
+    return withJoin.filter((row) => String(row.profile_id) === String(profileId));
+  }
+  const fallback = await safeQuery(
     client
       .from('user_badges')
-      .select('badge_id, earned_at')
+      .select('profile_id, badge_id, earned_at')
       .eq('profile_id', profileId)
       .order('earned_at', { ascending: false }),
     'user_badges fallback'
   );
+  return Array.isArray(fallback)
+    ? fallback.filter((row) => String(row.profile_id) === String(profileId))
+    : fallback;
 }
 
 export function computeBestStreak(pickScoreRows, matchIndex) {
@@ -240,18 +245,21 @@ export function mapUserActivityRows(rows, profile, matchIndex) {
     .slice(0, 12);
 }
 
-export function mapUserBadges(userBadgeRows, achievementCatalog) {
-  return (userBadgeRows ?? []).map((row) => {
-    const badge = row.badges ?? getAchievementById(row.badge_id);
-    const fromCatalog = achievementCatalog?.find((a) => a.id === row.badge_id);
-    return {
-      id: row.badge_id,
-      icon: badge?.icon ?? fromCatalog?.icon ?? '🏆',
-      name: badge?.name ?? fromCatalog?.name ?? row.badge_id,
-      description: badge?.description ?? fromCatalog?.description ?? '',
-      earnedAt: row.earned_at,
-    };
-  });
+export function mapUserBadges(userBadgeRows, achievementCatalog, profileId = null) {
+  const rows = profileId
+    ? filterUserBadgeRowsForProfile(userBadgeRows, profileId)
+    : (userBadgeRows ?? []).filter((row) => row?.badge_id);
+
+  return rows.map((row) => {
+      const display = resolveBadgePresentation(row.badge_id, row.badges ?? null, achievementCatalog);
+      return {
+        id: row.badge_id,
+        icon: display.icon,
+        name: display.name,
+        description: display.description,
+        earnedAt: row.earned_at,
+      };
+    });
 }
 
 /**
@@ -344,7 +352,7 @@ export async function loadPublicProfile(
       rankingSummary
     );
     const pickHistory = buildPickHistoryRows(profileWithScores, pickScoreRows ?? [], matches, communityProfiles);
-    const badges = mapUserBadges(userBadgeRows ?? [], achievementCatalog);
+    const badges = mapUserBadges(userBadgeRows ?? [], achievementCatalog, profileId);
     const activity = mapUserActivityRows(activityRows ?? [], profile, matchIndex);
 
     let pulpoStats = null;

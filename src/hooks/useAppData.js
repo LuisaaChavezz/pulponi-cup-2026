@@ -9,12 +9,21 @@ import { syncWorldCupFixtures } from '../lib/footballApi';
 import { filterWorldCupMatches } from '../lib/worldCupScope';
 import { normalizeMatchRow, normalizeMatches } from '../lib/normalizeMatch';
 import { formatActivityLogMessage } from '../lib/activityMessages';
+import {
+  loadRecentBadgeUnlockActivity,
+  mapPredictionActivityRow,
+  mergeActivityFeedItems,
+} from '../lib/recentActivityFeed';
+import {
+  badgeUnlockNotificationKey,
+  dismissNotification,
+  isNotificationDismissed,
+} from '../lib/dismissedNotifications';
 import { fetchLeaderboardProfiles } from '../lib/leaderboardQuery';
 import { enrichProfileWithPickScores, enrichProfilesWithPickScores } from '../lib/pickScoreStats';
 import {
   buildPredictionPublicMessage,
   formatActivityDisplayName,
-  formatPredictionActivityMessage,
 } from '../lib/predictionActivity';
 
 /** Máximo de filas cargadas desde activity_log (recientes + historial en UI). */
@@ -24,6 +33,7 @@ import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 import {
   loadAchievementCatalog,
   loadUserAchievementIds,
+  loadUserBadgeRows,
   syncAllAchievements,
 } from '../lib/achievementSync';
 import { cacheGet, cacheSet, cacheInvalidate, cacheDelete } from '../lib/appCache';
@@ -144,6 +154,7 @@ export function useAppData(session) {
   const [communityProfiles, setCommunityProfiles] = useState([]);
   const [achievementCatalog, setAchievementCatalog] = useState(ACHIEVEMENT_CATALOG);
   const [userAchievementIds, setUserAchievementIds] = useState([]);
+  const [userBadgeRows, setUserBadgeRows] = useState([]);
   const [pendingUnlock, setPendingUnlock] = useState(null);
 
   const loadProfile = useCallback(async () => {
@@ -452,10 +463,9 @@ export function useAppData(session) {
       const catalog = await loadAchievementCatalog(supabase);
       if (catalog?.length) setAchievementCatalog(catalog);
 
-      const { data, error } = await supabase.from('badges').select(`
-      id, name, description, icon,
-      user_badges ( earned_at, profiles ( username, name ) )
-    `);
+      const { data, error } = await supabase
+        .from('badges')
+        .select('id, name, description, icon');
       if (error) {
         console.warn('[loadBadges]', error.message);
         return;
@@ -469,10 +479,12 @@ export function useAppData(session) {
   const refreshUserAchievements = useCallback(async () => {
     if (!userId) {
       setUserAchievementIds([]);
+      setUserBadgeRows([]);
       return;
     }
-    const ids = await loadUserAchievementIds(supabase, userId);
-    setUserAchievementIds(ids);
+    const rows = await loadUserBadgeRows(supabase, userId);
+    setUserBadgeRows(rows);
+    setUserAchievementIds(rows.map((row) => row.badge_id));
   }, [userId]);
 
   const syncAchievementsForProfiles = useCallback(
@@ -480,7 +492,7 @@ export function useAppData(session) {
       if (!userId) return null;
       const username = usernameOverride ?? profile?.username ?? null;
       console.log('INTENTANDO DESBLOQUEAR LOGROS', { userId, username });
-      const previous = new Set(userAchievementIds);
+      const previous = new Set(await loadUserAchievementIds(supabase, userId));
       const result = await syncAllAchievements(supabase, {
         profiles,
         communityProfiles: communityPickProfiles,
@@ -492,13 +504,17 @@ export function useAppData(session) {
 
       const fresh = await loadUserAchievementIds(supabase, userId);
       const newly = fresh.filter((id) => !previous.has(id));
-      if (newly.length) {
-        setPendingUnlock({ badgeId: newly[0] });
+      const firstNew = newly.find(
+        (badgeId) => !isNotificationDismissed(badgeUnlockNotificationKey(userId, badgeId))
+      );
+      if (firstNew) {
+        setPendingUnlock({ badgeId: firstNew });
         loadActivity();
+        void loadPredictionFeedsRef.current?.();
       }
       return result;
     },
-    [userId, profile?.username, userAchievementIds, communityPickProfiles, refreshUserAchievements, loadBadges, loadActivity]
+    [userId, profile?.username, communityPickProfiles, refreshUserAchievements, loadBadges, loadActivity]
   );
 
   const runScoringPipeline = useCallback(
@@ -701,20 +717,27 @@ export function useAppData(session) {
       return;
     }
     try {
-      const { data, error } = await timedQuery('predictionFeeds', () =>
-        supabase
-          .from('activity_log')
-          .select('profile_id, action, payload, created_at, profiles ( username, name, photo_url )')
-          .in('action', [
-            'prediction_created',
-            'prediction_updated',
-            'prediction_made',
-            'prediction_changed',
-          ])
-          .order('created_at', { ascending: false })
-          .limit(PREDICTION_ACTIVITY_QUERY_LIMIT)
-      );
+      const matchList = Array.isArray(matchesRef.current) ? matchesRef.current : [];
+      const matchById = new Map(matchList.map((m) => [String(m.id), m]));
 
+      const [predictionResult, badgeRows] = await Promise.all([
+        timedQuery('predictionFeeds', () =>
+          supabase
+            .from('activity_log')
+            .select('profile_id, action, payload, created_at, profiles ( username, name, photo_url )')
+            .in('action', [
+              'prediction_created',
+              'prediction_updated',
+              'prediction_made',
+              'prediction_changed',
+            ])
+            .order('created_at', { ascending: false })
+            .limit(PREDICTION_ACTIVITY_QUERY_LIMIT)
+        ),
+        loadRecentBadgeUnlockActivity(supabase, PREDICTION_ACTIVITY_QUERY_LIMIT),
+      ]);
+
+      const { data, error } = predictionResult;
       if (error) {
         console.warn('[loadPredictionFeeds]', error?.message ?? error);
         setPredictionActivityFeed([]);
@@ -723,23 +746,8 @@ export function useAppData(session) {
       }
 
       const rows = Array.isArray(data) ? data : [];
-      const matchList = Array.isArray(matchesRef.current) ? matchesRef.current : [];
-      const matchById = new Map(matchList.map((m) => [String(m.id), m]));
-
-      const feed = rows
-        .map((row, index) => {
-          let prof = row?.profiles;
-          if (Array.isArray(prof)) prof = prof[0];
-          const at = row?.created_at ? new Date(row.created_at) : null;
-          return {
-            id: `${row?.profile_id ?? 'u'}-${row?.created_at ?? index}`,
-            profile_id: row?.profile_id ?? null,
-            text: formatPredictionActivityMessage(row, matchById) || 'Actividad de predicción',
-            avatarUrl: resolveAvatarUrl(prof?.photo_url),
-            at: at && !Number.isNaN(at.getTime()) ? at : null,
-          };
-        })
-        .sort((a, b) => (b.at?.getTime?.() ?? 0) - (a.at?.getTime?.() ?? 0));
+      const predictionItems = rows.map((row, index) => mapPredictionActivityRow(row, matchById, index));
+      const feed = mergeActivityFeedItems(predictionItems, badgeRows).slice(0, PREDICTION_ACTIVITY_QUERY_LIMIT);
 
       setPredictionActivityFeed(feed);
       setPredictionActivityLog(rows);
@@ -1413,8 +1421,16 @@ export function useAppData(session) {
     setPicks,
     achievementCatalog,
     userAchievementIds,
+    userBadgeRows,
     pendingUnlock,
-    dismissPendingUnlock: () => setPendingUnlock(null),
+    dismissPendingUnlock: () => {
+      setPendingUnlock((current) => {
+        if (current?.badgeId && userId) {
+          dismissNotification(badgeUnlockNotificationKey(userId, current.badgeId));
+        }
+        return null;
+      });
+    },
     refreshUserAchievements,
   };
 }

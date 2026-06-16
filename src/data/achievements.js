@@ -59,11 +59,12 @@ export const ACHIEVEMENT_CATALOG = [
   },
   {
     id: 'el-elegido',
-    name: 'El Elegido',
-    icon: '🔱',
-    description: 'El pulpo eligió al mejor. Defiéndelo o piérdelo.',
-    requirement: 'Ser elegido por el pulpo como el mejor del ranking.',
+    name: 'Trono Kraken',
+    icon: '👑',
+    description: 'El Kraken eligió al mejor. Defiéndelo o piérdelo.',
+    requirement: 'Ser el #1 del ranking y recibir el trono del pulpo.',
     active: true,
+    manualGrant: true,
   },
   {
     id: 'pick-salvaje',
@@ -198,8 +199,137 @@ export const ACHIEVEMENT_CATALOG = [
 /** @deprecated usar ACHIEVEMENT_CATALOG */
 export const achievements = ACHIEVEMENT_CATALOG;
 
+export const EL_ELEGIDO_BADGE_ID = 'el-elegido';
+/** @deprecated usar EL_ELEGIDO_BADGE_ID; nombre visible: Trono Kraken */
+export const TRONO_KRAKEN_BADGE_ID = EL_ELEGIDO_BADGE_ID;
+
 export function getAchievementById(id) {
   return ACHIEVEMENT_CATALOG.find((a) => a.id === id) ?? null;
+}
+
+/** Nombre, icono y descripción para UI: el catálogo estático gana sobre Supabase. */
+export function resolveBadgePresentation(badgeId, dbBadge = null, catalog = ACHIEVEMENT_CATALOG) {
+  const staticDef = getAchievementById(badgeId);
+  const fromCatalog = catalog?.find((a) => a.id === badgeId) ?? staticDef;
+  const remote = dbBadge && typeof dbBadge === 'object' ? dbBadge : null;
+  return {
+    name: staticDef?.name ?? fromCatalog?.name ?? remote?.name ?? badgeId,
+    icon: staticDef?.icon ?? fromCatalog?.icon ?? remote?.icon ?? '🏆',
+    description: staticDef?.description ?? fromCatalog?.description ?? remote?.description ?? '',
+  };
+}
+
+export function isManualAchievement(achievementOrId) {
+  const id = typeof achievementOrId === 'string' ? achievementOrId : achievementOrId?.id;
+  const def = getAchievementById(id);
+  return Boolean(def?.manualGrant);
+}
+
+/** Logros que el motor puede otorgar automáticamente (excluye manualGrant). */
+export function getAutoGrantAchievements(catalog = ACHIEVEMENT_CATALOG) {
+  return catalog.filter((a) => a.active && !a.manualGrant);
+}
+
+function normalizeUnlockedIdSet(unlockedIds) {
+  return unlockedIds instanceof Set ? unlockedIds : new Set(unlockedIds ?? []);
+}
+
+/** Filas de user_badges que pertenecen al perfil indicado. */
+export function filterUserBadgeRowsForProfile(userBadgeRows, profileId) {
+  if (!profileId) return [];
+  const pid = String(profileId);
+  return (userBadgeRows ?? []).filter(
+    (row) => row?.badge_id && String(row.profile_id) === pid
+  );
+}
+
+/** ¿El usuario tiene este badge en user_badges? Misma regla para todos los badges. */
+export function userHasBadge(userBadgeRows, profileId, badgeId) {
+  if (!profileId || !badgeId) return false;
+  const targetId = String(badgeId);
+  return filterUserBadgeRowsForProfile(userBadgeRows, profileId).some(
+    (row) => String(row.badge_id) === targetId
+  );
+}
+
+/** Alias explícito: desbloqueado = fila en user_badges del perfil. */
+export function isBadgeUnlockedForProfile(userBadgeRows, profileId, badgeId) {
+  return userHasBadge(userBadgeRows, profileId, badgeId);
+}
+
+/** IDs desbloqueados: únicamente badge_id presentes en user_badges del perfil. */
+export function getUnlockedBadgeIdsFromRows(userBadgeRows, profileId) {
+  return filterUserBadgeRowsForProfile(userBadgeRows, profileId).map((row) => row.badge_id);
+}
+
+/**
+ * Badges desbloqueados para UI: solo filas user_badges del perfil (fuente de verdad).
+ */
+export function buildUnlockedBadgesForProfile(
+  userBadgeRows,
+  profileId,
+  catalog = ACHIEVEMENT_CATALOG
+) {
+  const rows = filterUserBadgeRowsForProfile(userBadgeRows, profileId);
+  if (!rows.length) return [];
+
+  return rows.map((row) => {
+    const badgeId = row.badge_id;
+    const remoteBadge = row.badges ?? null;
+    const display = resolveBadgePresentation(badgeId, remoteBadge, catalog);
+    return {
+      id: badgeId,
+      icon: display.icon,
+      name: display.name,
+      description: display.description,
+      earnedAt: row.earned_at ?? row.earnedAt ?? null,
+    };
+  });
+}
+
+/**
+ * Badges desbloqueados para UI: solo IDs presentes en user_badges del usuario.
+ */
+export function buildUnlockedBadgesForDisplay(
+  unlockedIds,
+  catalog = ACHIEVEMENT_CATALOG,
+  { earnedRows = null, profileId = null } = {}
+) {
+  if (profileId && earnedRows?.length) {
+    return buildUnlockedBadgesForProfile(earnedRows, profileId, catalog);
+  }
+
+  const unlockedSet = normalizeUnlockedIdSet(unlockedIds);
+  if (!unlockedSet.size) return [];
+
+  if (earnedRows?.length) {
+    const rows = profileId
+      ? filterUserBadgeRowsForProfile(earnedRows, profileId)
+      : earnedRows;
+    return rows
+      .filter((row) => row.badge_id && unlockedSet.has(row.badge_id))
+      .map((row) => {
+        const badgeId = row.badge_id;
+        const display = resolveBadgePresentation(badgeId, row.badges ?? null, catalog);
+        return {
+          id: badgeId,
+          icon: display.icon,
+          name: display.name,
+          description: display.description,
+          earnedAt: row.earned_at ?? row.earnedAt ?? null,
+        };
+      });
+  }
+
+  return catalog
+    .filter((a) => unlockedSet.has(a.id))
+    .map((a) => ({
+      id: a.id,
+      icon: a.icon,
+      name: a.name,
+      description: a.description,
+      earnedAt: null,
+    }));
 }
 
 export function countAchievementsTotal(catalog = ACHIEVEMENT_CATALOG) {
@@ -211,20 +341,37 @@ export function countAchievementsUnlocked(unlockedIds, catalog = ACHIEVEMENT_CAT
   return catalog.filter((a) => set.has(a.id)).length;
 }
 
-export function isAchievementUnlockedById(unlockedIds, achievementId) {
+export function isAchievementUnlockedById(
+  unlockedIds,
+  achievementId,
+  { userBadgeRows = null, profileId = null } = {}
+) {
+  if (profileId && Array.isArray(userBadgeRows)) {
+    return userHasBadge(userBadgeRows, profileId, achievementId);
+  }
   const set = unlockedIds instanceof Set ? unlockedIds : new Set(unlockedIds ?? []);
   return set.has(achievementId);
 }
 
 /** Compatibilidad con badges antiguos de Supabase */
-export function isAchievementUnlocked(badges, achievement) {
+export function isAchievementUnlocked(badges, achievement, profileId = null) {
   if (!achievement?.id) return false;
   if (Array.isArray(badges) && badges.every((b) => typeof b === 'string')) {
     return badges.includes(achievement.id);
   }
   const badge = badges?.find?.((b) => {
     const badgeId = b.id ?? b.badge_id;
-    return badgeId === achievement.id || b.name === achievement.name;
+    return badgeId === achievement.id;
   });
-  return (badge?.user_badges?.length ?? 0) > 0 || Boolean(badge?.earned_at);
+  if (!badge) return false;
+
+  if (Array.isArray(badge.user_badges)) {
+    if (!badge.user_badges.length) return false;
+    if (profileId) {
+      return badge.user_badges.some((row) => String(row.profile_id) === String(profileId));
+    }
+    return false;
+  }
+
+  return Boolean(badge.earned_at);
 }

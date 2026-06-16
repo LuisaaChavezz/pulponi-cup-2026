@@ -29,10 +29,22 @@ import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
 import HomeDashboard from './components/HomeDashboard';
 import { HomeDashboardSkeleton, MatchesGridSkeleton } from './components/PulponiSkeleton';
-import { ACHIEVEMENT_CATALOG, isAchievementUnlockedById, countAchievementsTotal, countAchievementsUnlocked } from './data/achievements';
+import {
+  ACHIEVEMENT_CATALOG,
+  buildUnlockedBadgesForProfile,
+  countAchievementsTotal,
+  getUnlockedBadgeIdsFromRows,
+} from './data/achievements';
+import {
+  badgeUnlockNotificationKey,
+  isNotificationDismissed,
+} from './lib/dismissedNotifications';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
+import ElegidoTransferToast from './components/ElegidoTransferToast';
 import UserPublicProfile from './components/UserPublicProfile';
 import { usePublicProfile } from './hooks/usePublicProfile';
+import { useProfileUserBadges } from './hooks/useProfileUserBadges';
+import { useElegidoTransferAlerts } from './hooks/useElegidoTransferAlerts';
 import { resolveAvatarUrl } from './lib/avatars';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
@@ -589,25 +601,34 @@ export default function App() {
     'Jugador';
   const avatarUrl = resolveAvatarUrl(profile?.photo_url);
 
-  const unlockedAchievementIds = data.userAchievementIds ?? [];
-  const unlockedCount = countAchievementsUnlocked(unlockedAchievementIds, achievementCatalog);
+  const sessionUserId = session?.user?.id ?? null;
+  const isAdmin = Boolean(data.profile?.is_admin);
+  const { rows: sessionUserBadgeRows } = useProfileUserBadges(sessionUserId);
+  const elegidoTransferAlerts = useElegidoTransferAlerts({
+    enabled: Boolean(sessionUserId),
+    isAdmin,
+  });
+
+  const visiblePendingUnlock = useMemo(() => {
+    const badgeId = data.pendingUnlock?.badgeId;
+    if (!badgeId || !sessionUserId) return null;
+    if (isNotificationDismissed(badgeUnlockNotificationKey(sessionUserId, badgeId))) return null;
+    return data.pendingUnlock;
+  }, [data.pendingUnlock, sessionUserId]);
+
+  const unlockedAchievementIds = getUnlockedBadgeIdsFromRows(sessionUserBadgeRows, sessionUserId);
+  const myBadges = buildUnlockedBadgesForProfile(
+    sessionUserBadgeRows,
+    sessionUserId,
+    achievementCatalog
+  );
+  const unlockedCount = myBadges.length;
   const achievementsTotal = countAchievementsTotal(achievementCatalog);
 
-  const myRow = sortedRanking.find((r) => r.id === session?.user?.id);
+  const myRow = sortedRanking.find((r) => r.id === sessionUserId);
   const myCurrentRank =
     myRow?.rank_position ?? myProfileView.data?.rankingSummary?.currentRank ?? null;
   const myProfileExtras = myProfileView.data ?? {};
-  const myBadgesFromCatalog = achievementCatalog.filter((a) =>
-    isAchievementUnlockedById(unlockedAchievementIds, a.id)
-  ).map((a) => ({
-    id: a.id,
-    icon: a.icon,
-    name: a.name,
-    description: a.description,
-    earnedAt: null,
-  }));
-  const myBadges =
-    myProfileExtras.badges?.length > 0 ? myProfileExtras.badges : myBadgesFromCatalog;
 
   const profileActivityRows =
     myProfileExtras.activity?.length
@@ -807,8 +828,12 @@ export default function App() {
     <PulponiErrorBoundary>
       <>
         <AchievementUnlockToast
-          unlock={data.pendingUnlock}
+          unlock={visiblePendingUnlock}
           onDismiss={data.dismissPendingUnlock}
+        />
+        <ElegidoTransferToast
+          transfer={elegidoTransferAlerts.toast}
+          onDismiss={elegidoTransferAlerts.dismissToast}
         />
       <div className="bg-glow" />
 
@@ -1106,10 +1131,12 @@ export default function App() {
                 predictionActivityLog={data.predictionActivityLog ?? []}
                 matches={worldCupMatches ?? []}
                 communityPickProfiles={data.communityPickProfiles ?? []}
-                isAdmin={Boolean(data.profile?.is_admin)}
+                isAdmin={isAdmin}
                 currentUsername={data.profile?.username ?? null}
                 onCreateImportantAlert={data.createEvent}
                 onApplyFinalResult={data.applyManualMatchResult}
+                elegidoTransfers={elegidoTransferAlerts.recentTransfers}
+                elegidoTransfersLoading={elegidoTransferAlerts.loading}
               />
             </Suspense>
           ) : null}
@@ -1132,9 +1159,10 @@ export default function App() {
                 setEditUsername={setEditUsername}
                 onSaveProfile={handleSaveProfile}
                 onAvatarUpload={handleAvatarUpload}
-                sessionUserId={session?.user?.id}
+                sessionUserId={sessionUserId}
                 myProfileExtras={myProfileExtras}
                 unlockedAchievementIds={unlockedAchievementIds}
+                userBadgeRows={sessionUserBadgeRows}
                 achievementCatalog={achievementCatalog}
                 achievementsTotal={achievementsTotal}
                 unlockedCount={unlockedCount}
@@ -1150,7 +1178,11 @@ export default function App() {
         <section id="reglas" className={sectionClass('reglas', 'panel')}>
           {activeNav === 'reglas' ? (
             <Suspense fallback={<PanelFallback label="Cargando reglas…" />}>
-              <RulesPage />
+              <RulesPage
+                unlockedAchievementIds={unlockedAchievementIds}
+                userBadgeRows={sessionUserBadgeRows}
+                profileId={sessionUserId}
+              />
             </Suspense>
           ) : null}
         </section>

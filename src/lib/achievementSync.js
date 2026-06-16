@@ -325,19 +325,26 @@ export async function syncAllAchievements(
   };
 }
 
-export async function loadUserAchievementIds(client, userId) {
+export async function loadUserBadgeRows(client, userId) {
   if (!userId) return [];
+
   const { data, error } = await client
     .from('user_badges')
-    .select('badge_id, earned_at')
+    .select('profile_id, badge_id, earned_at')
     .eq('profile_id', userId)
     .order('earned_at', { ascending: false });
 
   if (error) {
-    console.warn('[achievementSync] loadUserAchievementIds', error.message);
+    console.warn('[achievementSync] loadUserBadgeRows', error.message);
     return [];
   }
-  return (data ?? []).map((r) => r.badge_id);
+
+  return (data ?? []).filter((row) => String(row.profile_id) === String(userId));
+}
+
+export async function loadUserAchievementIds(client, userId) {
+  const rows = await loadUserBadgeRows(client, userId);
+  return rows.map((r) => r.badge_id);
 }
 
 export async function loadAchievementCatalog(client) {
@@ -351,11 +358,12 @@ export async function loadAchievementCatalog(client) {
     const staticDef = ACHIEVEMENT_CATALOG.find((a) => a.id === row.id);
     return {
       id: row.id,
-      name: row.name ?? staticDef?.name ?? row.id,
-      icon: row.icon ?? staticDef?.icon ?? '🏆',
-      description: row.description ?? staticDef?.description ?? '',
+      name: staticDef?.name ?? row.name ?? row.id,
+      icon: staticDef?.icon ?? row.icon ?? '🏆',
+      description: staticDef?.description ?? row.description ?? '',
       requirement: staticDef?.requirement ?? row.requirement_text ?? '',
       active: staticDef?.active ?? row.active !== false,
+      manualGrant: staticDef?.manualGrant ?? false,
     };
   });
 }

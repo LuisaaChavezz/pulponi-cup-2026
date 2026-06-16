@@ -1,16 +1,19 @@
 import {
   ACHIEVEMENT_CATALOG,
+  buildUnlockedBadgesForProfile,
   countAchievementsTotal,
-  countAchievementsUnlocked,
-  isAchievementUnlockedById,
 } from '../data/achievements';
 
-export default function ProfileAchievementsStrip({ unlockedIds, catalog = ACHIEVEMENT_CATALOG, onViewAll }) {
-  const unlockedSet = unlockedIds instanceof Set ? unlockedIds : new Set(unlockedIds ?? []);
-  const unlockedList = catalog.filter((a) => isAchievementUnlockedById(unlockedSet, a.id));
-  const display = unlockedList.slice(0, 8);
+export default function ProfileAchievementsStrip({
+  catalog = ACHIEVEMENT_CATALOG,
+  userBadgeRows = [],
+  profileId = null,
+  onViewAll,
+}) {
+  const unlockedBadges = buildUnlockedBadgesForProfile(userBadgeRows, profileId, catalog);
+  const display = unlockedBadges.slice(0, 8);
   const total = countAchievementsTotal(catalog);
-  const count = countAchievementsUnlocked(unlockedSet, catalog);
+  const count = unlockedBadges.length;
 
   return (
     <div className="profile-achievements">

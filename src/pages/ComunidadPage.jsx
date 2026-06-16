@@ -20,6 +20,8 @@ export default function ComunidadPage({
   currentUsername = null,
   onCreateImportantAlert,
   onApplyFinalResult,
+  elegidoTransfers = [],
+  elegidoTransfersLoading = false,
 }) {
   return (
     <>
@@ -43,6 +45,8 @@ export default function ComunidadPage({
               onCreateImportantAlert={onCreateImportantAlert}
               onApplyFinalResult={onApplyFinalResult}
               onSelectUser={onSelectUser}
+              elegidoTransfers={elegidoTransfers}
+              elegidoTransfersLoading={elegidoTransfersLoading}
             />
           </div>
         </article>
