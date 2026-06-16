@@ -2,7 +2,8 @@
  * Agregados de puntuación desde public.pick_scores (fuente de verdad del ranking).
  */
 
-import { computeStreakFromPickScores } from './scoringEngine';
+import { computeStreakFromPickScores, computeWinnerStreakFromPickScores } from './scoringEngine';
+import { isMatchFinished } from './matchUtils';
 
 export function aggregatePickScoresByProfile(rows) {
   const map = new Map();
@@ -66,11 +67,14 @@ export function buildPerformanceStatsByProfile(pickScoreRows, matches = []) {
   }
 
   const statsByProfileId = new Map();
+  const finishedMatches = (matches ?? []).filter((m) => isMatchFinished(m));
+
   for (const [pid, rows] of rowsByProfile) {
     statsByProfileId.set(pid, {
       points: rows.reduce((sum, r) => sum + Number(r.points_awarded ?? 0), 0),
       exacts: rows.filter((r) => r.exact_hit).length,
       streak: computeStreakFromPickScores(rows, matchesById),
+      winnerStreak: computeWinnerStreakFromPickScores(rows, finishedMatches),
       predicted: rows.length,
       correctResults: rows.filter((r) => r.winner_hit).length,
     });
@@ -86,6 +90,7 @@ export function getPerformanceStatsForProfile(profileId, pickScoreRows, matches 
       points: 0,
       exacts: 0,
       streak: 0,
+      winnerStreak: 0,
       predicted: 0,
       correctResults: 0,
     }

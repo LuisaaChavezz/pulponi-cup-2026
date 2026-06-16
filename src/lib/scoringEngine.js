@@ -47,19 +47,11 @@ export function matchFinalScores(match) {
 }
 
 /**
- * Racha: partidos finalizados en orden cronológico con acierto (exacto o ganador).
- * @param {Array<{ match_id: string, exact_hit?: boolean, winner_hit?: boolean }>} pickScoreRows
- * @param {Map<string, { kickoff?: string }>} matchesById
+ * Racha actual (última seguidilla): partidos con pick, ordenados por kickoff;
+ * cuenta acierto de ganador o marcador exacto.
  */
 export function computeStreakFromPickScores(pickScoreRows, matchesById) {
-  const sorted = [...pickScoreRows].sort((a, b) => {
-    const ma = matchesById.get(String(a.match_id));
-    const mb = matchesById.get(String(b.match_id));
-    const ta = ma?.kickoff ? new Date(ma.kickoff).getTime() : 0;
-    const tb = mb?.kickoff ? new Date(mb.kickoff).getTime() : 0;
-    if (ta !== tb) return ta - tb;
-    return String(a.match_id).localeCompare(String(b.match_id));
-  });
+  const sorted = sortPickScoresByKickoff(pickScoreRows, matchesById);
 
   let run = 0;
   for (const row of sorted) {
@@ -67,6 +59,54 @@ export function computeStreakFromPickScores(pickScoreRows, matchesById) {
     else run = 0;
   }
   return run;
+}
+
+/**
+ * Mejor racha de ganador consecutivo: partidos finalizados por kickoff;
+ * solo winner_hit; sin pick o fallo rompe la racha.
+ */
+export function computeWinnerStreakFromPickScores(pickScoreRows, matches = []) {
+  const scoresByMatch = new Map(
+    (pickScoreRows ?? []).map((row) => [String(row.match_id), row])
+  );
+
+  const finished = (matches ?? [])
+    .filter((m) => isMatchFinished(m))
+    .sort((a, b) => compareKickoff(a, b));
+
+  let run = 0;
+  let maxRun = 0;
+
+  for (const match of finished) {
+    const row = scoresByMatch.get(String(match.id));
+    if (!row) {
+      run = 0;
+      continue;
+    }
+    if (row.winner_hit) {
+      run += 1;
+      maxRun = Math.max(maxRun, run);
+    } else {
+      run = 0;
+    }
+  }
+
+  return maxRun;
+}
+
+function compareKickoff(a, b) {
+  const ta = a?.kickoff ? new Date(a.kickoff).getTime() : 0;
+  const tb = b?.kickoff ? new Date(b.kickoff).getTime() : 0;
+  if (ta !== tb) return ta - tb;
+  return String(a?.id ?? '').localeCompare(String(b?.id ?? ''));
+}
+
+function sortPickScoresByKickoff(pickScoreRows, matchesById) {
+  return [...(pickScoreRows ?? [])].sort((a, b) => {
+    const ma = matchesById.get(String(a.match_id));
+    const mb = matchesById.get(String(b.match_id));
+    return compareKickoff(ma ?? { id: a.match_id }, mb ?? { id: b.match_id });
+  });
 }
 
 function isRpcMissing(error) {

@@ -10,6 +10,7 @@ function resolvePerformanceStats(profile, statsByProfileId) {
     points: derived?.points ?? Number(profile?.points ?? 0),
     exacts: derived?.exacts ?? Number(profile?.exacts ?? 0),
     streak: derived?.streak ?? Number(profile?.streak ?? 0),
+    winnerStreak: derived?.winnerStreak ?? 0,
   };
 }
 
@@ -93,7 +94,7 @@ export function evaluateAchievementIdsForProfile(profile, context = {}) {
   } = context;
 
   const earned = [];
-  const { exacts, streak } = resolvePerformanceStats(profile, statsByProfileId);
+  const { exacts, winnerStreak } = resolvePerformanceStats(profile, statsByProfileId);
   const pulpoIndex = resolvePulpoIndex(profile, { pulpoIndexByProfileId, statsByProfileId });
   const ranked = rankedProfiles.length ? rankedProfiles : buildRankedLeaderboard([profile]);
   const me = ranked.find((r) => r.id === profile.id);
@@ -102,8 +103,8 @@ export function evaluateAchievementIdsForProfile(profile, context = {}) {
   if (exacts >= 1) earned.push('francotirador');
   if (exacts >= 3) earned.push('francotirador-pro');
   if (exacts >= 5) earned.push('maestro-marcador');
-  if (streak >= 3) earned.push('enrachado');
-  if (streak >= 5) earned.push('imparable');
+  if (winnerStreak >= 3) earned.push('enrachado');
+  if (winnerStreak >= 5) earned.push('imparable');
   if (rank === 1) earned.push('rey-del-pulpo');
   if (pulpoIndex >= 90) earned.push('pulpo-legendario');
   if (isTop5ForJornadas(profile.id, rankingHistoryRows, recentJornadaIds, 3)) {
