@@ -4060,6 +4060,13 @@
   line-height: 1;
 }
 
+.profile-page-badge-item__icon--image {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
 .profile-page-badge-item strong {
   display: block;
   font-size: 13px;
@@ -4501,8 +4508,17 @@
 .social-profile-badge-item__icon .badge-icon-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  max-width: 48px;
+  max-height: 48px;
+  object-fit: contain;
   border-radius: 8px;
+}
+
+.profile-page-badge-item__icon--image .badge-icon-img {
+  width: 48px;
+  height: 48px;
+  max-width: 48px;
+  max-height: 48px;
 }
 
 .home-dash-activity__badge-icon .badge-icon-img,

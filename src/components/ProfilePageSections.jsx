@@ -74,10 +74,33 @@ export function ProfileBadgesList({ badges, emptyText = 'Sin badges desbloqueado
   }
   return (
     <ul className="profile-page-badges-list">
-      {badges.map((b) => (
+      {badges.map((b) => {
+        const isImageIcon =
+          typeof b.icon === 'string' &&
+          (b.icon.startsWith('http') || b.icon.startsWith('/'));
+        const isImageIconSrc =
+          typeof b.iconSrc === 'string' &&
+          (b.iconSrc.startsWith('http') || b.iconSrc.startsWith('/'));
+
+        return (
         <li key={b.id} className="profile-page-badge-item">
-          <span className="profile-page-badge-item__icon" aria-hidden>
-            <BadgeIcon badgeId={b.id} name={b.name} icon={b.icon} iconSrc={b.iconSrc} alt={b.name} />
+          <span
+            className={[
+              'profile-page-badge-item__icon',
+              isImageIcon || isImageIconSrc ? 'profile-page-badge-item__icon--image' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            aria-hidden
+          >
+            <BadgeIcon
+              badgeId={b.id}
+              name={b.name}
+              icon={b.icon}
+              iconSrc={b.iconSrc}
+              alt={b.name}
+              size={48}
+            />
           </span>
           <div>
             <strong>{b.name}</strong>
@@ -93,7 +116,8 @@ export function ProfileBadgesList({ badges, emptyText = 'Sin badges desbloqueado
             ) : null}
           </div>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }

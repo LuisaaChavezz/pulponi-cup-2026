@@ -13,6 +13,7 @@ export default function BadgeIcon({
   iconSrc = null,
   alt = '',
   className = '',
+  size = 40,
 }) {
   const badgeName = name || alt;
   const resolvedIcon = pickImageIcon(icon, iconSrc) ?? iconSrc ?? icon;
@@ -21,10 +22,13 @@ export default function BadgeIcon({
     <img
       src={resolvedIcon}
       alt={badgeName || 'Badge'}
-      style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+      className="badge-icon-img"
+      style={{ width: `${size}px`, height: `${size}px`, objectFit: 'contain' }}
+      loading="lazy"
+      decoding="async"
     />
   ) : (
-    <span>{resolvedIcon}</span>
+    <span className="badge-emoji">{resolvedIcon}</span>
   );
 
   if (className) {
