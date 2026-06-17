@@ -1,0 +1,5 @@
+# Supabase local / deploy config (Edge Functions).
+# Deploy: supabase functions deploy sync-football-scores
+
+[functions.sync-football-scores]
+verify_jwt = false

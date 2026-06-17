@@ -1,13 +1,10 @@
 /**
- * Vercel Cron / manual: sincroniza marcadores API-Football y puntúa partidos FT.
+ * Manual / desarrollo: sincroniza marcadores API-Football y puntúa partidos FT.
+ * Producción: usar Supabase Edge Function `sync-football-scores` + pg_cron (ver supabase/pg_cron_sync_football_scores.sql).
  *
- * Env (Vercel → Settings → Environment Variables):
- *   CRON_SECRET
- *   VITE_SUPABASE_URL
- *   SUPABASE_SERVICE_ROLE_KEY
- *   VITE_FOOTBALL_API_KEY  (o FOOTBALL_API_KEY)
- *   VITE_FOOTBALL_LEAGUE_ID=1
- *   VITE_FOOTBALL_SEASON=2026
+ * Env:
+ *   CRON_SECRET, VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ *   VITE_FOOTBALL_API_KEY (o FOOTBALL_API_KEY), VITE_FOOTBALL_LEAGUE_ID, VITE_FOOTBALL_SEASON
  *
  * Query: ?mode=live | full | auto (default auto)
  */
