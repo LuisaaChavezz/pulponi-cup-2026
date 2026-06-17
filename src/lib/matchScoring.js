@@ -104,7 +104,9 @@ export async function applyMatchFinalResultByTeams(
 
   if (!rpcError) {
     const payload = rpcData && typeof rpcData === 'object' ? rpcData : {};
-    if (payload.error) return { error: payload.error, ...payload };
+    if (payload.error && payload.error !== 'not_finished') {
+      return { error: payload.error, ...payload };
+    }
     scoreVia = payload.via ?? 'admin_rpc_by_teams';
 
     const scoredPicks = Number(payload.scored_picks ?? 0);
@@ -136,7 +138,11 @@ export async function applyMatchFinalResultByTeams(
   }
 
   const teamsScore = await scoreMatchByTeams(client, homeName, awayName, { recomputeStreaks: false });
-  if (!teamsScore?.error && Number(teamsScore?.scored_picks ?? 0) > 0) {
+  if (
+    !teamsScore?.error &&
+    !teamsScore?.skipped &&
+    Number(teamsScore?.scored_picks ?? 0) > 0
+  ) {
     return {
       ...teamsScore,
       match_id: teamsScore.match_id ?? dbId,
@@ -152,10 +158,14 @@ export async function applyMatchFinalResultByTeams(
     return { error: 'match_not_found', home_team: homeName, away_team: awayName };
   }
 
+  const patchedMatch = { ...match, ...buildFinalResultPatch(home, away) };
+
   const clientScore = await scoreSingleFinishedMatchClient(client, dbId, {
-    matches: [match, ...(matches ?? [])],
+    matches: [patchedMatch, ...(matches ?? [])],
     profiles: profs,
     pickKeysOverride: pickKeys,
+    finalScores: { home, away },
+    requireFinishedStatus: false,
   });
   if (clientScore?.error) return clientScore;
 
@@ -218,7 +228,9 @@ export async function applyMatchFinalResult(
 
   if (!rpcError) {
     const payload = rpcData && typeof rpcData === 'object' ? rpcData : {};
-    if (payload.error) return { error: payload.error, ...payload };
+    if (payload.error && payload.error !== 'not_finished') {
+      return { error: payload.error, ...payload };
+    }
     scoreVia = payload.via ?? 'rpc';
   } else if (!isRpcMissing(rpcError) && !/WHERE clause/i.test(String(rpcError.message ?? ''))) {
     console.warn('[matchScoring] RPC apply_match_final_result', rpcError.message);
@@ -233,10 +245,14 @@ export async function applyMatchFinalResult(
     scoreVia = 'fallback';
   }
 
+  const patchedMatch = { ...match, ...buildFinalResultPatch(home, away) };
+
   const clientScore = await scoreSingleFinishedMatchClient(client, dbId, {
-    matches: [match, ...(matches ?? [])],
+    matches: [patchedMatch, ...(matches ?? [])],
     profiles: profs,
     pickKeysOverride: pickKeys,
+    finalScores: { home, away },
+    requireFinishedStatus: false,
   });
   if (clientScore?.error) return clientScore;
 

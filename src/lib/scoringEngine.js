@@ -37,8 +37,9 @@ export function gradePick(pick, final) {
   return { points: 0, exactHit: false, winnerHit: false };
 }
 
-export function matchFinalScores(match) {
-  if (!match || !isMatchFinished(match)) return null;
+export function matchFinalScores(match, { requireFinishedStatus = true } = {}) {
+  if (!match) return null;
+  if (requireFinishedStatus && !isMatchFinished(match)) return null;
   const h = match.home_score;
   const a = match.away_score;
   if (h == null || a == null) return null;
@@ -165,16 +166,27 @@ async function loadMatchRowForScoring(client, matchId, matches = []) {
   return { row: null, dbId: key, pickKeys: pickKeys.length ? pickKeys : [key] };
 }
 
-/** Puntúa un partido finalizado en cliente (sin RPC masivo). */
+/** Puntúa un partido en cliente (sin RPC masivo). Admin puede forzar marcador sin status FT. */
 export async function scoreSingleFinishedMatchClient(
   client,
   matchId,
-  { matches = [], profiles, pickKeysOverride, recomputeProfiles = true } = {}
+  {
+    matches = [],
+    profiles,
+    pickKeysOverride,
+    recomputeProfiles = true,
+    finalScores,
+    requireFinishedStatus = true,
+  } = {}
 ) {
   const { row, dbId, pickKeys } = await loadMatchRowForScoring(client, matchId, matches);
   if (!row) return { error: 'match_not_found', match_id: dbId || String(matchId ?? '') };
 
-  const final = matchFinalScores(row);
+  const final =
+    finalScores ??
+    matchFinalScores(row, {
+      requireFinishedStatus,
+    });
   if (!final) return { error: 'match_not_finished', match_id: dbId };
 
   let profs = profiles;

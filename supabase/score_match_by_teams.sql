@@ -130,16 +130,6 @@ BEGIN
       mid_db := m.id::text;
       mid_official := nullif(trim(coalesce(m.official_id, '')), '');
 
-      IF NOT public._match_is_finished(m.*) THEN
-        RETURN jsonb_build_object(
-          'skipped', true,
-          'reason', 'not_finished',
-          'match_id', mid_db,
-          'home_team', m.home_team,
-          'away_team', m.away_team
-        );
-      END IF;
-
       FOR prof IN
         SELECT id, picks
         FROM public.profiles
