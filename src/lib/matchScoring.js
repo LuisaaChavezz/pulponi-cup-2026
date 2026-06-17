@@ -1,9 +1,9 @@
 import { supabase } from './supabase';
 import {
-  scoreFinishedMatch,
   scoreFinishedMatchesByIds,
   scoreSingleFinishedMatchClient,
 } from './scoringEngine';
+import { resolveMatchScoringContext } from './matchPickKeyResolver';
 import { runScoringAndPulpoPipeline } from './pulpoSync';
 import { isMatchFinished, normalizeMatchId, resolveMatchForScoring } from './matchUtils';
 
@@ -63,7 +63,11 @@ export async function applyMatchFinalResult(
   { matches = [], profiles } = {}
 ) {
   if (!client) client = supabase;
-  const { dbId, pickKeys } = resolveMatchForScoring(matchId, matches);
+
+  const ctx = await resolveMatchScoringContext(client, matchId, { matches, profiles });
+  if (ctx.error) return { error: ctx.error, match_id: ctx.match_id };
+
+  const { dbId, pickKeys, primaryPickKey, match, profiles: profs } = ctx;
   if (!dbId) return { error: 'match_id_required' };
 
   const home = Math.max(0, Math.round(Number(homeScore)));
@@ -71,6 +75,8 @@ export async function applyMatchFinalResult(
   if (!Number.isFinite(home) || !Number.isFinite(away)) {
     return { error: 'invalid_scores' };
   }
+
+  let scoreVia = 'client_score';
 
   const { data: rpcData, error: rpcError } = await client.rpc('apply_match_final_result', {
     p_match_id: dbId,
@@ -81,57 +87,48 @@ export async function applyMatchFinalResult(
   if (!rpcError) {
     const payload = rpcData && typeof rpcData === 'object' ? rpcData : {};
     if (payload.error) return { error: payload.error, ...payload };
-
-    const scoredPicks = Number(payload.scored_picks ?? 0);
-    if (scoredPicks <= 0) {
-      for (const pickKey of pickKeys) {
-        if (pickKey === dbId) continue;
-        const retry = await scoreFinishedMatch(client, pickKey, { recomputeStreaks: false });
-        if (!retry?.error && Number(retry?.scored_picks ?? 0) > 0) {
-          return { ...payload, ...retry, via: 'rpc_pick_key_retry' };
-        }
-      }
-    }
-
-    return { ...payload, match_id: dbId, via: 'rpc' };
-  }
-
-  if (!isRpcMissing(rpcError) && !/WHERE clause/i.test(String(rpcError.message ?? ''))) {
+    scoreVia = payload.via ?? 'rpc';
+  } else if (!isRpcMissing(rpcError) && !/WHERE clause/i.test(String(rpcError.message ?? ''))) {
     console.warn('[matchScoring] RPC apply_match_final_result', rpcError.message);
     return { error: rpcError.message };
-  }
-
-  const patch = buildFinalResultPatch(home, away);
-  const { error: updateError } = await client
-    .from('matches')
-    .update(patch)
-    .eq('id', dbId);
-  if (updateError) {
-    console.warn('[matchScoring] match update', updateError.message);
-    return { error: updateError.message };
-  }
-
-  const scoreResult = await scoreFinishedMatchesByIds(client, [dbId], { matches, profiles });
-  if (scoreResult?.error && Number(scoreResult?.scored_picks ?? 0) <= 0) {
-    const clientScore = await scoreSingleFinishedMatchClient(client, dbId, { matches, profiles });
-    if (!clientScore?.error) {
-      return {
-        ...clientScore,
-        match_id: dbId,
-        home_score: home,
-        away_score: away,
-        via: 'client_score',
-      };
+  } else {
+    const patch = buildFinalResultPatch(home, away);
+    const { error: updateError } = await client.from('matches').update(patch).eq('id', dbId);
+    if (updateError) {
+      console.warn('[matchScoring] match update', updateError.message);
+      return { error: updateError.message };
     }
-    return clientScore;
+    scoreVia = 'fallback';
+  }
+
+  const clientScore = await scoreSingleFinishedMatchClient(client, dbId, {
+    matches: [match, ...(matches ?? [])],
+    profiles: profs,
+    pickKeysOverride: pickKeys,
+  });
+  if (clientScore?.error) return clientScore;
+
+  const scoredPicks = Number(clientScore.scored_picks ?? 0);
+  if (scoredPicks > 0) {
+    scoreVia = clientScore.via ?? scoreVia;
+    const { error: streakErr } = await client.rpc('recompute_profile_streaks');
+    if (streakErr && !isRpcMissing(streakErr)) {
+      console.warn('[matchScoring] recompute_profile_streaks', streakErr.message);
+    }
+    const { error: pulpoErr } = await client.rpc('recompute_all_pulpo_indexes');
+    if (pulpoErr && !isRpcMissing(pulpoErr) && !/WHERE clause/i.test(String(pulpoErr.message ?? ''))) {
+      console.warn('[matchScoring] recompute_all_pulpo_indexes', pulpoErr.message);
+    }
   }
 
   return {
-    ...scoreResult,
     match_id: dbId,
+    primary_pick_key: primaryPickKey,
+    pick_keys: pickKeys,
     home_score: home,
     away_score: away,
-    via: 'fallback',
+    scored_picks: scoredPicks,
+    via: scoreVia,
   };
 }
 

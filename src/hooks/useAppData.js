@@ -1345,6 +1345,7 @@ export function useAppData(session) {
           awayScore,
           {
             matches: matchesRef.current,
+            profiles: communityPickProfilesRef.current,
           }
         );
 

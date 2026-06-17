@@ -169,7 +169,7 @@ async function loadMatchRowForScoring(client, matchId, matches = []) {
 export async function scoreSingleFinishedMatchClient(
   client,
   matchId,
-  { matches = [], profiles } = {}
+  { matches = [], profiles, pickKeysOverride, recomputeProfiles = true } = {}
 ) {
   const { row, dbId, pickKeys } = await loadMatchRowForScoring(client, matchId, matches);
   if (!row) return { error: 'match_not_found', match_id: dbId || String(matchId ?? '') };
@@ -183,9 +183,10 @@ export async function scoreSingleFinishedMatchClient(
     profs = data ?? [];
   }
 
-  const keys = pickKeys.length
+  const keys = (pickKeysOverride?.length ? pickKeysOverride : pickKeys.length
     ? pickKeys
-    : [String(row.id), row.official_id].filter(Boolean).map(String);
+    : [String(row.id), row.official_id].filter(Boolean).map(String))
+    .filter((value, index, array) => value && array.indexOf(value) === index);
 
   let scoredPicks = 0;
   const affectedProfileIds = new Set();
@@ -224,34 +225,38 @@ export async function scoreSingleFinishedMatchClient(
     affectedProfileIds.add(prof.id);
   }
 
-  for (const profileId of affectedProfileIds) {
-    const { data: rows, error } = await client
-      .from('pick_scores')
-      .select('match_id, points_awarded, exact_hit, winner_hit')
-      .eq('profile_id', profileId);
+  if (recomputeProfiles) {
+    for (const profileId of affectedProfileIds) {
+      const { data: rows, error } = await client
+        .from('pick_scores')
+        .select('match_id, points_awarded, exact_hit, winner_hit')
+        .eq('profile_id', profileId);
 
-    if (error) {
-      console.warn('[scoring] load pick_scores', error.message);
-      continue;
+      if (error) {
+        console.warn('[scoring] load pick_scores', error.message);
+        continue;
+      }
+
+      const points = (rows ?? []).reduce((sum, r) => sum + Number(r.points_awarded ?? 0), 0);
+      const exacts = (rows ?? []).filter((r) => r.exact_hit).length;
+      const streak = computeStreakFromPickScores(rows ?? [], matchesById);
+
+      const { error: updateErr } = await client
+        .from('profiles')
+        .update({ points, exacts, streak })
+        .eq('id', profileId);
+
+      if (updateErr) console.warn('[scoring] profile update', profileId, updateErr.message);
     }
-
-    const points = (rows ?? []).reduce((sum, r) => sum + Number(r.points_awarded ?? 0), 0);
-    const exacts = (rows ?? []).filter((r) => r.exact_hit).length;
-    const streak = computeStreakFromPickScores(rows ?? [], matchesById);
-
-    const { error: updateErr } = await client
-      .from('profiles')
-      .update({ points, exacts, streak })
-      .eq('id', profileId);
-
-    if (updateErr) console.warn('[scoring] profile update', profileId, updateErr.message);
   }
 
   return {
     scored_matches: 1,
     scored_picks: scoredPicks,
     match_id: dbId,
+    pick_keys: keys,
     fallback: true,
+    via: 'client_score',
   };
 }
 
