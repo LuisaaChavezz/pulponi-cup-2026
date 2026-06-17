@@ -124,6 +124,19 @@ export async function fetchPickScoreAggregates(client) {
   return { map: aggregatePickScoresByProfile(data ?? []), error: null };
 }
 
+/** Partidos del Mundial ya puntuados (global): COUNT(DISTINCT match_id) en pick_scores. */
+export async function fetchDistinctPlayedMatchCount(client) {
+  if (!client) return { count: 0, error: null };
+
+  const { data, error } = await client.from('pick_scores').select('match_id');
+  if (error) return { count: 0, error };
+
+  const distinct = new Set(
+    (data ?? []).map((row) => String(row.match_id ?? '').trim()).filter(Boolean)
+  );
+  return { count: distinct.size, error: null };
+}
+
 export async function enrichProfilesWithPickScores(client, profiles) {
   const { map, error } = await fetchPickScoreAggregates(client);
   if (error) {

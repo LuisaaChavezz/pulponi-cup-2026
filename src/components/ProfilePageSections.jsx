@@ -37,8 +37,8 @@ export function ProfileStatsGrid({ stats }) {
         <span>Pronosticados</span>
       </div>
       <div>
-        <b>{s.correctResults ?? 0}</b>
-        <span>Aciertos</span>
+        <b>{s.playedMatches ?? 0}</b>
+        <span>Partidos jugados</span>
       </div>
       <div>
         <b>{s.exacts ?? 0}</b>

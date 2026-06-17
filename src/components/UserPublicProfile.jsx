@@ -73,7 +73,7 @@ export default function UserPublicProfile({
     pulpoIndex: 0,
     accumulatedStreak: 0,
     predicted: 0,
-    correctResults: 0,
+    playedMatches: 0,
     effectiveness: 0,
     riskyHits: 0,
     bestStreak: 0,

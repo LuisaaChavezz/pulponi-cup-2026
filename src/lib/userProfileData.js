@@ -5,7 +5,7 @@ import { formatKickoff, hasRecordedScores, isProfilePickRevealed, matchHasFinalS
 import { formatActivityLogMessage } from './activityMessages';
 import { filterUserBadgeRowsForProfile, resolveBadgePresentation } from '../data/achievements';
 import { computePulpoDerivedStats } from './pulpoIndex';
-import { aggregatePickScoreRowsForProfile, enrichProfilesWithPickScores, getPerformanceStatsForProfile } from './pickScoreStats';
+import { aggregatePickScoreRowsForProfile, enrichProfilesWithPickScores, fetchDistinctPlayedMatchCount, getPerformanceStatsForProfile } from './pickScoreStats';
 import { computeWinnerStreakFromPickScores } from './scoringEngine';
 
 function pickMap(profile) {
@@ -133,7 +133,7 @@ async function loadProfileRow(client, profileId) {
 
 const EMPTY_STATS = {
   predicted: 0,
-  correctResults: 0,
+  playedMatches: 0,
   exacts: 0,
   effectiveness: 0,
   riskyHits: 0,
@@ -279,13 +279,20 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
   }
 }
 
-export function buildUserStats(profile, pickScoreRows, matches, communityProfiles, rankingSummary) {
+export function buildUserStats(
+  profile,
+  pickScoreRows,
+  matches,
+  communityProfiles,
+  rankingSummary,
+  playedMatches = 0
+) {
   try {
     const scored = aggregatePickScoreRowsForProfile(pickScoreRows ?? []);
 
     return {
       predicted: scored.predicted,
-      correctResults: scored.correctResults,
+      playedMatches: Number(playedMatches) || 0,
       exacts: scored.exacts,
       effectiveness: scored.effectiveness,
       riskyHits: countRiskyExactHits(profile?.id, pickScoreRows, communityProfiles, profile),
@@ -387,7 +394,8 @@ export async function loadPublicProfile(
       matches
     );
 
-    const [allProfilesRows, userBadgeRows, historyRows, activityRows] = await Promise.all([
+    const [allProfilesRows, userBadgeRows, historyRows, activityRows, playedMatchCount] =
+      await Promise.all([
       safeQuery(
         client
           .from(LEADERBOARD_SOURCE)
@@ -412,6 +420,13 @@ export async function loadPublicProfile(
           .limit(20),
         'activity_log'
       ),
+      fetchDistinctPlayedMatchCount(client).then((res) => {
+        if (res.error) {
+          console.warn('[loadPublicProfile] playedMatches', res.error.message);
+          return 0;
+        }
+        return res.count ?? 0;
+      }),
     ]);
 
     let ranked = [];
@@ -436,7 +451,8 @@ export async function loadPublicProfile(
       pickScoreRows ?? [],
       matchesForHistory,
       communityProfiles,
-      rankingSummary
+      rankingSummary,
+      playedMatchCount
     );
     const pickHistory = buildPickHistoryRows(
       profileWithScores,
