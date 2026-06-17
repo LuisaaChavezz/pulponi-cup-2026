@@ -33,10 +33,26 @@ export default function AdminMatchResultPanel({
   }, [selectableMatches, now, matches]);
 
   const [selectedMatchId, setSelectedMatchId] = useState('');
-  const [homeScore, setHomeScore] = useState('2');
-  const [awayScore, setAwayScore] = useState('0');
+  const [homeScore, setHomeScore] = useState('');
+  const [awayScore, setAwayScore] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
+
+  const isValidScore = (value) => {
+    if (value == null || value === '') return false;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return false;
+    if (n < 0) return false;
+    if (n > 20) return false;
+    return true;
+  };
+
+  const canSubmit =
+    !busy &&
+    Boolean(activeMatchId) &&
+    Boolean(activeMatch) &&
+    isValidScore(homeScore) &&
+    isValidScore(awayScore);
 
   useEffect(() => {
     if (!defaultMatchId) return;
@@ -60,6 +76,10 @@ export default function AdminMatchResultPanel({
       if (!activeMatch) {
         setNotice({ type: 'error', text: 'Selecciona un partido válido.' });
       }
+      return;
+    }
+    if (!isValidScore(homeScore) || !isValidScore(awayScore)) {
+      setNotice({ type: 'error', text: 'Ingresa un marcador válido para ambos equipos.' });
       return;
     }
 
@@ -158,7 +178,7 @@ export default function AdminMatchResultPanel({
         <button
           type="submit"
           className="dash-notifications__export-toggle"
-          disabled={busy || !activeMatchId}
+          disabled={!canSubmit}
         >
           {busy ? 'Puntuando…' : 'Registrar marcador y puntuar'}
         </button>

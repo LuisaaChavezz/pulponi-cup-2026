@@ -238,6 +238,13 @@ export default function DashboardNotifications({
         <h3 className="dash-notifications__title">Mensajes importantes</h3>
       </div>
 
+      <AdminMatchResultPanel
+        matches={matches}
+        currentUsername={currentUsername}
+        isAdmin={isAdmin}
+        onApplyFinalResult={onApplyFinalResult}
+      />
+
       <div className="dash-notifications__section dash-notifications__section--predictions">
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle dash-notifications-community-mobile-hide">
@@ -341,13 +348,6 @@ export default function DashboardNotifications({
           </div>
         )}
       </div>
-
-      <AdminMatchResultPanel
-        matches={matches}
-        currentUsername={currentUsername}
-        isAdmin={isAdmin}
-        onApplyFinalResult={onApplyFinalResult}
-      />
 
       {isAdmin ? (
         <ElegidoAdminHistory transfers={elegidoTransfers} loading={elegidoTransfersLoading} />
