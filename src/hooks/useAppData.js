@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { resolveAvatarUrl } from '../lib/avatars';
 import { runScoringAndPulpoPipeline, refreshPulpoIndexesAfterPickScores } from '../lib/pulpoSync';
-import { applyMatchFinalResult, normalizeMatchId } from '../lib/matchScoring';
-import { resolveMatchForScoring } from '../lib/matchUtils';
+import { applyMatchFinalResultByTeams } from '../lib/matchScoring';
 import { canAdminExportPredictions } from '../lib/predictionActivity';
 import { isMatchFinished } from '../lib/matchUtils';
 import { syncWorldCupFixtures } from '../lib/footballApi';
@@ -1327,20 +1326,22 @@ export function useAppData(session) {
   }
 
   const applyManualMatchResult = useCallback(
-    async (matchId, homeScore, awayScore) => {
+    async (homeTeam, awayTeam, homeScore, awayScore) => {
       const allowed =
         profile?.is_admin || canAdminExportPredictions(profile?.username ?? null);
       if (!userId || !allowed) return { error: 'No autorizado' };
 
+      const homeName = String(homeTeam ?? '').trim();
+      const awayName = String(awayTeam ?? '').trim();
+      if (!homeName || !awayName) return { error: 'teams_required' };
+
       await loadAllMatchesComplete();
-      const { dbId } = resolveMatchForScoring(matchId, matchesRef.current);
-      const resolvedMatchId = dbId || normalizeMatchId(matchId);
-      if (!resolvedMatchId) return { error: 'match_id_required' };
 
       try {
-        const applyResult = await applyMatchFinalResult(
+        const applyResult = await applyMatchFinalResultByTeams(
           supabase,
-          resolvedMatchId,
+          homeName,
+          awayName,
           homeScore,
           awayScore,
           {
@@ -1354,7 +1355,6 @@ export function useAppData(session) {
         cacheInvalidate('matches:');
         await loadAllMatchesComplete();
 
-        // apply_match_final_result ya puntúa vía score_finished_match(p_match_id).
         const pipeline = await runScoringAndPulpoPipeline(supabase, {
           matches: matchesRef.current,
           captureRanking: true,

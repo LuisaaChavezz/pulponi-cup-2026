@@ -332,6 +332,39 @@ export async function scoreAllFinishedMatchesFallback(client, { matches, profile
 }
 
 /**
+ * Puntúa un partido finalizado por nombres de equipos (RPC score_match_by_teams).
+ */
+export async function scoreMatchByTeams(
+  client,
+  homeTeam,
+  awayTeam,
+  { recomputeStreaks = true } = {}
+) {
+  const pHomeTeam = String(homeTeam ?? '').trim();
+  const pAwayTeam = String(awayTeam ?? '').trim();
+  if (!pHomeTeam || !pAwayTeam) {
+    return { error: 'teams_required' };
+  }
+
+  const { data, error } = await client.rpc('score_match_by_teams', {
+    p_home_team: pHomeTeam,
+    p_away_team: pAwayTeam,
+    p_recompute_streaks: recomputeStreaks,
+  });
+
+  if (!error) {
+    return { ...(data && typeof data === 'object' ? data : {}), fallback: false };
+  }
+
+  if (isRpcMissing(error)) {
+    return { error: 'rpc_missing', home_team: pHomeTeam, away_team: pAwayTeam };
+  }
+
+  console.warn('[scoring] score_match_by_teams', error.message);
+  return { error: error.message, home_team: pHomeTeam, away_team: pAwayTeam };
+}
+
+/**
  * Puntúa un partido finalizado vía RPC (trigger en Supabase también lo hace al UPDATE).
  */
 export async function scoreFinishedMatch(

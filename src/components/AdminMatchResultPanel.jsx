@@ -59,18 +59,24 @@ export default function AdminMatchResultPanel({
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const matchIdToScore = normalizeMatchId(selectedMatchId) || defaultMatchId;
-    if (busy || !matchIdToScore || !onApplyFinalResult) {
-      if (!matchIdToScore) {
+    if (busy || !activeMatch || !onApplyFinalResult) {
+      if (!activeMatch) {
         setNotice({ type: 'error', text: 'Selecciona un partido válido.' });
       }
+      return;
+    }
+
+    const homeTeam = String(activeMatch.home_team ?? '').trim();
+    const awayTeam = String(activeMatch.away_team ?? '').trim();
+    if (!homeTeam || !awayTeam) {
+      setNotice({ type: 'error', text: 'El partido seleccionado no tiene equipos válidos.' });
       return;
     }
 
     setBusy(true);
     setNotice(null);
     try {
-      const res = await onApplyFinalResult(matchIdToScore, homeScore, awayScore);
+      const res = await onApplyFinalResult(homeTeam, awayTeam, homeScore, awayScore);
       if (res?.error) {
         setNotice({ type: 'error', text: String(res.error) });
       } else {
