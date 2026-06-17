@@ -47,13 +47,6 @@ export default function AdminMatchResultPanel({
     return true;
   };
 
-  const canSubmit =
-    !busy &&
-    Boolean(activeMatchId) &&
-    Boolean(activeMatch) &&
-    isValidScore(homeScore) &&
-    isValidScore(awayScore);
-
   useEffect(() => {
     if (!defaultMatchId) return;
     setSelectedMatchId((prev) => {
@@ -67,6 +60,13 @@ export default function AdminMatchResultPanel({
 
   const activeMatchId = normalizeMatchId(selectedMatchId) || defaultMatchId;
   const activeMatch = selectableMatches.find((m) => matchScoringId(m) === activeMatchId) ?? null;
+
+  const canSubmit =
+    !busy &&
+    Boolean(activeMatchId) &&
+    Boolean(activeMatch) &&
+    isValidScore(homeScore) &&
+    isValidScore(awayScore);
 
   if (!allowed) return null;
 
