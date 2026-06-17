@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { resolveAvatarUrl } from '../lib/avatars';
 import { runScoringAndPulpoPipeline, refreshPulpoIndexesAfterPickScores } from '../lib/pulpoSync';
 import { applyMatchFinalResult, normalizeMatchId } from '../lib/matchScoring';
+import { resolveMatchForScoring } from '../lib/matchUtils';
 import { canAdminExportPredictions } from '../lib/predictionActivity';
 import { isMatchFinished } from '../lib/matchUtils';
 import { syncWorldCupFixtures } from '../lib/footballApi';
@@ -1323,7 +1324,9 @@ export function useAppData(session) {
         profile?.is_admin || canAdminExportPredictions(profile?.username ?? null);
       if (!userId || !allowed) return { error: 'No autorizado' };
 
-      const resolvedMatchId = normalizeMatchId(matchId);
+      await loadAllMatchesComplete();
+      const { dbId } = resolveMatchForScoring(matchId, matchesRef.current);
+      const resolvedMatchId = dbId || normalizeMatchId(matchId);
       if (!resolvedMatchId) return { error: 'match_id_required' };
 
       try {

@@ -1,5 +1,5 @@
 import { parsePickScore } from './communityPicks';
-import { isMatchFinished } from './matchUtils';
+import { isMatchFinished, resolveMatchForScoring } from './matchUtils';
 
 /** Reglas de puntos Pulponi (marcador exacto / ganador). */
 export const SCORING_RULES = {
@@ -119,6 +119,142 @@ function isRpcMissing(error) {
   );
 }
 
+function isSafeUpdateError(error) {
+  const msg =
+    typeof error === 'string' ? error : String(error?.message ?? error?.error ?? error ?? '');
+  return /UPDATE requires a WHERE clause/i.test(msg);
+}
+
+function shouldUseClientScoringFallback(error) {
+  return isRpcMissing(error) || isSafeUpdateError(error);
+}
+
+async function loadMatchRowForScoring(client, matchId, matches = []) {
+  const { dbId, pickKeys, match: cached } = resolveMatchForScoring(matchId, matches);
+  if (cached) return { row: cached, dbId, pickKeys };
+
+  const key = dbId || String(matchId ?? '').trim();
+  if (!key) return { row: null, dbId: '', pickKeys: [] };
+
+  const { data: byId, error: byIdErr } = await client
+    .from('matches')
+    .select('*')
+    .eq('id', key)
+    .maybeSingle();
+  if (!byIdErr && byId) {
+    return {
+      row: byId,
+      dbId: String(byId.id),
+      pickKeys: [String(byId.id), byId.official_id].filter(Boolean).map(String),
+    };
+  }
+
+  const { data: byOfficial, error: byOfficialErr } = await client
+    .from('matches')
+    .select('*')
+    .eq('official_id', key)
+    .maybeSingle();
+  if (!byOfficialErr && byOfficial) {
+    return {
+      row: byOfficial,
+      dbId: String(byOfficial.id),
+      pickKeys: [String(byOfficial.id), byOfficial.official_id].filter(Boolean).map(String),
+    };
+  }
+
+  return { row: null, dbId: key, pickKeys: pickKeys.length ? pickKeys : [key] };
+}
+
+/** Puntúa un partido finalizado en cliente (sin RPC masivo). */
+export async function scoreSingleFinishedMatchClient(
+  client,
+  matchId,
+  { matches = [], profiles } = {}
+) {
+  const { row, dbId, pickKeys } = await loadMatchRowForScoring(client, matchId, matches);
+  if (!row) return { error: 'match_not_found', match_id: dbId || String(matchId ?? '') };
+
+  const final = matchFinalScores(row);
+  if (!final) return { error: 'match_not_finished', match_id: dbId };
+
+  let profs = profiles;
+  if (!profs?.length) {
+    const { data } = await client.from('profiles').select('id, picks');
+    profs = data ?? [];
+  }
+
+  const keys = pickKeys.length
+    ? pickKeys
+    : [String(row.id), row.official_id].filter(Boolean).map(String);
+
+  let scoredPicks = 0;
+  const affectedProfileIds = new Set();
+  const matchesById = new Map([[String(row.id), row]]);
+
+  for (const prof of profs) {
+    let pick = null;
+    let usedKey = null;
+    for (const key of keys) {
+      const candidate = parsePickScore(prof.picks?.[key]);
+      if (candidate) {
+        pick = candidate;
+        usedKey = key;
+        break;
+      }
+    }
+    if (!pick || !usedKey) continue;
+
+    const grade = gradePick(pick, final);
+    const { error } = await client.from('pick_scores').upsert(
+      {
+        profile_id: prof.id,
+        match_id: usedKey,
+        points_awarded: grade.points,
+        exact_hit: grade.exactHit,
+        winner_hit: grade.winnerHit,
+        scored_at: new Date().toISOString(),
+      },
+      { onConflict: 'profile_id,match_id' }
+    );
+    if (error) {
+      console.warn('[scoring] pick_scores upsert', error.message);
+      continue;
+    }
+    scoredPicks += 1;
+    affectedProfileIds.add(prof.id);
+  }
+
+  for (const profileId of affectedProfileIds) {
+    const { data: rows, error } = await client
+      .from('pick_scores')
+      .select('match_id, points_awarded, exact_hit, winner_hit')
+      .eq('profile_id', profileId);
+
+    if (error) {
+      console.warn('[scoring] load pick_scores', error.message);
+      continue;
+    }
+
+    const points = (rows ?? []).reduce((sum, r) => sum + Number(r.points_awarded ?? 0), 0);
+    const exacts = (rows ?? []).filter((r) => r.exact_hit).length;
+    const streak = computeStreakFromPickScores(rows ?? [], matchesById);
+
+    const { error: updateErr } = await client
+      .from('profiles')
+      .update({ points, exacts, streak })
+      .eq('id', profileId);
+
+    if (updateErr) console.warn('[scoring] profile update', profileId, updateErr.message);
+  }
+
+  return {
+    scored_matches: 1,
+    scored_picks: scoredPicks,
+    match_id: dbId,
+    fallback: true,
+  };
+}
+
 /**
  * Fallback cliente si aún no se ejecutó pulpo_scoring.sql en Supabase.
  */
@@ -221,7 +357,7 @@ export async function scoreFinishedMatch(
 }
 
 /** Puntúa varios partidos finalizados (idempotente; UPSERT en pick_scores). */
-export async function scoreFinishedMatchesByIds(client, matchIds) {
+export async function scoreFinishedMatchesByIds(client, matchIds, { matches, profiles } = {}) {
   const ids = [...new Set((matchIds ?? []).map((id) => String(id)).filter(Boolean))];
   if (!ids.length) return { scored_matches: 0, scored_picks: 0, fallback: false };
 
@@ -231,7 +367,7 @@ export async function scoreFinishedMatchesByIds(client, matchIds) {
 
   for (const matchId of ids) {
     const result = await scoreFinishedMatch(client, matchId, { recomputeStreaks: false });
-    if (result?.error === 'rpc_missing') {
+    if (result?.error === 'rpc_missing' || isSafeUpdateError(result?.error)) {
       usedFallback = true;
       break;
     }
@@ -242,8 +378,35 @@ export async function scoreFinishedMatchesByIds(client, matchIds) {
   }
 
   if (usedFallback) {
-    const bulk = await scoreAllFinishedMatches(client);
-    return { ...bulk, fallback: true };
+    let fallbackPicks = 0;
+    let fallbackMatches = 0;
+    for (const matchId of ids) {
+      const one = await scoreSingleFinishedMatchClient(client, matchId, { matches, profiles });
+      if (one?.error) {
+        console.warn('[scoring] client score', matchId, one.error);
+        continue;
+      }
+      fallbackMatches += 1;
+      fallbackPicks += Number(one?.scored_picks ?? 0);
+    }
+
+    if (fallbackPicks > 0) {
+      const { error: streakErr } = await client.rpc('recompute_profile_streaks');
+      if (streakErr && !isRpcMissing(streakErr)) {
+        console.warn('[scoring] recompute_profile_streaks', streakErr.message);
+      }
+
+      const { error: pulpoErr } = await client.rpc('recompute_all_pulpo_indexes');
+      if (pulpoErr && !isRpcMissing(pulpoErr) && !isSafeUpdateError(pulpoErr)) {
+        console.warn('[scoring] recompute_all_pulpo_indexes', pulpoErr.message);
+      }
+    }
+
+    return {
+      scored_matches: fallbackMatches,
+      scored_picks: fallbackPicks,
+      fallback: true,
+    };
   }
 
   if (scoredPicks > 0) {
@@ -274,13 +437,24 @@ export async function scoreAllFinishedMatches(
     return { ...(data && typeof data === 'object' ? data : {}), fallback: false };
   }
 
-  if (isRpcMissing(error)) {
-    console.warn('[scoring] RPC no disponible; usa supabase/pulpo_scoring.sql. Fallback cliente.');
+  if (shouldUseClientScoringFallback(error)) {
+    console.warn('[scoring] RPC no disponible o safeupdate; fallback cliente por partido.');
     let profs = profiles;
     if (!profs?.length) {
       const { data: profRows } = await client.from('profiles').select('id, picks');
       profs = profRows ?? [];
     }
+
+    const finished = (matches ?? []).filter((m) => matchFinalScores(m));
+    if (finished.length) {
+      let scoredPicks = 0;
+      for (const match of finished) {
+        const one = await scoreSingleFinishedMatchClient(client, match.id, { matches, profiles: profs });
+        scoredPicks += Number(one?.scored_picks ?? 0);
+      }
+      return { scored_matches: finished.length, scored_picks: scoredPicks, fallback: true };
+    }
+
     return scoreAllFinishedMatchesFallback(client, { matches, profiles: profs });
   }
 

@@ -53,20 +53,31 @@ BEGIN
       m public.matches%ROWTYPE;
       prof record;
       pick jsonb;
+      pick_key text;
       g record;
       scored_picks integer := 0;
       affected_profiles uuid[] := '{}'::uuid[];
+      mid_db text;
+      mid_official text;
     BEGIN
-      SELECT * INTO m FROM public.matches WHERE id = p_match_id;
+      SELECT * INTO m
+      FROM public.matches
+      WHERE id::text = trim(p_match_id)
+         OR official_id = trim(p_match_id)
+      LIMIT 1;
+
       IF NOT FOUND THEN
         RETURN jsonb_build_object('error', 'match_not_found', 'match_id', p_match_id);
       END IF;
+
+      mid_db := m.id::text;
+      mid_official := nullif(trim(coalesce(m.official_id, '')), '');
 
       IF NOT public._match_is_finished(m.*) THEN
         RETURN jsonb_build_object(
           'skipped', true,
           'reason', 'not_finished',
-          'match_id', p_match_id
+          'match_id', mid_db
         );
       END IF;
 
@@ -75,10 +86,23 @@ BEGIN
         FROM public.profiles
         WHERE picks IS NOT NULL
           AND picks <> '{}'::jsonb
-          AND picks ? p_match_id
+          AND (
+            picks ? mid_db
+            OR (mid_official IS NOT NULL AND picks ? mid_official)
+          )
       LOOP
-        pick := prof.picks -> p_match_id;
-        IF pick IS NULL THEN
+        pick_key := NULL;
+        pick := NULL;
+
+        IF prof.picks ? mid_db THEN
+          pick_key := mid_db;
+          pick := prof.picks -> mid_db;
+        ELSIF mid_official IS NOT NULL AND prof.picks ? mid_official THEN
+          pick_key := mid_official;
+          pick := prof.picks -> mid_official;
+        END IF;
+
+        IF pick IS NULL OR pick_key IS NULL THEN
           CONTINUE;
         END IF;
 
@@ -89,7 +113,7 @@ BEGIN
           profile_id, match_id, points_awarded, exact_hit, winner_hit, scored_at
         )
         VALUES (
-          prof.id, p_match_id, g.points_awarded, g.exact_hit, g.winner_hit, now()
+          prof.id, pick_key, g.points_awarded, g.exact_hit, g.winner_hit, now()
         )
         ON CONFLICT (profile_id, match_id) DO UPDATE SET
           points_awarded = excluded.points_awarded,
@@ -112,7 +136,7 @@ BEGIN
       END IF;
 
       RETURN jsonb_build_object(
-        'match_id', p_match_id,
+        'match_id', mid_db,
         'home_score', m.home_score,
         'away_score', m.away_score,
         'scored_picks', scored_picks

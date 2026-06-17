@@ -24,10 +24,14 @@ BEGIN
     AS $body$
     DECLARE
       caller_username text;
+      caller_is_admin boolean;
       score_result jsonb;
+      target_match_id text;
     BEGIN
-      SELECT lower(trim(replace(coalesce(username, ''), '@', '')))
-      INTO caller_username
+      SELECT
+        lower(trim(replace(coalesce(username, ''), '@', ''))),
+        coalesce(is_admin, false)
+      INTO caller_username, caller_is_admin
       FROM public.profiles
       WHERE id = auth.uid();
 
@@ -35,12 +39,23 @@ BEGIN
         RETURN jsonb_build_object('error', 'not_authenticated');
       END IF;
 
-      IF caller_username IS DISTINCT FROM 'luisaachavezz' THEN
+      IF caller_username IS DISTINCT FROM 'luisaachavezz' AND NOT caller_is_admin THEN
         RETURN jsonb_build_object('error', 'not_authorized');
       END IF;
 
       IF p_match_id IS NULL OR trim(p_match_id) = '' THEN
         RETURN jsonb_build_object('error', 'match_id_required');
+      END IF;
+
+      SELECT id::text
+      INTO target_match_id
+      FROM public.matches
+      WHERE id::text = trim(p_match_id)
+         OR official_id = trim(p_match_id)
+      LIMIT 1;
+
+      IF target_match_id IS NULL THEN
+        RETURN jsonb_build_object('error', 'match_not_found', 'match_id', p_match_id);
       END IF;
 
       UPDATE public.matches
@@ -50,17 +65,17 @@ BEGIN
         api_status = 'FT',
         status = 'finished',
         updated_at = now()
-      WHERE id = p_match_id;
+      WHERE id::text = target_match_id;
 
       IF NOT FOUND THEN
         RETURN jsonb_build_object('error', 'match_not_found');
       END IF;
 
-      -- Trigger puntúa al UPDATE; llamada explícita por si el trigger aún no está instalado.
-      score_result := public.score_finished_match(p_match_id, true);
+      score_result := public.score_finished_match(target_match_id, true);
 
       RETURN score_result
         || jsonb_build_object(
+          'match_id', target_match_id,
           'home_score', p_home_score,
           'away_score', p_away_score,
           'via', 'admin_rpc'

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { canAdminExportPredictions } from '../lib/predictionActivity';
-import { findMatchByTeams, normalizeMatchId } from '../lib/matchScoring';
+import { findMatchByTeams } from '../lib/matchScoring';
+import { normalizeMatchId, resolveMatchForScoring } from '../lib/matchUtils';
 import { formatMatchVersusLabel } from '../lib/predictionActivity';
 
 export default function AdminMatchResultPanel({
@@ -17,7 +18,7 @@ export default function AdminMatchResultPanel({
 
   const selectableMatches = useMemo(() => {
     return [...(matches ?? [])]
-      .filter((m) => normalizeMatchId(m?.id))
+      .filter((m) => resolveMatchForScoring(m?.id ?? m?.official_id, matches).dbId)
       .sort((a, b) => {
         const ta = a?.kickoff ? new Date(a.kickoff).getTime() : 0;
         const tb = b?.kickoff ? new Date(b.kickoff).getTime() : 0;
@@ -25,11 +26,13 @@ export default function AdminMatchResultPanel({
       });
   }, [matches]);
 
+  const matchScoringId = (match) => resolveMatchForScoring(match?.id ?? match?.official_id, matches).dbId;
+
   const defaultMatchId = useMemo(() => {
-    const preferred = normalizeMatchId(mexicoMatch?.id);
+    const preferred = matchScoringId(mexicoMatch);
     if (preferred) return preferred;
-    return normalizeMatchId(selectableMatches[0]?.id);
-  }, [mexicoMatch, selectableMatches]);
+    return matchScoringId(selectableMatches[0]);
+  }, [mexicoMatch, selectableMatches, matches]);
 
   const [selectedMatchId, setSelectedMatchId] = useState('');
   const [homeScore, setHomeScore] = useState('2');
@@ -41,7 +44,7 @@ export default function AdminMatchResultPanel({
     if (!defaultMatchId) return;
     setSelectedMatchId((prev) => {
       const current = normalizeMatchId(prev);
-      if (current && selectableMatches.some((m) => normalizeMatchId(m.id) === current)) {
+      if (current && selectableMatches.some((m) => matchScoringId(m) === current)) {
         return current;
       }
       return defaultMatchId;
@@ -50,7 +53,7 @@ export default function AdminMatchResultPanel({
 
   const activeMatchId = normalizeMatchId(selectedMatchId) || defaultMatchId;
   const activeMatch =
-    selectableMatches.find((m) => normalizeMatchId(m.id) === activeMatchId) ?? mexicoMatch;
+    selectableMatches.find((m) => matchScoringId(m) === activeMatchId) ?? mexicoMatch;
 
   if (!allowed) return null;
 
@@ -103,7 +106,7 @@ export default function AdminMatchResultPanel({
             disabled={!selectableMatches.length}
           >
             {selectableMatches.map((m) => {
-              const id = normalizeMatchId(m.id);
+              const id = matchScoringId(m);
               return (
                 <option key={id} value={id}>
                   {formatMatchVersusLabel(m)}

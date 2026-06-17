@@ -36,6 +36,38 @@ export function isMatchFinished(match) {
   return uiStatus(match?.status, match?.api_status) === 'Final';
 }
 
+/** ID estable de partido (uuid u official_id) para RPC / pick_scores. */
+export function normalizeMatchId(matchId) {
+  const id = String(matchId ?? '').trim();
+  if (!id || id === 'undefined' || id === 'null') return '';
+  return id;
+}
+
+/** Busca partido por `id` o `official_id` en memoria. */
+export function findMatchByScoringId(matchId, matches = []) {
+  const key = normalizeMatchId(matchId);
+  if (!key) return null;
+
+  return (
+    (matches ?? []).find((m) => normalizeMatchId(m?.id) === key) ??
+    (matches ?? []).find((m) => normalizeMatchId(m?.official_id) === key) ??
+    null
+  );
+}
+
+/** Resuelve id de fila en BD y claves posibles en profiles.picks. */
+export function resolveMatchForScoring(matchId, matches = []) {
+  const match = findMatchByScoringId(matchId, matches);
+  const dbId = normalizeMatchId(match?.id) || normalizeMatchId(matchId);
+  const pickKeys = [
+    normalizeMatchId(match?.id),
+    normalizeMatchId(match?.official_id),
+    normalizeMatchId(matchId),
+  ].filter((value, index, array) => value && array.indexOf(value) === index);
+
+  return { match, dbId, pickKeys };
+}
+
 /** Marcador final disponible (FT o goles registrados en matches). */
 export function matchHasFinalScore(match) {
   if (!match) return false;
