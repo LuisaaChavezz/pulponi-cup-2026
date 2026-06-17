@@ -1681,16 +1681,6 @@
   color: var(--muted);
 }
 
-.dash-notifications__admin-score-inputs input {
-  width: 72px;
-  font-size: 14px;
-  padding: 8px 10px;
-  border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(6, 6, 8, 0.9);
-  color: var(--text);
-}
-
 .dash-notifications__admin-score-sep {
   font-size: 18px;
   font-weight: 700;

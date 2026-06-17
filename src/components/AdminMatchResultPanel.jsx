@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import PickScoreInput from './PickScoreInput';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import { canAdminExportPredictions, formatMatchVersusLabel } from '../lib/predictionActivity';
+import { validatePickScores } from '../lib/pickScoreInput';
 import {
   normalizeMatchId,
   pickDefaultFocusedMatch,
@@ -38,15 +40,6 @@ export default function AdminMatchResultPanel({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
 
-  const isValidScore = (value) => {
-    if (value == null || value === '') return false;
-    const n = Number(value);
-    if (!Number.isFinite(n)) return false;
-    if (n < 0) return false;
-    if (n > 20) return false;
-    return true;
-  };
-
   useEffect(() => {
     if (!defaultMatchId) return;
     setSelectedMatchId((prev) => {
@@ -61,12 +54,9 @@ export default function AdminMatchResultPanel({
   const activeMatchId = normalizeMatchId(selectedMatchId) || defaultMatchId;
   const activeMatch = selectableMatches.find((m) => matchScoringId(m) === activeMatchId) ?? null;
 
+  const scoreValidation = validatePickScores(homeScore, awayScore);
   const canSubmit =
-    !busy &&
-    Boolean(activeMatchId) &&
-    Boolean(activeMatch) &&
-    isValidScore(homeScore) &&
-    isValidScore(awayScore);
+    !busy && Boolean(activeMatchId) && Boolean(activeMatch) && scoreValidation.ok;
 
   if (!allowed) return null;
 
@@ -78,8 +68,8 @@ export default function AdminMatchResultPanel({
       }
       return;
     }
-    if (!isValidScore(homeScore) || !isValidScore(awayScore)) {
-      setNotice({ type: 'error', text: 'Ingresa un marcador válido para ambos equipos.' });
+    if (!scoreValidation.ok) {
+      setNotice({ type: 'error', text: scoreValidation.error ?? 'Ingresa un marcador válido para ambos equipos.' });
       return;
     }
 
@@ -96,8 +86,8 @@ export default function AdminMatchResultPanel({
       const res = await onApplyFinalResult(
         homeTeam,
         awayTeam,
-        homeScore,
-        awayScore,
+        scoreValidation.home,
+        scoreValidation.away,
         activeMatchId
       );
       if (res?.error) {
@@ -106,7 +96,7 @@ export default function AdminMatchResultPanel({
         const picks = res?.scored_picks ?? res?.score?.scored_picks ?? '—';
         setNotice({
           type: 'ok',
-          text: `Marcador registrado (${homeScore}-${awayScore}). Predicciones puntuadas: ${picks}.`,
+          text: `Marcador registrado (${scoreValidation.home}-${scoreValidation.away}). Predicciones puntuadas: ${picks}.`,
         });
       }
     } catch (err) {
@@ -152,25 +142,21 @@ export default function AdminMatchResultPanel({
         <div className="dash-notifications__admin-score-inputs">
           <label>
             Local
-            <input
-              type="number"
-              min={0}
-              max={20}
+            <PickScoreInput
               value={homeScore}
-              onChange={(e) => setHomeScore(e.target.value)}
-              required
+              onChange={setHomeScore}
+              disabled={busy}
+              ariaLabel="goles local"
             />
           </label>
           <span className="dash-notifications__admin-score-sep">—</span>
           <label>
             Visitante
-            <input
-              type="number"
-              min={0}
-              max={20}
+            <PickScoreInput
               value={awayScore}
-              onChange={(e) => setAwayScore(e.target.value)}
-              required
+              onChange={setAwayScore}
+              disabled={busy}
+              ariaLabel="goles visitante"
             />
           </label>
         </div>
