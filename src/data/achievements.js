@@ -78,7 +78,7 @@ export const ACHIEVEMENT_CATALOG = [
     id: 'el-elegido',
     name: 'Trono Kraken',
     icon: EL_ELEGIDO_BADGE_ICON,
-    description: 'El Kraken eligió al mejor. Defiéndelo o piérdelo.',
+    description: 'El Kraken solo obedece al más fuerte. El trono es tuyo... por ahora.',
     requirement: 'Ser el #1 del ranking y recibir el trono del pulpo.',
     active: true,
     manualGrant: true,
