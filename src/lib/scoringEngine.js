@@ -344,24 +344,26 @@ export async function scoreAllFinishedMatchesFallback(client, { matches, profile
 }
 
 /**
- * Puntúa un partido finalizado por nombres de equipos (RPC score_match_by_teams).
+ * Puntúa por equipos + marcador (RPC score_match_by_teams).
  */
-export async function scoreMatchByTeams(
-  client,
-  homeTeam,
-  awayTeam,
-  { recomputeStreaks = true } = {}
-) {
+export async function scoreMatchByTeams(client, homeTeam, awayTeam, homeScore, awayScore) {
   const pHomeTeam = String(homeTeam ?? '').trim();
   const pAwayTeam = String(awayTeam ?? '').trim();
+  const pHomeScore = Math.max(0, Math.round(Number(homeScore)));
+  const pAwayScore = Math.max(0, Math.round(Number(awayScore)));
+
   if (!pHomeTeam || !pAwayTeam) {
     return { error: 'teams_required' };
+  }
+  if (!Number.isFinite(pHomeScore) || !Number.isFinite(pAwayScore)) {
+    return { error: 'invalid_scores' };
   }
 
   const { data, error } = await client.rpc('score_match_by_teams', {
     p_home_team: pHomeTeam,
     p_away_team: pAwayTeam,
-    p_recompute_streaks: recomputeStreaks,
+    p_home_score: pHomeScore,
+    p_away_score: pAwayScore,
   });
 
   if (!error) {

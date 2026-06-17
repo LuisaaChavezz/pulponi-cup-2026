@@ -54,7 +54,7 @@ function isRpcMissing(error) {
 }
 
 /**
- * Registra marcador final por equipos y puntúa (admin — score_match_by_teams).
+ * Registra marcador final por equipos y puntúa vía score_match_by_teams (admin).
  */
 export async function applyMatchFinalResultByTeams(
   client,
@@ -81,7 +81,6 @@ export async function applyMatchFinalResultByTeams(
     matches,
     profiles,
   });
-  if (ctx.error && !catalogMatch) return { error: ctx.error };
 
   const { dbId, pickKeys, primaryPickKey, match, profiles: profs } = ctx.error
     ? {
@@ -93,38 +92,24 @@ export async function applyMatchFinalResultByTeams(
       }
     : ctx;
 
-  let scoreVia = 'client_score';
+  const teamsScore = await scoreMatchByTeams(client, homeName, awayName, home, away);
 
-  const { data: rpcData, error: rpcError } = await client.rpc('apply_match_final_result_by_teams', {
-    p_home_team: homeName,
-    p_away_team: awayName,
-    p_home_score: home,
-    p_away_score: away,
-  });
+  if (!teamsScore?.error) {
+    return {
+      ...teamsScore,
+      match_id: teamsScore.match_id ?? dbId,
+      primary_pick_key: primaryPickKey,
+      pick_keys: pickKeys,
+      home_score: home,
+      away_score: away,
+      scored_picks: Number(teamsScore.scored_picks ?? 0),
+      via: teamsScore.via ?? 'score_match_by_teams',
+    };
+  }
 
-  if (!rpcError) {
-    const payload = rpcData && typeof rpcData === 'object' ? rpcData : {};
-    if (payload.error && payload.error !== 'not_finished') {
-      return { error: payload.error, ...payload };
-    }
-    scoreVia = payload.via ?? 'admin_rpc_by_teams';
-
-    const scoredPicks = Number(payload.scored_picks ?? 0);
-    if (scoredPicks > 0) {
-      return {
-        ...payload,
-        match_id: payload.match_id ?? dbId,
-        primary_pick_key: primaryPickKey,
-        pick_keys: pickKeys,
-        home_score: home,
-        away_score: away,
-        scored_picks: scoredPicks,
-        via: scoreVia,
-      };
-    }
-  } else if (!isRpcMissing(rpcError) && !/WHERE clause/i.test(String(rpcError.message ?? ''))) {
-    console.warn('[matchScoring] RPC apply_match_final_result_by_teams', rpcError.message);
-    return { error: rpcError.message };
+  if (teamsScore.error !== 'rpc_missing') {
+    console.warn('[matchScoring] score_match_by_teams', teamsScore.error);
+    return teamsScore;
   }
 
   if (dbId) {
@@ -134,24 +119,6 @@ export async function applyMatchFinalResultByTeams(
       console.warn('[matchScoring] match update', updateError.message);
       return { error: updateError.message };
     }
-    scoreVia = 'fallback';
-  }
-
-  const teamsScore = await scoreMatchByTeams(client, homeName, awayName, { recomputeStreaks: false });
-  if (
-    !teamsScore?.error &&
-    !teamsScore?.skipped &&
-    Number(teamsScore?.scored_picks ?? 0) > 0
-  ) {
-    return {
-      ...teamsScore,
-      match_id: teamsScore.match_id ?? dbId,
-      primary_pick_key: primaryPickKey,
-      pick_keys: pickKeys,
-      home_score: home,
-      away_score: away,
-      via: teamsScore.via ?? 'score_match_by_teams',
-    };
   }
 
   if (!dbId || !match) {
@@ -190,7 +157,7 @@ export async function applyMatchFinalResultByTeams(
     home_score: home,
     away_score: away,
     scored_picks: scoredPicks,
-    via: clientScore.via ?? scoreVia,
+    via: clientScore.via ?? 'client_score',
   };
 }
 
