@@ -59,6 +59,32 @@ function logSupabaseWarn(context, error) {
   console.warn(`[Supabase] ${context}:`, error?.message ?? error);
 }
 
+function isValidDbMatchId(id) {
+  if (id == null) return false;
+  const text = String(id).trim();
+  return text !== '' && text !== 'undefined' && text !== 'null';
+}
+
+/** UPDATE matches con id validado (evita safeupdate sin WHERE en PostgREST). */
+async function updateDbMatchRow(client, dbMatch, patch, context) {
+  if (!isValidDbMatchId(dbMatch?.id)) {
+    console.warn(`[${context}] omitiendo update: dbMatch.id inválido`, {
+      home_team: dbMatch?.home_team,
+      away_team: dbMatch?.away_team,
+      official_id: dbMatch?.official_id,
+      api_fixture_id: dbMatch?.api_fixture_id,
+    });
+    return { ok: false, skipped: true };
+  }
+
+  const { error } = await client.from('matches').update(patch).eq('id', dbMatch.id);
+  if (error) {
+    logSupabaseWarn(`${context} ${dbMatch.id}`, error);
+    return { ok: false, error };
+  }
+  return { ok: true };
+}
+
 async function apiFetchPage(path, params = {}, { requireKey = true } = {}) {
   const key = getApiKey();
   if (!key) {
@@ -904,9 +930,13 @@ export async function syncLiveScoresToSupabase(client) {
     const events = needsEvents ? await fetchFixtureEvents(fid) : [];
     const patch = omitKickoff(buildResultsPatchFromFixture(fixture, events));
 
-    const { error: updateError } = await client.from('matches').update(patch).eq('id', dbMatch.id);
-    if (updateError) {
-      logSupabaseWarn(`syncLiveScoresToSupabase ${dbMatch.id}`, updateError);
+    const updateResult = await updateDbMatchRow(
+      client,
+      dbMatch,
+      patch,
+      'syncLiveScoresToSupabase'
+    );
+    if (!updateResult.ok) {
       ignored += 1;
       continue;
     }
@@ -970,9 +1000,13 @@ export async function syncMatchesToSupabase(client) {
     const events = needsEvents ? await fetchFixtureEvents(fixture.fixture.id) : [];
     const patch = omitKickoff(buildResultsPatchFromFixture(fixture, events));
 
-    const { error: updateError } = await client.from('matches').update(patch).eq('id', dbMatch.id);
-    if (updateError) {
-      logSupabaseWarn(`syncMatchesToSupabase ${dbMatch.id}`, updateError);
+    const updateResult = await updateDbMatchRow(
+      client,
+      dbMatch,
+      patch,
+      'syncMatchesToSupabase'
+    );
+    if (!updateResult.ok) {
       ignored += 1;
       continue;
     }

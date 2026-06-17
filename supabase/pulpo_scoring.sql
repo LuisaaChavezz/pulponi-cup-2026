@@ -274,18 +274,23 @@ BEGIN
         END LOOP;
       END LOOP;
 
-      UPDATE public.profiles p SET
-        points = coalesce((
-          SELECT sum(ps.points_awarded)::integer
-          FROM public.pick_scores ps
-          WHERE ps.profile_id = p.id
-        ), 0),
-        exacts = coalesce((
-          SELECT count(*)::integer
-          FROM public.pick_scores ps
-          WHERE ps.profile_id = p.id AND ps.exact_hit
-        ), 0)
-      WHERE p.id IS NOT NULL;
+      FOR prof IN
+        SELECT DISTINCT profile_id AS id
+        FROM public.pick_scores
+      LOOP
+        UPDATE public.profiles p SET
+          points = coalesce((
+            SELECT sum(ps.points_awarded)::integer
+            FROM public.pick_scores ps
+            WHERE ps.profile_id = prof.id
+          ), 0),
+          exacts = coalesce((
+            SELECT count(*)::integer
+            FROM public.pick_scores ps
+            WHERE ps.profile_id = prof.id AND ps.exact_hit
+          ), 0)
+        WHERE p.id = prof.id;
+      END LOOP;
 
       PERFORM public.recompute_profile_streaks();
 

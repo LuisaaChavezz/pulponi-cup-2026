@@ -86,12 +86,17 @@ BEGIN
 
       GET DIAGNOSTICS updated_count = ROW_COUNT;
 
-      UPDATE public.profiles p
-      SET pulpo_index = 0, pulpo_stats = '{}'::jsonb
-      WHERE p.id IS NOT NULL
-        AND NOT EXISTS (
+      FOR prof IN
+        SELECT p.id
+        FROM public.profiles p
+        WHERE NOT EXISTS (
           SELECT 1 FROM public.pick_scores ps WHERE ps.profile_id = p.id
-        );
+        )
+      LOOP
+        UPDATE public.profiles
+        SET pulpo_index = 0, pulpo_stats = '{}'::jsonb
+        WHERE id = prof.id;
+      END LOOP;
 
       GET DIAGNOSTICS affected = ROW_COUNT;
       RETURN updated_count + affected;
