@@ -4,7 +4,7 @@ import { resolveAvatarUrl } from '../lib/avatars';
 import { runScoringAndPulpoPipeline, refreshPulpoIndexesAfterPickScores } from '../lib/pulpoSync';
 import { applyMatchFinalResultByTeams } from '../lib/matchScoring';
 import { canAdminExportPredictions } from '../lib/predictionActivity';
-import { isMatchFinished } from '../lib/matchUtils';
+import { isMatchFinished, normalizeMatchId, resolveMatchForScoring } from '../lib/matchUtils';
 import { syncWorldCupFixtures } from '../lib/footballApi';
 import { filterWorldCupMatches } from '../lib/worldCupScope';
 import { normalizeMatchRow, normalizeMatches } from '../lib/normalizeMatch';
@@ -1326,7 +1326,7 @@ export function useAppData(session) {
   }
 
   const applyManualMatchResult = useCallback(
-    async (homeTeam, awayTeam, homeScore, awayScore) => {
+    async (homeTeam, awayTeam, homeScore, awayScore, matchId) => {
       const allowed =
         profile?.is_admin || canAdminExportPredictions(profile?.username ?? null);
       if (!userId || !allowed) return { error: 'No autorizado' };
@@ -1334,6 +1334,11 @@ export function useAppData(session) {
       const homeName = String(homeTeam ?? '').trim();
       const awayName = String(awayTeam ?? '').trim();
       if (!homeName || !awayName) return { error: 'teams_required' };
+
+      const resolvedMatchId = normalizeMatchId(
+        resolveMatchForScoring(matchId, matchesRef.current).dbId || matchId
+      );
+      if (!resolvedMatchId) return { error: 'match_id_required' };
 
       await loadAllMatchesComplete();
 
@@ -1345,6 +1350,7 @@ export function useAppData(session) {
           homeScore,
           awayScore,
           {
+            matchId: resolvedMatchId,
             matches: matchesRef.current,
             profiles: communityPickProfilesRef.current,
           }

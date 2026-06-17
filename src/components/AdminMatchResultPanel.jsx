@@ -76,7 +76,13 @@ export default function AdminMatchResultPanel({
     setBusy(true);
     setNotice(null);
     try {
-      const res = await onApplyFinalResult(homeTeam, awayTeam, homeScore, awayScore);
+      const res = await onApplyFinalResult(
+        homeTeam,
+        awayTeam,
+        homeScore,
+        awayScore,
+        activeMatchId
+      );
       if (res?.error) {
         setNotice({ type: 'error', text: String(res.error) });
       } else {

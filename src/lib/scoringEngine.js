@@ -120,7 +120,7 @@ function isRpcMissing(error) {
   );
 }
 
-function isSafeUpdateError(error) {
+export function isSafeUpdateError(error) {
   const msg =
     typeof error === 'string' ? error : String(error?.message ?? error?.error ?? error ?? '');
   return /UPDATE requires a WHERE clause/i.test(msg);
@@ -239,6 +239,8 @@ export async function scoreSingleFinishedMatchClient(
 
   if (recomputeProfiles) {
     for (const profileId of affectedProfileIds) {
+      if (!profileId) continue;
+
       const { data: rows, error } = await client
         .from('pick_scores')
         .select('match_id, points_awarded, exact_hit, winner_hit')
@@ -314,6 +316,8 @@ export async function scoreAllFinishedMatchesFallback(client, { matches, profile
   const profileIds = [...new Set((profiles ?? []).map((p) => p.id).filter(Boolean))];
 
   for (const pid of profileIds) {
+    if (!pid) continue;
+
     const { data: rows, error } = await client
       .from('pick_scores')
       .select('match_id, points_awarded, exact_hit, winner_hit')

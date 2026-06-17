@@ -1,11 +1,11 @@
 import { supabase } from './supabase';
 import {
+  isSafeUpdateError,
   scoreFinishedMatchesByIds,
   scoreMatchByTeams,
   scoreSingleFinishedMatchClient,
 } from './scoringEngine';
 import { resolveMatchScoringContext } from './matchPickKeyResolver';
-import { runScoringAndPulpoPipeline } from './pulpoSync';
 import { isMatchFinished, normalizeMatchId, resolveMatchForScoring } from './matchUtils';
 
 export { normalizeMatchId } from './matchUtils';
@@ -53,6 +53,35 @@ function isRpcMissing(error) {
   );
 }
 
+function shouldFallbackTeamsRpc(error) {
+  return error === 'rpc_missing' || isSafeUpdateError(error);
+}
+
+/** ID de fila en matches para UPDATE (nunca official_id ni vacío). */
+function resolveDbMatchId(matchId, matches = []) {
+  const key = normalizeMatchId(matchId);
+  if (!key) return '';
+
+  const { dbId, match } = resolveMatchForScoring(key, matches);
+  return normalizeMatchId(dbId) || normalizeMatchId(match?.id);
+}
+
+async function updateMatchFinalResult(client, dbId, home, away) {
+  const matchId = resolveDbMatchId(dbId);
+  if (!matchId) {
+    return { error: 'match_id_required' };
+  }
+
+  const patch = buildFinalResultPatch(home, away);
+  const { error: updateError } = await client.from('matches').update(patch).eq('id', matchId);
+  if (updateError) {
+    console.warn('[matchScoring] match update', updateError.message);
+    return { error: updateError.message };
+  }
+
+  return { match_id: matchId };
+}
+
 /**
  * Registra marcador final por equipos y puntúa vía score_match_by_teams (admin).
  */
@@ -62,7 +91,7 @@ export async function applyMatchFinalResultByTeams(
   awayTeam,
   homeScore,
   awayScore,
-  { matches = [], profiles } = {}
+  { matches = [], profiles, matchId } = {}
 ) {
   if (!client) client = supabase;
 
@@ -76,15 +105,22 @@ export async function applyMatchFinalResultByTeams(
     return { error: 'invalid_scores' };
   }
 
-  const catalogMatch = findMatchByTeams(matches, homeName, awayName);
-  const ctx = await resolveMatchScoringContext(client, catalogMatch?.id ?? '', {
+  const resolvedFromPanel = resolveDbMatchId(matchId, matches);
+  const catalogMatch =
+    findMatchByTeams(matches, homeName, awayName) ??
+    (resolvedFromPanel
+      ? (matches ?? []).find((m) => normalizeMatchId(m?.id) === resolvedFromPanel)
+      : null);
+
+  const dbId = resolvedFromPanel || normalizeMatchId(catalogMatch?.id);
+
+  const ctx = await resolveMatchScoringContext(client, dbId || catalogMatch?.id || '', {
     matches,
     profiles,
   });
 
-  const { dbId, pickKeys, primaryPickKey, match, profiles: profs } = ctx.error
+  const { pickKeys, primaryPickKey, match, profiles: profs } = ctx.error
     ? {
-        dbId: normalizeMatchId(catalogMatch?.id),
         pickKeys: [],
         primaryPickKey: '',
         match: catalogMatch,
@@ -92,12 +128,15 @@ export async function applyMatchFinalResultByTeams(
       }
     : ctx;
 
+  const resolvedMatch = match ?? catalogMatch;
+  const resolvedDbId = dbId || normalizeMatchId(resolvedMatch?.id);
+
   const teamsScore = await scoreMatchByTeams(client, homeName, awayName, home, away);
 
   if (!teamsScore?.error) {
     return {
       ...teamsScore,
-      match_id: teamsScore.match_id ?? dbId,
+      match_id: teamsScore.match_id ?? resolvedDbId,
       primary_pick_key: primaryPickKey,
       pick_keys: pickKeys,
       home_score: home,
@@ -107,27 +146,21 @@ export async function applyMatchFinalResultByTeams(
     };
   }
 
-  if (teamsScore.error !== 'rpc_missing') {
+  if (!shouldFallbackTeamsRpc(teamsScore.error)) {
     console.warn('[matchScoring] score_match_by_teams', teamsScore.error);
     return teamsScore;
   }
 
-  if (dbId) {
-    const patch = buildFinalResultPatch(home, away);
-    const { error: updateError } = await client.from('matches').update(patch).eq('id', dbId);
-    if (updateError) {
-      console.warn('[matchScoring] match update', updateError.message);
-      return { error: updateError.message };
-    }
-  }
+  const updateResult = await updateMatchFinalResult(client, resolvedDbId, home, away);
+  if (updateResult?.error) return updateResult;
 
-  if (!dbId || !match) {
+  if (!resolvedDbId || !resolvedMatch) {
     return { error: 'match_not_found', home_team: homeName, away_team: awayName };
   }
 
-  const patchedMatch = { ...match, ...buildFinalResultPatch(home, away) };
+  const patchedMatch = { ...resolvedMatch, ...buildFinalResultPatch(home, away) };
 
-  const clientScore = await scoreSingleFinishedMatchClient(client, dbId, {
+  const clientScore = await scoreSingleFinishedMatchClient(client, resolvedDbId, {
     matches: [patchedMatch, ...(matches ?? [])],
     profiles: profs,
     pickKeysOverride: pickKeys,
@@ -149,7 +182,7 @@ export async function applyMatchFinalResultByTeams(
   }
 
   return {
-    match_id: dbId,
+    match_id: resolvedDbId,
     home_team: homeName,
     away_team: awayName,
     primary_pick_key: primaryPickKey,
@@ -203,12 +236,8 @@ export async function applyMatchFinalResult(
     console.warn('[matchScoring] RPC apply_match_final_result', rpcError.message);
     return { error: rpcError.message };
   } else {
-    const patch = buildFinalResultPatch(home, away);
-    const { error: updateError } = await client.from('matches').update(patch).eq('id', dbId);
-    if (updateError) {
-      console.warn('[matchScoring] match update', updateError.message);
-      return { error: updateError.message };
-    }
+    const updateResult = await updateMatchFinalResult(client, dbId, home, away);
+    if (updateResult?.error) return updateResult;
     scoreVia = 'fallback';
   }
 

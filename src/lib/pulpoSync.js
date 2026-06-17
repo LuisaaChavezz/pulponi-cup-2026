@@ -4,7 +4,7 @@ import {
   applyPerformanceStatsToProfiles,
   buildPerformanceStatsByProfile,
 } from './pickScoreStats';
-import { scoreAllFinishedMatches } from './scoringEngine';
+import { isSafeUpdateError, scoreAllFinishedMatches } from './scoringEngine';
 
 function isRpcMissing(error) {
   const msg = String(error?.message ?? error ?? '');
@@ -32,7 +32,7 @@ export async function recomputeAllPulpoIndexes(client) {
     return { updated: Number(data ?? 0), fallback: false };
   }
 
-  if (isRpcMissing(error)) {
+  if (isRpcMissing(error) || isSafeUpdateError(error)) {
     return null;
   }
 
@@ -91,13 +91,15 @@ export async function syncAllPulpoIndexes(client, { matches, profiles, pickScore
     return { updated: Number(data ?? updates.length), fallback: false };
   }
 
-  if (!isRpcMissing(error)) {
+  if (!isRpcMissing(error) && !isSafeUpdateError(error)) {
     console.warn('[pulpoSync] RPC sync_pulpo_indexes', error.message);
     return { updated: 0, error: error.message };
   }
 
   let updated = 0;
   for (const row of updates) {
+    if (!row.profile_id) continue;
+
     const { error: uErr } = await client
       .from('profiles')
       .update({
