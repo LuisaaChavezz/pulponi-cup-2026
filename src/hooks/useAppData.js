@@ -220,14 +220,17 @@ export function useAppData(session) {
     []
   );
 
-  const loadAllMatchesComplete = useCallback(async () => {
+  const loadAllMatchesComplete = useCallback(async (options = {}) => {
+    const silent = Boolean(options.silent);
     if (loadAllMatchesPromiseRef.current) {
       return loadAllMatchesPromiseRef.current;
     }
 
     const promise = (async () => {
-      loadingMoreMatchesRef.current = true;
-      setMatchesLoading(true);
+      if (!silent) {
+        loadingMoreMatchesRef.current = true;
+        setMatchesLoading(true);
+      }
       try {
         const { data, error } = await timedQuery('matches:all', () =>
           supabase
@@ -251,8 +254,10 @@ export function useAppData(session) {
         setMatchesFullyLoaded(true);
         return rows.length;
       } finally {
-        loadingMoreMatchesRef.current = false;
-        setMatchesLoading(false);
+        if (!silent) {
+          loadingMoreMatchesRef.current = false;
+          setMatchesLoading(false);
+        }
         loadAllMatchesPromiseRef.current = null;
       }
     })();
@@ -263,11 +268,14 @@ export function useAppData(session) {
 
   const ensureAllMatchesLoaded = loadAllMatchesComplete;
 
-  const reloadMatches = useCallback(async () => {
+  const reloadMatches = useCallback(async (options = {}) => {
+    const silent = Boolean(options?.silent);
     loadAllMatchesPromiseRef.current = null;
-    matchesFullyLoadedRef.current = false;
-    setMatchesFullyLoaded(false);
-    return loadAllMatchesComplete();
+    if (!silent) {
+      matchesFullyLoadedRef.current = false;
+      setMatchesFullyLoaded(false);
+    }
+    return loadAllMatchesComplete(silent ? { silent: true } : {});
   }, [loadAllMatchesComplete]);
 
   const reloadMatchesRef = useRef(reloadMatches);
@@ -319,7 +327,7 @@ export function useAppData(session) {
   const syncWorldCupAndReload = syncWorldCupBackground;
 
   const onFootballSynced = useCallback(async () => {
-    await reloadMatches();
+    await reloadMatches({ silent: true });
     const list = matchesRef.current ?? [];
     if (list.some((m) => isMatchFinished(m))) {
       await runScoringPipelineRef.current?.(list);
@@ -1043,7 +1051,7 @@ export function useAppData(session) {
     if (!userId) return;
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        void reloadMatchesRef.current?.();
+        void reloadMatchesRef.current?.({ silent: true });
       }
     };
     document.addEventListener('visibilitychange', onVisible);

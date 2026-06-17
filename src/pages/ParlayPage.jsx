@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TeamLogo from '../components/TeamLogo';
 import { displayTeamName, formatMatchDateShort, formatMatchTime } from '../lib/matchUtils';
 import { useParlayOdds } from '../hooks/useParlayOdds';
@@ -351,9 +351,19 @@ function ParlayMatchesList({
   formLocked,
   onToggleSelection,
   matchesReady,
+  hasMatches,
 }) {
-  if (!matchesReady || oddsState.loading) {
+  if (!matchesReady && !hasMatches) {
     return <ParlayMatchesLoading />;
+  }
+
+  if (oddsState.loading && oddsState.openMatches.length === 0) {
+    if (!hasMatches) return <ParlayMatchesLoading />;
+    return (
+      <div className="parlay-page__matches">
+        <p className="muted sync-footnote">No hay partidos abiertos.</p>
+      </div>
+    );
   }
 
   if (oddsState.openMatches.length === 0) {
@@ -393,24 +403,34 @@ export default function ParlayPage({
 }) {
   const [ensuringMatches, setEnsuringMatches] = useState(false);
 
+  const ensureRequestedRef = useRef(false);
+  const onEnsureMatchesLoadedRef = useRef(onEnsureMatchesLoaded);
+  onEnsureMatchesLoadedRef.current = onEnsureMatchesLoaded;
+
   useEffect(() => {
-    if (matchesFullyLoaded) return undefined;
+    if (matchesFullyLoaded) {
+      ensureRequestedRef.current = true;
+      setEnsuringMatches(false);
+      return undefined;
+    }
+    if (ensureRequestedRef.current) return undefined;
+
     let cancelled = false;
+    ensureRequestedRef.current = true;
     setEnsuringMatches(true);
-    void Promise.resolve(onEnsureMatchesLoaded?.()).finally(() => {
+    void Promise.resolve(onEnsureMatchesLoadedRef.current?.()).finally(() => {
       if (!cancelled) setEnsuringMatches(false);
     });
     return () => {
       cancelled = true;
     };
-  }, [matchesFullyLoaded, onEnsureMatchesLoaded]);
+  }, [matchesFullyLoaded]);
 
-  const matchesForOdds = useMemo(
-    () => (matchesFullyLoaded ? matches : []),
-    [matches, matchesFullyLoaded]
-  );
+  const matchesForOdds = useMemo(() => matches ?? [], [matches]);
   const oddsState = useParlayOdds(matchesForOdds, communityProfiles);
-  const matchesReady = matchesFullyLoaded && !matchesLoading && !ensuringMatches;
+  const hasMatches = matchesForOdds.length > 0;
+  const matchesReady =
+    hasMatches && (matchesFullyLoaded || !matchesLoading) && !ensuringMatches;
   const [selections, setSelections] = useState([]);
   const [targetSelectionCount, setTargetSelectionCount] = useState(PARLAY_MIN_SELECTIONS);
   const [stakeInput, setStakeInput] = useState(String(PARLAY_MIN_STAKE));
@@ -644,6 +664,7 @@ export default function ParlayPage({
         formLocked={formLocked}
         onToggleSelection={toggleSelection}
         matchesReady={matchesReady}
+        hasMatches={hasMatches}
       />
     </div>
   );

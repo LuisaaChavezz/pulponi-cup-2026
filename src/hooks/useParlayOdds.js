@@ -1,9 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { isPickLocked } from '../lib/matchUtils';
 import { withTimeout } from '../lib/bootstrapPerf';
 import { resolveParlayOddsForMatches, isAuthorizedOddsApiConfigured } from '../lib/parlayOdds';
 
 const PARLAY_ODDS_TIMEOUT_MS = 10_000;
+
+function buildOpenMatchesKey(matches, now = new Date()) {
+  return (matches ?? [])
+    .filter((m) => m && !isPickLocked(m, now))
+    .map((m) => String(m.id))
+    .join('|');
+}
 
 export function useParlayOdds(matches, communityProfiles = []) {
   const openMatches = useMemo(
@@ -11,10 +18,14 @@ export function useParlayOdds(matches, communityProfiles = []) {
     [matches]
   );
 
+  const openMatchesKey = useMemo(() => buildOpenMatchesKey(matches), [matches]);
+
   const communityKey = useMemo(
     () => (communityProfiles ?? []).map((p) => `${p.id}:${Object.keys(p.picks ?? {}).length}`).join('|'),
     [communityProfiles]
   );
+
+  const initialLoadDoneRef = useRef(false);
 
   const [state, setState] = useState({
     loading: true,
@@ -29,8 +40,12 @@ export function useParlayOdds(matches, communityProfiles = []) {
   useEffect(() => {
     let cancelled = false;
 
+    setState((prev) => ({
+      ...prev,
+      loading: !initialLoadDoneRef.current,
+    }));
+
     (async () => {
-      setState((prev) => ({ ...prev, loading: true }));
       const result = await withTimeout(
         resolveParlayOddsForMatches(openMatches, { communityProfiles }),
         PARLAY_ODDS_TIMEOUT_MS,
@@ -45,6 +60,8 @@ export function useParlayOdds(matches, communityProfiles = []) {
         }
       );
       if (cancelled) return;
+
+      initialLoadDoneRef.current = true;
       setState({
         loading: false,
         byMatchId: result?.byMatchId ?? {},
@@ -59,7 +76,7 @@ export function useParlayOdds(matches, communityProfiles = []) {
     return () => {
       cancelled = true;
     };
-  }, [openMatches, communityKey, communityProfiles]);
+  }, [openMatchesKey, communityKey, openMatches, communityProfiles]);
 
   return {
     ...state,
