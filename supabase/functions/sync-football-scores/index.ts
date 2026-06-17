@@ -88,6 +88,24 @@ function isApiWorldCupFixture(fixture: {
   return Boolean(fixture.fixture?.id);
 }
 
+function createServiceRoleClient() {
+  const supabaseUrl = env('SUPABASE_URL');
+  const serviceRoleKey = env('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey) {
+    return null;
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+        apikey: serviceRoleKey,
+      },
+    },
+  });
+}
+
 function isAuthorized(req: Request): boolean {
   const auth = req.headers.get('Authorization') ?? '';
   const token = auth.replace(/^Bearer\s+/i, '').trim();
@@ -239,15 +257,10 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: false, error: 'football_api_not_configured', startedAt }, 503);
   }
 
-  const supabaseUrl = env('SUPABASE_URL');
-  const serviceKey = env('SUPABASE_SERVICE_ROLE_KEY');
-  if (!supabaseUrl || !serviceKey) {
-    return jsonResponse({ ok: false, error: 'missing_supabase_env', startedAt }, 503);
+  const client = createServiceRoleClient();
+  if (!client) {
+    return jsonResponse({ ok: false, error: 'missing_supabase_service_role_key', startedAt }, 503);
   }
-
-  const client = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   try {
     const [fixtures, matchesResult] = await Promise.all([
