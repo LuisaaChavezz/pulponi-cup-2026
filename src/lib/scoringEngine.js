@@ -63,8 +63,8 @@ export function computeStreakFromPickScores(pickScoreRows, matchesById) {
 }
 
 /**
- * Mejor racha de ganador consecutivo: partidos finalizados por kickoff;
- * solo winner_hit; sin pick o fallo rompe la racha.
+ * Mejor racha continua: partidos finalizados por kickoff;
+ * solo winner_hit consecutivos; sin pick o fallo rompe la racha.
  */
 export function computeWinnerStreakFromPickScores(pickScoreRows, matches = []) {
   const scoresByMatch = new Map(

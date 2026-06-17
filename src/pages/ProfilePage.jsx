@@ -57,7 +57,7 @@ export default function ProfilePage({
           exacts={myProfileExtras.stats?.exacts ?? profile?.exacts ?? 0}
           pulpoIndex={myProfileExtras.stats?.pulpoIndex ?? profile?.pulpo_index ?? 0}
           showPulpoIndex
-          streak={myProfileExtras.stats?.currentStreak ?? profile?.streak ?? 0}
+          streak={myProfileExtras.stats?.accumulatedStreak ?? 0}
           verified
           uploadLabel="Subir foto"
           onUpload={onAvatarUpload}

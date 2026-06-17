@@ -37,7 +37,7 @@ export default function Profile({
     ...(showPulpoIndex
       ? [{ key: 'pulpo', value: `${Number(pulpoIndex ?? 0)}%`, label: 'Índice Pulpo', accent: true }]
       : []),
-    { key: 'streak', value: Number(streak ?? 0), label: 'Racha' },
+    { key: 'streak', value: Number(streak ?? 0), label: 'Racha acumulada' },
   ];
 
   const avatarStyle = {

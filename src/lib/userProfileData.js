@@ -6,6 +6,7 @@ import { formatActivityLogMessage } from './activityMessages';
 import { filterUserBadgeRowsForProfile, resolveBadgePresentation } from '../data/achievements';
 import { computePulpoDerivedStats } from './pulpoIndex';
 import { aggregatePickScoreRowsForProfile, enrichProfilesWithPickScores, getPerformanceStatsForProfile } from './pickScoreStats';
+import { computeWinnerStreakFromPickScores } from './scoringEngine';
 
 function pickMap(profile) {
   const raw = profile?.picks;
@@ -137,7 +138,7 @@ const EMPTY_STATS = {
   effectiveness: 0,
   riskyHits: 0,
   bestStreak: 0,
-  currentStreak: 0,
+  accumulatedStreak: 0,
   bestRank: null,
   currentRank: null,
   points: 0,
@@ -183,27 +184,13 @@ async function loadUserBadges(client, profileId) {
     : fallback;
 }
 
-export function computeBestStreak(pickScoreRows, matchIndex) {
-  const sorted = [...(pickScoreRows ?? [])].sort((a, b) => {
-    const ma = matchIndex.get(String(a.match_id));
-    const mb = matchIndex.get(String(b.match_id));
-    const ta = ma?.kickoff ? new Date(ma.kickoff).getTime() : 0;
-    const tb = mb?.kickoff ? new Date(mb.kickoff).getTime() : 0;
-    if (ta !== tb) return ta - tb;
-    return String(a.match_id).localeCompare(String(b.match_id));
-  });
+export function countAccumulatedWinnerHits(pickScoreRows) {
+  return (pickScoreRows ?? []).filter((row) => row.winner_hit).length;
+}
 
-  let best = 0;
-  let run = 0;
-  for (const row of sorted) {
-    if (row.exact_hit || row.winner_hit) {
-      run += 1;
-      best = Math.max(best, run);
-    } else {
-      run = 0;
-    }
-  }
-  return best;
+/** Mejor racha continua: máximo de partidos consecutivos con winner_hit. */
+export function computeBestContinuousStreak(pickScoreRows, matches = []) {
+  return computeWinnerStreakFromPickScores(pickScoreRows, matches);
 }
 
 export function countRiskyExactHits(profileId, pickScoreRows, communityProfiles, profile) {
@@ -295,7 +282,6 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
 export function buildUserStats(profile, pickScoreRows, matches, communityProfiles, rankingSummary) {
   try {
     const scored = aggregatePickScoreRowsForProfile(pickScoreRows ?? []);
-    const matchIndex = matchesById(matches);
 
     return {
       predicted: scored.predicted,
@@ -303,8 +289,8 @@ export function buildUserStats(profile, pickScoreRows, matches, communityProfile
       exacts: scored.exacts,
       effectiveness: scored.effectiveness,
       riskyHits: countRiskyExactHits(profile?.id, pickScoreRows, communityProfiles, profile),
-      bestStreak: computeBestStreak(pickScoreRows, matchIndex),
-      currentStreak: Number(profile?.streak ?? 0),
+      bestStreak: computeBestContinuousStreak(pickScoreRows, matches),
+      accumulatedStreak: countAccumulatedWinnerHits(pickScoreRows),
       bestRank: rankingSummary?.currentRank ?? null,
       currentRank: rankingSummary?.currentRank ?? null,
       points: scored.points,

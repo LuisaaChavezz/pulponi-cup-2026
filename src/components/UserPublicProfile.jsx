@@ -71,7 +71,7 @@ export default function UserPublicProfile({
     points: 0,
     exacts: 0,
     pulpoIndex: 0,
-    currentStreak: 0,
+    accumulatedStreak: 0,
     predicted: 0,
     correctResults: 0,
     effectiveness: 0,
@@ -110,7 +110,7 @@ export default function UserPublicProfile({
         exacts={safeStats.exacts}
         pulpoIndex={safeStats.pulpoIndex}
         showPulpoIndex
-        streak={safeStats.currentStreak}
+        streak={safeStats.accumulatedStreak}
       />
 
       <div className="profile-page__cards profile-page__cards--public">

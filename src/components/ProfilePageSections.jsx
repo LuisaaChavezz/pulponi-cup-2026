@@ -54,15 +54,15 @@ export function ProfileStatsGrid({ stats }) {
       </div>
       <div>
         <b>{s.bestStreak ?? 0}</b>
-        <span>Mejor racha</span>
+        <span>Mejor racha continua</span>
       </div>
       <div>
         <b>{s.bestRank != null ? `#${s.bestRank}` : '—'}</b>
         <span>Mejor puesto</span>
       </div>
       <div>
-        <b>{s.currentStreak ?? 0}</b>
-        <span>Racha actual</span>
+        <b>{s.accumulatedStreak ?? 0}</b>
+        <span>Racha acumulada</span>
       </div>
     </div>
   );
