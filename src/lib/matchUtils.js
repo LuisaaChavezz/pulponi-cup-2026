@@ -169,6 +169,54 @@ export function listCarouselUpcomingMatches(matches, now = new Date()) {
   return sortMatchesByKickoffAsc(matches.filter((m) => isMatchUpcoming(m, now)));
 }
 
+/** Ventana de partido en vivo por kickoff: inició hace ≤ 2 h y ya arrancó. */
+export const LIVE_KICKOFF_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+export function isMatchInLiveKickoffWindow(match, now = new Date()) {
+  const ms = kickoffMs(match);
+  if (ms == null) return false;
+  const nowMs = now.getTime();
+  return ms <= nowMs && ms >= nowMs - LIVE_KICKOFF_WINDOW_MS;
+}
+
+function listLiveKickoffWindowMatches(matches, now = new Date()) {
+  return (matches ?? [])
+    .filter((m) => isMatchInLiveKickoffWindow(m, now))
+    .sort((a, b) => kickoffMs(b) - kickoffMs(a));
+}
+
+function listFutureKickoffMatches(matches, now = new Date()) {
+  const nowMs = now.getTime();
+  return (matches ?? [])
+    .filter((m) => {
+      const ms = kickoffMs(m);
+      return ms != null && ms > nowMs;
+    })
+    .sort((a, b) => kickoffMs(a) - kickoffMs(b));
+}
+
+/**
+ * Partido por defecto en dropdowns admin/comunidad:
+ * en vivo (ventana kickoff 2 h) → próximo con kickoff futuro.
+ */
+export function pickDefaultFocusedMatch(matches, now = new Date()) {
+  const live = listLiveKickoffWindowMatches(matches, now)[0];
+  if (live) return live;
+  return listFutureKickoffMatches(matches, now)[0] ?? null;
+}
+
+/** Orden de dropdown: en vivo → próximos → resto (más recientes primero). */
+export function sortMatchesForFocusedDropdown(matches, now = new Date()) {
+  const list = [...(matches ?? [])];
+  const live = listLiveKickoffWindowMatches(list, now);
+  const upcoming = listFutureKickoffMatches(list, now);
+  const liveIds = new Set(live.map((m) => String(m.id)));
+  const upcomingIds = new Set(upcoming.map((m) => String(m.id)));
+  const rest = list
+    .filter((m) => !liveIds.has(String(m.id)) && !upcomingIds.has(String(m.id)))
+    .sort((a, b) => kickoffMs(b) - kickoffMs(a));
+  return [...live, ...upcoming, ...rest];
+}
 
 /**
  * Partido único para la card INICIO: en vivo → próximo por kickoff (futuro) → null.

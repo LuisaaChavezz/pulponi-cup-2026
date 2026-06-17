@@ -9,8 +9,8 @@ import {
   formatExportTime,
   formatMatchVersusLabel,
   listMatchesWithPicks,
-  resolvePredictionExportContext,
 } from '../lib/predictionActivity';
+import { pickDefaultFocusedMatch, sortMatchesForFocusedDropdown } from '../lib/matchUtils';
 import {
   downloadAllPredictionsPdf,
   downloadMatchPredictionsPdf,
@@ -104,32 +104,34 @@ export default function DashboardNotifications({
     [profiles, matches]
   );
 
-  const exportContext = useMemo(
-    () => resolvePredictionExportContext(matches, now, currentUsername),
-    [matches, now, currentUsername]
+  const sortedMatchesWithPicks = useMemo(
+    () => sortMatchesForFocusedDropdown(matchesWithPicks, now),
+    [matchesWithPicks, now]
   );
 
   useEffect(() => {
-    if (!matchesWithPicks.length) {
+    if (!sortedMatchesWithPicks.length) {
       setSelectedMatchId('');
       return;
     }
     setSelectedMatchId((prev) => {
-      if (prev && matchesWithPicks.some((m) => String(m.id) === prev)) return prev;
-      const pref = exportContext.displayMatch?.id ?? exportContext.exportMatch?.id;
-      if (pref && matchesWithPicks.some((m) => String(m.id) === String(pref))) return String(pref);
-      return String(matchesWithPicks[0].id);
+      if (prev && sortedMatchesWithPicks.some((m) => String(m.id) === prev)) return prev;
+      const focused = pickDefaultFocusedMatch(sortedMatchesWithPicks, now);
+      if (focused) return String(focused.id);
+      return String(sortedMatchesWithPicks[0].id);
     });
-  }, [exportContext.displayMatch?.id, exportContext.exportMatch?.id, matchesWithPicks]);
+  }, [sortedMatchesWithPicks, now]);
 
   const downloadMatch = useMemo(() => {
     if (selectedMatchId) {
-      const picked = matchesWithPicks.find((m) => String(m.id) === selectedMatchId);
+      const picked = sortedMatchesWithPicks.find((m) => String(m.id) === selectedMatchId);
       if (picked) return picked;
       return (matches ?? []).find((m) => String(m.id) === selectedMatchId) ?? null;
     }
-    return matchesWithPicks[0] ?? exportContext.displayMatch ?? exportContext.exportMatch ?? null;
-  }, [selectedMatchId, matchesWithPicks, matches, exportContext]);
+    return (
+      pickDefaultFocusedMatch(sortedMatchesWithPicks, now) ?? sortedMatchesWithPicks[0] ?? null
+    );
+  }, [selectedMatchId, sortedMatchesWithPicks, matches, now]);
 
   const exportRows = useMemo(() => {
     if (!downloadMatch?.id) return [];
@@ -259,7 +261,7 @@ export default function DashboardNotifications({
             </p>
           )}
 
-          {matchesWithPicks.length > 1 ? (
+          {sortedMatchesWithPicks.length > 1 ? (
             <label className="dash-notifications__export-select-label">
               Partido
               <select
@@ -267,7 +269,7 @@ export default function DashboardNotifications({
                 value={selectedMatchId}
                 onChange={(e) => setSelectedMatchId(e.target.value)}
               >
-                {matchesWithPicks.map((m) => (
+                {sortedMatchesWithPicks.map((m) => (
                   <option key={m.id} value={String(m.id)}>
                     {formatMatchVersusLabel(m)}
                   </option>

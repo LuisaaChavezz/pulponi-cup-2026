@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { canAdminExportPredictions } from '../lib/predictionActivity';
-import { findMatchByTeams } from '../lib/matchScoring';
-import { normalizeMatchId, resolveMatchForScoring } from '../lib/matchUtils';
-import { formatMatchVersusLabel } from '../lib/predictionActivity';
+import { useKickoffClock } from '../hooks/useKickoffClock';
+import { canAdminExportPredictions, formatMatchVersusLabel } from '../lib/predictionActivity';
+import {
+  normalizeMatchId,
+  pickDefaultFocusedMatch,
+  resolveMatchForScoring,
+  sortMatchesForFocusedDropdown,
+} from '../lib/matchUtils';
 
 export default function AdminMatchResultPanel({
   matches = [],
@@ -11,28 +15,22 @@ export default function AdminMatchResultPanel({
   onApplyFinalResult,
 }) {
   const allowed = isAdmin || canAdminExportPredictions(currentUsername);
-  const mexicoMatch = useMemo(
-    () => findMatchByTeams(matches, 'México', 'Sudáfrica'),
-    [matches]
-  );
+  const now = useKickoffClock(1000);
 
   const selectableMatches = useMemo(() => {
-    return [...(matches ?? [])]
-      .filter((m) => resolveMatchForScoring(m?.id ?? m?.official_id, matches).dbId)
-      .sort((a, b) => {
-        const ta = a?.kickoff ? new Date(a.kickoff).getTime() : 0;
-        const tb = b?.kickoff ? new Date(b.kickoff).getTime() : 0;
-        return ta - tb;
-      });
-  }, [matches]);
+    const filtered = (matches ?? []).filter(
+      (m) => resolveMatchForScoring(m?.id ?? m?.official_id, matches).dbId
+    );
+    return sortMatchesForFocusedDropdown(filtered, now);
+  }, [matches, now]);
 
   const matchScoringId = (match) => resolveMatchForScoring(match?.id ?? match?.official_id, matches).dbId;
 
   const defaultMatchId = useMemo(() => {
-    const preferred = matchScoringId(mexicoMatch);
-    if (preferred) return preferred;
+    const focused = pickDefaultFocusedMatch(selectableMatches, now);
+    if (focused) return matchScoringId(focused);
     return matchScoringId(selectableMatches[0]);
-  }, [mexicoMatch, selectableMatches, matches]);
+  }, [selectableMatches, now, matches]);
 
   const [selectedMatchId, setSelectedMatchId] = useState('');
   const [homeScore, setHomeScore] = useState('2');
@@ -52,8 +50,7 @@ export default function AdminMatchResultPanel({
   }, [defaultMatchId, selectableMatches]);
 
   const activeMatchId = normalizeMatchId(selectedMatchId) || defaultMatchId;
-  const activeMatch =
-    selectableMatches.find((m) => matchScoringId(m) === activeMatchId) ?? mexicoMatch;
+  const activeMatch = selectableMatches.find((m) => matchScoringId(m) === activeMatchId) ?? null;
 
   if (!allowed) return null;
 
