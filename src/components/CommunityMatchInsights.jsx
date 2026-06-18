@@ -3,6 +3,7 @@ import {
   getInsufficientMessage,
 } from '../lib/communityPicks';
 import { formatKickoff } from '../lib/matchUtils';
+import DownloadPdfButton from './DownloadPdfButton';
 
 export default function CommunityMatchInsights({ match, scores, compact = false }) {
   const { outcome } = buildCommunityGeneralInsights(scores, match);
@@ -17,6 +18,7 @@ export default function CommunityMatchInsights({ match, scores, compact = false 
           {kickoffLabel ? <span className="community-insights__meta">{kickoffLabel}</span> : null}
         </header>
         <p className="community-insights__empty">{outcome.message ?? getInsufficientMessage()}</p>
+        <DownloadPdfButton match={match} />
       </article>
     );
   }
@@ -42,6 +44,7 @@ export default function CommunityMatchInsights({ match, scores, compact = false 
           <span className="community-insights__pct-value">{outcome.awayPct}%</span>
         </li>
       </ul>
+      <DownloadPdfButton match={match} />
     </article>
   );
 }

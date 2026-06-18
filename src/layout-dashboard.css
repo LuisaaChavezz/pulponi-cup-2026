@@ -2443,6 +2443,24 @@
   font-weight: 700;
 }
 
+.community-insights__pdf {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.community-insights__pdf-btn {
+  width: 100%;
+}
+
+.community-insights__pdf-error {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #f87171;
+  text-align: center;
+}
+
 .dash-notifications__section--community {
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
