@@ -1,19 +1,17 @@
 import { useMatchPdf } from '../hooks/useMatchPdf';
 import { matchHasFinalScore } from '../lib/matchUtils';
 
-export default function DownloadPdfButton({ match }) {
-  const { downloadMatchPdf, loading, error } = useMatchPdf();
+export default function DownloadPdfButton({ match, exportContext }) {
+  const { downloadMatchPdf, loading, error } = useMatchPdf(exportContext);
 
   if (!match || !matchHasFinalScore(match)) return null;
-
-  const label = `${match.home_team ?? 'Local'} vs ${match.away_team ?? 'Visitante'}`;
 
   return (
     <div className="community-insights__pdf">
       <button
         type="button"
         className="dash-notifications__export-toggle community-insights__pdf-btn"
-        onClick={() => downloadMatchPdf(match.id, label)}
+        onClick={() => downloadMatchPdf(match)}
         disabled={loading}
       >
         {loading ? 'Generando PDF…' : 'Descargar resultados PDF'}
