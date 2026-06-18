@@ -1,8 +1,8 @@
 import { useMatchPdf } from '../hooks/useMatchPdf';
 import { matchHasFinalScore } from '../lib/matchUtils';
 
-export default function DownloadPdfButton({ match, exportContext }) {
-  const { downloadMatchPdf, loading, error } = useMatchPdf(exportContext);
+export default function DownloadPdfButton({ match }) {
+  const { downloadMatchPdf, loading, error } = useMatchPdf();
 
   if (!match || !matchHasFinalScore(match)) return null;
 

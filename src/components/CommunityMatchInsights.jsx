@@ -5,7 +5,7 @@ import {
 import { formatKickoff } from '../lib/matchUtils';
 import DownloadPdfButton from './DownloadPdfButton';
 
-export default function CommunityMatchInsights({ match, scores, compact = false, exportContext }) {
+export default function CommunityMatchInsights({ match, scores, compact = false }) {
   const { outcome } = buildCommunityGeneralInsights(scores, match);
   const matchLabel = `${match?.home_team ?? 'Local'} vs ${match?.away_team ?? 'Visitante'}`;
   const kickoffLabel = formatKickoff(match?.kickoff);
@@ -18,7 +18,7 @@ export default function CommunityMatchInsights({ match, scores, compact = false,
           {kickoffLabel ? <span className="community-insights__meta">{kickoffLabel}</span> : null}
         </header>
         <p className="community-insights__empty">{outcome.message ?? getInsufficientMessage()}</p>
-        <DownloadPdfButton match={match} exportContext={exportContext} />
+        <DownloadPdfButton match={match} />
       </article>
     );
   }
@@ -44,7 +44,7 @@ export default function CommunityMatchInsights({ match, scores, compact = false,
           <span className="community-insights__pct-value">{outcome.awayPct}%</span>
         </li>
       </ul>
-      <DownloadPdfButton match={match} exportContext={exportContext} />
+      <DownloadPdfButton match={match} />
     </article>
   );
 }

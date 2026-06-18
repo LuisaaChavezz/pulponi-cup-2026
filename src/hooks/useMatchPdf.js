@@ -1,31 +1,15 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { downloadMatchPredictionsPdf } from '../lib/exportPredictions';
-import { buildMatchDownloadRows } from '../lib/predictionActivity';
+import {
+  fetchResultsPdfPayload,
+  requestResultsPdfBlob,
+  resolvePdfServiceUrl,
+  slugifyMatchPdfLabel,
+  triggerPdfBlobDownload,
+} from '../lib/matchResultsPdf';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-function slugifyLabel(label) {
-  return (
-    String(label ?? 'partido')
-      .trim()
-      .replace(/\s+/g, '_')
-      .replace(/[^a-zA-Z0-9_-]/g, '')
-      .toLowerCase() || 'partido'
-  );
-}
-
-function triggerBlobDownload(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
 
 async function downloadViaEdgeFunction(matchId, label) {
   const { data: sessionData } = await supabase.auth.getSession();
@@ -63,63 +47,47 @@ async function downloadViaEdgeFunction(matchId, label) {
     throw new Error('El servicio PDF devolvió un archivo vacío.');
   }
 
-  triggerBlobDownload(blob, `pulponi-${slugifyLabel(label)}.pdf`);
+  triggerPdfBlobDownload(blob, `pulponi-${label}.pdf`);
 }
 
-function downloadViaClient(match, exportContext) {
-  const profiles = exportContext?.profiles ?? [];
-  const activityLog = exportContext?.activityLog ?? [];
-  const currentUsername = exportContext?.currentUsername ?? null;
-  const now = exportContext?.now ?? new Date();
-
-  const rows = buildMatchDownloadRows(
-    profiles,
-    match.id,
-    activityLog,
-    match,
-    now,
-    currentUsername
-  );
-
-  if (!rows.length) {
-    throw new Error('No hay predicciones para descargar en este partido.');
+async function downloadViaPdfService(match) {
+  const pdfServiceUrl = resolvePdfServiceUrl();
+  if (!pdfServiceUrl) {
+    throw new Error(
+      'Servicio PDF no configurado. Despliega api/generate-pdf en Vercel o define VITE_PDF_SERVICE_URL.'
+    );
   }
 
-  downloadMatchPredictionsPdf(match, rows);
+  const body = await fetchResultsPdfPayload(match);
+  const blob = await requestResultsPdfBlob(pdfServiceUrl, body);
+  triggerPdfBlobDownload(blob, `pulponi-${slugifyMatchPdfLabel(match)}.pdf`);
 }
 
-/**
- * @param {{ profiles?: array, activityLog?: array, currentUsername?: string, now?: Date }} exportContext
- *   Datos para fallback local (jsPDF) si la Edge Function no está desplegada.
- */
-export function useMatchPdf(exportContext) {
+export function useMatchPdf() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const downloadMatchPdf = useCallback(
-    async (match) => {
-      if (!match?.id) return;
+  const downloadMatchPdf = useCallback(async (match) => {
+    if (!match?.id) return;
 
-      const label = `${match.home_team ?? 'Local'} vs ${match.away_team ?? 'Visitante'}`;
+    const label = slugifyMatchPdfLabel(match);
 
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
+    try {
       try {
-        try {
-          await downloadViaEdgeFunction(match.id, label);
-        } catch (edgeErr) {
-          console.warn('[useMatchPdf] Edge Function no disponible, usando PDF local', edgeErr);
-          downloadViaClient(match, exportContext);
-        }
-      } catch (e) {
-        setError(e?.message ?? 'No se pudo generar el PDF.');
-      } finally {
-        setLoading(false);
+        await downloadViaEdgeFunction(match.id, label);
+      } catch (edgeErr) {
+        console.warn('[useMatchPdf] Edge Function no disponible, probando /api/generate-pdf', edgeErr);
+        await downloadViaPdfService(match);
       }
-    },
-    [exportContext]
-  );
+    } catch (e) {
+      setError(e?.message ?? 'No se pudo generar el PDF de resultados.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   return { downloadMatchPdf, loading, error };
 }

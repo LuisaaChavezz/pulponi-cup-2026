@@ -753,6 +753,26 @@
   background: rgba(255, 30, 39, 0.16);
 }
 
+.chat-reaction-popover.chat-reaction-popover--fixed .chat-reaction-popover__add {
+  width: 100%;
+  margin-top: 6px;
+  padding: 7px 8px;
+  font-size: 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(74, 222, 128, 0.38);
+  background: rgba(74, 222, 128, 0.1);
+  color: #bbf7d0;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.chat-reaction-popover.chat-reaction-popover--fixed .chat-reaction-popover__add:hover {
+  border-color: rgba(74, 222, 128, 0.55);
+  background: rgba(74, 222, 128, 0.16);
+}
+
 .chat-message-reactions .chat-reaction-summary {
   margin: 0;
   padding-top: 0;

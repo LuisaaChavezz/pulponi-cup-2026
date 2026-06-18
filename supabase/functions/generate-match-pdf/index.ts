@@ -54,7 +54,9 @@ serve(async (req) => {
         if (typeof pick === "string") prediction = pick;
         else if (typeof pick === "object" && !Array.isArray(pick)) {
           const row = pick as Record<string, unknown>;
-          prediction = `${row.home ?? row.local ?? "?"}-${row.away ?? row.visitante ?? "?"}`;
+          const hp = row.home_pick ?? row.home ?? row.local;
+          const ap = row.away_pick ?? row.away ?? row.visitante;
+          if (hp != null && ap != null) prediction = `${hp}-${ap}`;
         } else if (Array.isArray(pick)) {
           prediction = `${pick[0]}-${pick[1]}`;
         }

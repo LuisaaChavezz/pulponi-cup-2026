@@ -123,6 +123,15 @@ export default function ChatMessage({
     setPopover({ emoji, top: r.bottom + 6, left, width: w });
   }
 
+  /** Emoji en la pill = añadir/quitar tu reacción; número = ver quién reaccionó. */
+  function handlePillClick(e, emoji, pillButton) {
+    if (e.target.closest('.chat-reaction-pill__count')) {
+      toggleReactionPopover(emoji, pillButton);
+      return;
+    }
+    handlePickerEmoji(emoji);
+  }
+
   const popoverData = popover ? grouped.get(popover.emoji) : null;
   const popoverUsers = popoverData?.users ?? [];
   const popoverMe = Boolean(popoverData?.me);
@@ -170,7 +179,19 @@ export default function ChatMessage({
           >
             Quitar mi {popover.emoji}
           </button>
-        ) : null}
+        ) : (
+          <button
+            type="button"
+            className="chat-reaction-popover__add"
+            onClick={() => {
+              const em = popover.emoji;
+              setPopover(null);
+              handlePickerEmoji(em);
+            }}
+          >
+            Reaccionar con {popover.emoji}
+          </button>
+        )}
       </div>
     ) : null;
 
@@ -229,15 +250,18 @@ export default function ChatMessage({
                         .filter(Boolean)
                         .join(' ')}
                       aria-expanded={popover?.emoji === emoji}
-                      onClick={(e) => toggleReactionPopover(emoji, e.currentTarget)}
+                      onClick={(e) => handlePillClick(e, emoji, e.currentTarget)}
                     >
                       <span className="chat-reaction-pill__emoji" aria-hidden>
                         {emoji}
                       </span>
-                      <span className="chat-reaction-pill__count">{count}</span>
+                      <span className="chat-reaction-pill__count" title="Ver quién reaccionó">
+                        {count}
+                      </span>
                       <span className="sr-only">
-                        {count} {count === 1 ? 'persona reaccionó' : 'personas reaccionaron'} con {emoji}. Abre la
-                        lista para ver usuarios.
+                        {me
+                          ? `Tu reacción con ${emoji}. Pulsa el emoji para quitarla; pulsa el número para ver la lista.`
+                          : `${count} ${count === 1 ? 'persona reaccionó' : 'personas reaccionaron'} con ${emoji}. Pulsa el emoji para reaccionar; pulsa el número para ver la lista.`}
                       </span>
                     </button>
                   </div>
