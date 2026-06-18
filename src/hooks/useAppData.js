@@ -62,29 +62,18 @@ const REACTION_SELECT = `
 function normalizeReactionRow(r) {
   let prof = r.profiles && typeof r.profiles === 'object' ? r.profiles : null;
   if (Array.isArray(prof)) prof = prof[0] ?? null;
+  const commentId = r.comment_id ?? r.message_id ?? null;
+  const profileId = r.profile_id ?? r.user_id ?? null;
   return {
     id: r.id,
-    comment_id: r.comment_id,
-    profile_id: r.profile_id,
+    comment_id: commentId,
+    profile_id: profileId,
     emoji: r.emoji,
     username: prof?.username ?? null,
     displayName: prof?.name ?? null,
     photoUrl: prof?.photo_url ?? null,
     avatarUrl: resolveAvatarUrl(prof?.photo_url),
   };
-}
-
-function mergeReactionRows(existingRows, incomingRows) {
-  const map = new Map();
-  for (const row of existingRows ?? []) {
-    if (!row?.comment_id || !row?.profile_id || !row?.emoji) continue;
-    map.set(`${row.comment_id}:${row.profile_id}:${row.emoji}`, row);
-  }
-  for (const row of incomingRows ?? []) {
-    if (!row?.comment_id || !row?.profile_id || !row?.emoji) continue;
-    map.set(`${row.comment_id}:${row.profile_id}:${row.emoji}`, row);
-  }
-  return [...map.values()];
 }
 
 function mergeMatchesSorted(prev, incoming) {
@@ -1242,6 +1231,36 @@ export function useAppData(session) {
       }
 
       try {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc('toggle_comment_reaction', {
+          p_comment_id: commentId,
+          p_emoji: emoji,
+        });
+
+        if (!rpcErr) {
+          if (rpcData?.action === 'added') {
+            await logActivityEvent('chat_reaction', { comment_id: commentId, emoji });
+          }
+          await reloadReactionsForCommentIds([commentId]);
+          return;
+        }
+
+        const rpcMissing =
+          rpcErr.code === '42883' ||
+          rpcErr.code === 'PGRST202' ||
+          /toggle_comment_reaction/i.test(rpcErr.message ?? '');
+
+        if (!rpcMissing) {
+          if (rpcErr.code === '23505') {
+            console.error(
+              '[REACTION ERROR] UNIQUE incorrecto en reactions — ejecuta supabase/fix_reactions_unique_constraint.sql',
+              rpcErr
+            );
+          } else {
+            console.error('[REACTION ERROR]', rpcErr);
+          }
+          return;
+        }
+
         const { data: existing, error: selErr } = await supabase
           .from('reactions')
           .select('id')
@@ -1261,29 +1280,17 @@ export function useAppData(session) {
             console.error('[REACTION ERROR]', delErr);
             return;
           }
-
-          setReactionRowsByMessage((prev) => {
-            const list = prev[commentId] ?? [];
-            return {
-              ...prev,
-              [commentId]: list.filter((r) => r.id !== existing.id),
-            };
-          });
         } else {
-          const { data: inserted, error: insErr } = await supabase
-            .from('reactions')
-            .insert({
-              comment_id: commentId,
-              profile_id: userId,
-              emoji,
-            })
-            .select(REACTION_SELECT)
-            .single();
+          const { error: insErr } = await supabase.from('reactions').insert({
+            comment_id: commentId,
+            profile_id: userId,
+            emoji,
+          });
 
           if (insErr) {
             if (insErr.code === '23505') {
               console.error(
-                '[REACTION ERROR] conflicto unique — ejecuta supabase/fix_reactions_unique_constraint.sql',
+                '[REACTION ERROR] UNIQUE incorrecto en reactions — ejecuta supabase/fix_reactions_unique_constraint.sql',
                 insErr
               );
             } else {
@@ -1291,12 +1298,6 @@ export function useAppData(session) {
             }
             return;
           }
-
-          const row = normalizeReactionRow(inserted);
-          setReactionRowsByMessage((prev) => ({
-            ...prev,
-            [commentId]: mergeReactionRows(prev[commentId], [row]),
-          }));
           await logActivityEvent('chat_reaction', { comment_id: commentId, emoji });
         }
 
