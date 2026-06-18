@@ -8,9 +8,11 @@ function groupReactions(reactionRows, currentUserId) {
   for (const r of reactionRows) {
     if (!CHAT_REACTION_EMOJIS.includes(r.emoji)) continue;
     if (!byEmoji.has(r.emoji)) {
-      byEmoji.set(r.emoji, { count: 0, me: false, users: [] });
+      byEmoji.set(r.emoji, { count: 0, me: false, users: [], seenProfileIds: new Set() });
     }
     const g = byEmoji.get(r.emoji);
+    if (!r.profile_id || g.seenProfileIds.has(r.profile_id)) continue;
+    g.seenProfileIds.add(r.profile_id);
     g.count += 1;
     if (currentUserId && r.profile_id === currentUserId) g.me = true;
     const uname = typeof r.username === 'string' && r.username.trim() ? r.username.trim() : null;
@@ -24,21 +26,22 @@ function groupReactions(reactionRows, currentUserId) {
     });
   }
   for (const g of byEmoji.values()) {
+    delete g.seenProfileIds;
     g.users.sort((a, b) => (a.username || '').localeCompare(b.username || '', 'es', { sensitivity: 'base' }));
   }
   return byEmoji;
 }
 
 function uniqueReactionHandles(reactionRows) {
-  const seen = new Set();
+  const seenProfiles = new Set();
   const out = [];
   for (const r of reactionRows) {
-    const uname = typeof r.username === 'string' && r.username.trim() ? r.username.trim() : null;
-    const h = uname ? `@${uname}` : '@anon';
-    if (!seen.has(h)) {
-      seen.add(h);
-      out.push(h);
+    if (r.profile_id) {
+      if (seenProfiles.has(r.profile_id)) continue;
+      seenProfiles.add(r.profile_id);
     }
+    const uname = typeof r.username === 'string' && r.username.trim() ? r.username.trim() : null;
+    out.push(uname ? `@${uname}` : '@anon');
   }
   return out;
 }

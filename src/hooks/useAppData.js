@@ -50,6 +50,43 @@ import {
 const MATCHES_CHUNK = 20;
 const MATCHES_HARD_LIMIT = 4999;
 
+const REACTION_SELECT = `
+  id,
+  comment_id,
+  profile_id,
+  emoji,
+  created_at,
+  profiles ( username, name, photo_url )
+`;
+
+function normalizeReactionRow(r) {
+  let prof = r.profiles && typeof r.profiles === 'object' ? r.profiles : null;
+  if (Array.isArray(prof)) prof = prof[0] ?? null;
+  return {
+    id: r.id,
+    comment_id: r.comment_id,
+    profile_id: r.profile_id,
+    emoji: r.emoji,
+    username: prof?.username ?? null,
+    displayName: prof?.name ?? null,
+    photoUrl: prof?.photo_url ?? null,
+    avatarUrl: resolveAvatarUrl(prof?.photo_url),
+  };
+}
+
+function mergeReactionRows(existingRows, incomingRows) {
+  const map = new Map();
+  for (const row of existingRows ?? []) {
+    if (!row?.comment_id || !row?.profile_id || !row?.emoji) continue;
+    map.set(`${row.comment_id}:${row.profile_id}:${row.emoji}`, row);
+  }
+  for (const row of incomingRows ?? []) {
+    if (!row?.comment_id || !row?.profile_id || !row?.emoji) continue;
+    map.set(`${row.comment_id}:${row.profile_id}:${row.emoji}`, row);
+  }
+  return [...map.values()];
+}
+
 function mergeMatchesSorted(prev, incoming) {
   const map = new Map((prev ?? []).map((m) => [m.id, m]));
   for (const m of incoming ?? []) map.set(m.id, m);
@@ -604,47 +641,16 @@ export function useAppData(session) {
   const reloadReactionsForCommentIds = useCallback(async (commentIds) => {
     const uniq = [...new Set(commentIds)].filter(Boolean);
     if (!uniq.length) return;
-    const { data, error } = await supabase.from('reactions').select(`
-        id,
-        comment_id,
-        profile_id,
-        emoji,
-        created_at,
-        profiles ( username, name, photo_url )
-      `).in('comment_id', uniq);
+    const { data, error } = await supabase
+      .from('reactions')
+      .select(REACTION_SELECT)
+      .in('comment_id', uniq);
     if (error) {
       console.error('[REACTION ERROR]', error);
       return;
     }
 
-    const normalizeRow = (r) => {
-      let prof = r.profiles && typeof r.profiles === 'object' ? r.profiles : null;
-      if (Array.isArray(prof)) prof = prof[0] ?? null;
-      return {
-        id: r.id,
-        comment_id: r.comment_id,
-        profile_id: r.profile_id,
-        emoji: r.emoji,
-        username: prof?.username ?? null,
-        displayName: prof?.name ?? null,
-        photoUrl: prof?.photo_url ?? null,
-        avatarUrl: resolveAvatarUrl(prof?.photo_url),
-      };
-    };
-
-    const normalized = (data || []).map(normalizeRow);
-
-    for (const cid of uniq) {
-      const users = normalized
-        .filter((r) => r.comment_id === cid)
-        .map((r) => ({
-          profile_id: r.profile_id,
-          emoji: r.emoji,
-          username: r.username,
-          handle: r.username ? `@${r.username}` : '@anon',
-        }));
-      console.log('[REACTION USERS]', users);
-    }
+    const normalized = (data || []).map(normalizeReactionRow);
 
     setReactionRowsByMessage((prev) => {
       const next = { ...prev };
@@ -995,6 +1001,14 @@ export function useAppData(session) {
           if (cid) void reloadReactionsRef.current([cid]);
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'reactions' },
+        (payload) => {
+          const cid = payload.new?.comment_id ?? payload.old?.comment_id;
+          if (cid) void reloadReactionsRef.current([cid]);
+        }
+      )
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR') {
           console.error('[REACTION ERROR]', new Error('reactions realtime CHANNEL_ERROR'));
@@ -1242,23 +1256,47 @@ export function useAppData(session) {
         }
 
         if (existing?.id) {
-          console.log('[REACTION DELETE]', { comment_id: commentId, profile_id: userId, emoji });
           const { error: delErr } = await supabase.from('reactions').delete().eq('id', existing.id);
           if (delErr) {
             console.error('[REACTION ERROR]', delErr);
             return;
           }
-        } else {
-          console.log('[REACTION INSERT]', { comment_id: commentId, profile_id: userId, emoji });
-          const { error: insErr } = await supabase.from('reactions').insert({
-            comment_id: commentId,
-            profile_id: userId,
-            emoji,
+
+          setReactionRowsByMessage((prev) => {
+            const list = prev[commentId] ?? [];
+            return {
+              ...prev,
+              [commentId]: list.filter((r) => r.id !== existing.id),
+            };
           });
+        } else {
+          const { data: inserted, error: insErr } = await supabase
+            .from('reactions')
+            .insert({
+              comment_id: commentId,
+              profile_id: userId,
+              emoji,
+            })
+            .select(REACTION_SELECT)
+            .single();
+
           if (insErr) {
-            console.error('[REACTION ERROR]', insErr);
+            if (insErr.code === '23505') {
+              console.error(
+                '[REACTION ERROR] conflicto unique — ejecuta supabase/fix_reactions_unique_constraint.sql',
+                insErr
+              );
+            } else {
+              console.error('[REACTION ERROR]', insErr);
+            }
             return;
           }
+
+          const row = normalizeReactionRow(inserted);
+          setReactionRowsByMessage((prev) => ({
+            ...prev,
+            [commentId]: mergeReactionRows(prev[commentId], [row]),
+          }));
           await logActivityEvent('chat_reaction', { comment_id: commentId, emoji });
         }
 
