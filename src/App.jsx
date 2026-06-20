@@ -43,6 +43,7 @@ import AchievementUnlockToast from './components/AchievementUnlockToast';
 import ElegidoTransferToast from './components/ElegidoTransferToast';
 import KrakenAlert from './components/KrakenAlert';
 import KrakenBanner from './components/KrakenBanner';
+import KrakenFab from './components/KrakenFab';
 import UserPublicProfile from './components/UserPublicProfile';
 import { usePublicProfile } from './hooks/usePublicProfile';
 import { useProfileUserBadges } from './hooks/useProfileUserBadges';
@@ -847,8 +848,8 @@ export default function App() {
           text={krakenBanner.text}
           fading={krakenBanner.fading}
           onDismiss={krakenBanner.dismiss}
-          autoDismissMs={krakenBanner.autoDismissMs}
         />
+        <KrakenFab visible={krakenBanner.showFab} onOpen={krakenBanner.reopen} />
       <div className="bg-glow" />
 
       {data.bootstrapError ? (

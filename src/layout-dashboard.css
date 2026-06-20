@@ -2705,57 +2705,93 @@
   box-shadow: 0 0 18px rgba(56, 189, 248, 0.2);
 }
 
+/* Barra superior del Trono Kraken — sin overlay ni backdrop full-screen */
 .kraken-banner {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 1250;
+  bottom: auto;
+  z-index: 1300;
+  width: 100%;
+  max-width: 100vw;
+  height: auto;
+  min-height: 0;
+  max-height: 5.5rem;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background: transparent;
+  pointer-events: none;
+  opacity: 1;
+  overflow: hidden;
+  transition: opacity 0.5s ease;
+}
+
+.kraken-banner__inner {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  min-height: 48px;
-  padding: 10px 48px 10px 16px;
+  height: auto;
+  min-height: 44px;
+  max-height: 5.5rem;
+  padding: 8px 44px 8px 14px;
   box-sizing: border-box;
-  background: #000;
+  background: linear-gradient(180deg, #121214 0%, #0a0a0c 100%);
   color: #fff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  opacity: 1;
-  transform: translateY(0);
-  transition:
-    opacity 0.5s ease,
-    transform 0.5s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+@media (min-width: 769px) {
+  .kraken-banner {
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 5.5rem !important;
+    inset: unset !important;
+    background: transparent !important;
+  }
+
+  .kraken-banner__inner {
+    height: auto !important;
+    min-height: 44px !important;
+    max-height: 5.5rem !important;
+  }
 }
 
 .kraken-banner--fade-out {
   opacity: 0;
-  transform: translateY(-100%);
+}
+
+.kraken-banner--fade-out .kraken-banner__inner {
   pointer-events: none;
 }
 
 .kraken-banner__text {
   flex: 1;
   margin: 0;
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.4;
   font-weight: 650;
   text-align: center;
 }
 
 .kraken-banner__close {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
   cursor: pointer;
   font-family: inherit;
@@ -2767,6 +2803,67 @@
 .kraken-banner__close:hover {
   border-color: rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.14);
+}
+
+.kraken-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 1200;
+  width: 56px;
+  height: 56px;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: 999px;
+  background: linear-gradient(160deg, rgba(14, 116, 144, 0.35), rgba(8, 8, 10, 0.98));
+  color: #fff;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.45),
+    0 0 20px rgba(56, 189, 248, 0.2);
+  cursor: pointer;
+  font-family: inherit;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.kraken-fab:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.5),
+    0 0 28px rgba(56, 189, 248, 0.28);
+}
+
+.kraken-fab:active {
+  transform: translateY(0);
+}
+
+.kraken-fab__emoji {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.kraken-fab__dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--red, #ff1e27);
+  border: 2px solid #0a0a0c;
+  box-shadow: 0 0 10px rgba(255, 30, 39, 0.65);
+}
+
+@media (max-width: 900px) {
+  .kraken-fab {
+    right: 14px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+  }
 }
 
 .elegido-transfer-toast {
