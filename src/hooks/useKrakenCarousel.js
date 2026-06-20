@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react';
+import { BANNER_MODE, buildBannerText } from '../lib/krakenBannerMessages';
+import { syncKrakenBannerChatMessage, syncKrakenMatchChatMessage } from '../lib/krakenChatPost';
 import {
-  KRAKEN_MATCH_MODE,
   MESSAGES_AFTER,
   MESSAGES_BEFORE,
   pickRandomKrakenMatchMessage,
   resolveMatchMessage,
 } from '../lib/krakenMatchMessages';
-import { syncKrakenMatchChatMessage } from '../lib/krakenChatPost';
 import { krakenProfileFirstName } from '../lib/krakenProfileNames';
-import { fetchKrakenThroneDispute } from '../lib/krakenThroneState';
+import {
+  detectThroneChange,
+  fetchKrakenThroneDispute,
+  fetchProfileById,
+  fetchUserProfile,
+  setLastElegidoId,
+} from '../lib/krakenThroneState';
 import { displayTeamName } from '../lib/matchUtils';
 import { supabase } from '../lib/supabase';
 
@@ -17,6 +23,13 @@ const AFTER_MS = 3 * 60 * 60 * 1000;
 
 const MATCH_SELECT =
   'id, home_team, away_team, home_score, away_score, kickoff, status, updated_at';
+
+export const KRAKEN_SLIDE = {
+  THRONE_CHANGE: 'throne_change',
+  MATCH_BEFORE: 'match_before',
+  MATCH_AFTER: 'match_after',
+  DISPUTE: 'dispute',
+};
 
 async function fetchNextMatch(now) {
   const { data, error } = await supabase
@@ -29,7 +42,7 @@ async function fetchNextMatch(now) {
     .maybeSingle();
 
   if (error) {
-    console.warn('[useKrakenMatchMessage] next match', error.message ?? error);
+    console.warn('[useKrakenCarousel] next match', error.message ?? error);
     return null;
   }
 
@@ -46,7 +59,7 @@ async function fetchLastScoredMatch() {
     .maybeSingle();
 
   if (scoredErr) {
-    console.warn('[useKrakenMatchMessage] last scored', scoredErr.message ?? scoredErr);
+    console.warn('[useKrakenCarousel] last scored', scoredErr.message ?? scoredErr);
   }
 
   if (scored) return scored;
@@ -60,7 +73,7 @@ async function fetchLastScoredMatch() {
     .maybeSingle();
 
   if (finishedErr) {
-    console.warn('[useKrakenMatchMessage] last finished', finishedErr.message ?? finishedErr);
+    console.warn('[useKrakenCarousel] last finished', finishedErr.message ?? finishedErr);
     return null;
   }
 
@@ -79,7 +92,7 @@ async function fetchMatchScoredAt(matchId) {
     .maybeSingle();
 
   if (error) {
-    console.warn('[useKrakenMatchMessage] scored_at', error.message ?? error);
+    console.warn('[useKrakenCarousel] scored_at', error.message ?? error);
     return null;
   }
 
@@ -98,7 +111,7 @@ async function countExactHits(matchId) {
     .eq('exact_hit', true);
 
   if (error) {
-    console.warn('[useKrakenMatchMessage] exact count', error.message ?? error);
+    console.warn('[useKrakenCarousel] exact count', error.message ?? error);
     return 0;
   }
 
@@ -157,77 +170,102 @@ function buildMatchVars(match, extras = {}) {
   };
 }
 
-export function useKrakenMatchMessage() {
-  const [message, setMessage] = useState(null);
-  const [mode, setMode] = useState(null);
+export function useKrakenCarousel(userId) {
+  const [messages, setMessages] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       const now = new Date();
-      const [nextMatch, lastScored, dispute] = await Promise.all([
+      const [profileRow, dispute, nextMatch, lastScored] = await Promise.all([
+        fetchUserProfile(userId),
+        fetchKrakenThroneDispute(),
         fetchNextMatch(now),
         fetchLastScoredMatch(),
-        fetchKrakenThroneDispute(),
       ]);
 
       if (cancelled) return;
 
+      const miNombre = krakenProfileFirstName(profileRow, 'Pulpo');
+      const currentElegido = dispute?.currentElegido;
+      const change = detectThroneChange(currentElegido?.id, userId);
       const elegido = krakenProfileFirstName(dispute?.elegidoProfile, 'El elegido');
       const retador = krakenProfileFirstName(dispute?.retadorProfile, 'El retador');
-      const throneVars = { elegido, retador };
+      const diferencia = dispute?.diferencia ?? null;
+      const throneVars = { elegido, retador, miNombre };
+      const slides = [];
 
-      let showBefore = false;
-      if (nextMatch?.kickoff) {
-        showBefore = isWithinBeforeWindow(nextMatch.kickoff, now);
+      if (change.seed && currentElegido?.id) {
+        setLastElegidoId(currentElegido.id);
       }
 
-      let showAfter = false;
-      let exactos = 0;
+      if (change.changed) {
+        const anteriorProfile = change.previousId ? await fetchProfileById(change.previousId) : null;
+        if (cancelled) return;
+
+        const nuevo = krakenProfileFirstName(currentElegido?.profile, 'El nuevo');
+        const anterior = krakenProfileFirstName(anteriorProfile, 'El anterior');
+        const vars = { elegido, retador, miNombre, nuevo, anterior };
+        const text = buildBannerText(BANNER_MODE.THRONE_CHANGE, vars);
+
+        slides.push({ id: KRAKEN_SLIDE.THRONE_CHANGE, text });
+        setLastElegidoId(change.currentId);
+        void syncKrakenBannerChatMessage({
+          mode: BANNER_MODE.THRONE_CHANGE,
+          content: text,
+          currentElegidoId: change.currentId,
+        });
+      } else if (currentElegido?.id) {
+        setLastElegidoId(currentElegido.id);
+      }
+
+      if (nextMatch?.kickoff && isWithinBeforeWindow(nextMatch.kickoff, now)) {
+        const template = pickRandomKrakenMatchMessage(MESSAGES_BEFORE);
+        const vars = buildMatchVars(nextMatch, throneVars);
+        const text = resolveMatchMessage(template, vars);
+        slides.push({ id: KRAKEN_SLIDE.MATCH_BEFORE, text });
+        void syncKrakenMatchChatMessage({
+          phase: 'before',
+          matchId: nextMatch.id,
+          content: text,
+        });
+      }
+
       if (lastScored?.id) {
         const pickScoreAt = await fetchMatchScoredAt(lastScored.id);
         if (cancelled) return;
 
         const scoredAt = resolveMatchScoredAt(lastScored, pickScoreAt);
-        showAfter = isWithinAfterWindow(scoredAt, now);
-
-        if (showAfter) {
-          exactos = await countExactHits(lastScored.id);
+        if (isWithinAfterWindow(scoredAt, now)) {
+          const exactos = await countExactHits(lastScored.id);
           if (cancelled) return;
+
+          const template = pickRandomKrakenMatchMessage(MESSAGES_AFTER);
+          const vars = buildMatchVars(lastScored, { ...throneVars, exactos });
+          const text = resolveMatchMessage(template, vars);
+          slides.push({ id: KRAKEN_SLIDE.MATCH_AFTER, text });
+          void syncKrakenMatchChatMessage({
+            phase: 'after',
+            matchId: lastScored.id,
+            content: text,
+          });
         }
       }
 
-      if (showBefore) {
-        const template = pickRandomKrakenMatchMessage(MESSAGES_BEFORE);
-        const vars = buildMatchVars(nextMatch, throneVars);
-        const resolved = resolveMatchMessage(template, vars);
-        setMode(KRAKEN_MATCH_MODE.BEFORE);
-        setMessage(resolved);
-        void syncKrakenMatchChatMessage({
-          phase: 'before',
-          matchId: nextMatch.id,
-          content: resolved,
+      if (dispute && diferencia != null && diferencia <= 2) {
+        const bannerMode = diferencia === 0 ? BANNER_MODE.TIED : BANNER_MODE.DANGER;
+        const vars = { elegido, retador, miNombre };
+        const text = buildBannerText(bannerMode, vars);
+        slides.push({ id: KRAKEN_SLIDE.DISPUTE, text });
+        void syncKrakenBannerChatMessage({
+          mode: bannerMode,
+          content: text,
+          currentElegidoId: currentElegido?.id,
         });
-        return;
       }
 
-      if (showAfter) {
-        const template = pickRandomKrakenMatchMessage(MESSAGES_AFTER);
-        const vars = buildMatchVars(lastScored, { ...throneVars, exactos });
-        const resolved = resolveMatchMessage(template, vars);
-        setMode(KRAKEN_MATCH_MODE.AFTER);
-        setMessage(resolved);
-        void syncKrakenMatchChatMessage({
-          phase: 'after',
-          matchId: lastScored.id,
-          content: resolved,
-        });
-        return;
-      }
-
-      setMessage(null);
-      setMode(null);
+      setMessages(slides);
     }
 
     void load();
@@ -235,7 +273,10 @@ export function useKrakenMatchMessage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [userId]);
 
-  return { message, mode };
+  return {
+    messages,
+    showFab: messages.length > 0,
+  };
 }

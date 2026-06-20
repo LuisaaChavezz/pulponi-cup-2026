@@ -42,14 +42,13 @@ import {
 import AchievementUnlockToast from './components/AchievementUnlockToast';
 import ElegidoTransferToast from './components/ElegidoTransferToast';
 import KrakenAlert from './components/KrakenAlert';
-import KrakenBanner from './components/KrakenBanner';
 import KrakenFab from './components/KrakenFab';
 import UserPublicProfile from './components/UserPublicProfile';
 import { usePublicProfile } from './hooks/usePublicProfile';
 import { useProfileUserBadges } from './hooks/useProfileUserBadges';
 import { useElegidoTransferAlerts } from './hooks/useElegidoTransferAlerts';
 import { useKrakenAlert } from './hooks/useKrakenAlert';
-import { useKrakenBanner } from './hooks/useKrakenBanner';
+import { useKrakenCarousel } from './hooks/useKrakenCarousel';
 import { resolveAvatarUrl } from './lib/avatars';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
@@ -263,7 +262,7 @@ export default function App() {
     isAdmin,
   });
   const krakenAlert = useKrakenAlert(sessionUserId);
-  const krakenBanner = useKrakenBanner(sessionUserId);
+  const krakenCarousel = useKrakenCarousel(sessionUserId);
 
   const visiblePendingUnlock = useMemo(() => {
     const badgeId = data.pendingUnlock?.badgeId;
@@ -848,13 +847,7 @@ export default function App() {
           mode={krakenAlert.mode}
           onDismiss={krakenAlert.dismiss}
         />
-        <KrakenBanner
-          visible={krakenBanner.visible}
-          text={krakenBanner.text}
-          fading={krakenBanner.fading}
-          onDismiss={krakenBanner.dismiss}
-        />
-        <KrakenFab visible={krakenBanner.showFab} onOpen={() => navigateToSection('comunidad')} />
+        <KrakenFab visible={krakenCarousel.showFab} onOpen={() => navigateToSection('comunidad')} />
       <div className="bg-glow" />
 
       {data.bootstrapError ? (
@@ -941,6 +934,7 @@ export default function App() {
                 reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
                 onToggleReaction={data.toggleReaction}
                 memberCount={(data.communityProfiles ?? data.ranking ?? []).length}
+                krakenMessages={krakenCarousel.messages}
                 onMakePrediction={() => navigateToSection('partidos')}
                 onViewRanking={() => navigateToSection('ranking')}
                 onViewCommunity={() => navigateToSection('comunidad')}
