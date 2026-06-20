@@ -28,7 +28,7 @@ import {
 
 /** Máximo de filas cargadas desde activity_log (recientes + historial en UI). */
 const PREDICTION_ACTIVITY_QUERY_LIMIT = 500;
-import { isAllowedChatReactionEmoji } from '../constants/chatReactions';
+import { KRAKEN_USERNAME } from '../lib/krakenProfile';
 import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 import {
   loadAchievementCatalog,
@@ -678,10 +678,15 @@ export function useAppData(session) {
     setChatData(
       data.map((c) => {
         const isKraken = Boolean(c.is_kraken);
+        const username = c.profiles?.username;
         return {
           id: c.id,
           profileId: c.profile_id ?? null,
-          user: isKraken ? 'El Kraken 🦑' : c.profiles?.username ? `@${c.profiles.username}` : '@anon',
+          user: isKraken
+            ? `@${username || KRAKEN_USERNAME}`
+            : c.profiles?.username
+              ? `@${c.profiles.username}`
+              : '@anon',
           photoUrl: isKraken ? null : (c.profiles?.photo_url ?? null),
           avatarUrl: isKraken ? null : resolveAvatarUrl(c.profiles?.photo_url),
           isKraken,

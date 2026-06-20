@@ -7,13 +7,14 @@ import {
   wasKrakenChatSent,
 } from './krakenChatStorage';
 import { BANNER_MODE } from './krakenBannerMessages';
+import { KRAKEN_PROFILE_ID } from './krakenProfile';
 import { supabase } from './supabase';
 
 const KRAKEN_CHAT_MATCH_FALLBACK = 'general';
 
 async function insertKrakenComment(body, matchId) {
   const { error } = await supabase.from('comments').insert({
-    profile_id: null,
+    profile_id: KRAKEN_PROFILE_ID,
     match_id: matchId ?? KRAKEN_CHAT_MATCH_FALLBACK,
     body: body.trim(),
     is_kraken: true,
