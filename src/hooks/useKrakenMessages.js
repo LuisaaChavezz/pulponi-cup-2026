@@ -12,10 +12,14 @@ import {
   MESSAGES_AFTER,
   MESSAGES_BEFORE,
   parsePrivateContent,
-  pickRandom,
   resolveKrakenMode,
   resolveMessage,
 } from '../lib/krakenMessageCatalog';
+import {
+  KRAKEN_MSG_KEYS,
+  pickStablePrivateMessage,
+  pickStableTemplate,
+} from '../lib/krakenMessagePickStorage';
 import {
   afterMatchKey,
   beforeMatchKey,
@@ -288,8 +292,8 @@ function buildThroneVars({ profileRow, dispute, change, currentElegido, anterior
   return { elegido, retador, miNombre, nuevo, anterior, change };
 }
 
-function pickPrivateMessage(mode, vars) {
-  const template = pickRandom(getPrivateMessagesForMode(mode));
+function pickPrivateMessage(mode, vars, storageKey) {
+  const template = pickStablePrivateMessage(storageKey, getPrivateMessagesForMode(mode));
   if (!template) return null;
   return { title: template.title, body: template.body, vars };
 }
@@ -401,19 +405,31 @@ export function useKrakenMessages(userId) {
           currentElegido,
           anteriorProfile,
         });
-        const throneText = resolveMessage(pickRandom(BANNER_THRONE_CHANGE), throneVars);
+        const throneTemplate = pickStableTemplate(
+          KRAKEN_MSG_KEYS.throne(change.currentId),
+          BANNER_THRONE_CHANGE
+        );
+        const throneText = resolveMessage(throneTemplate, throneVars);
         slides.push({ id: KRAKEN_SLIDE.THRONE_CHANGE, text: throneText });
 
         const storageKey = throneChangeKey(change.currentId);
         await maybeSendPublic(throneText, storageKey);
 
         if (change.type === 'new_king') {
-          const picked = pickPrivateMessage(KRAKEN_MODE.NEW_KING, throneVars);
+          const picked = pickPrivateMessage(
+            KRAKEN_MODE.NEW_KING,
+            throneVars,
+            KRAKEN_MSG_KEYS.privateNewKing(change.currentId)
+          );
           await maybeSendPrivate(userId, picked, newKingKey(change.currentId));
         }
 
         if (change.type === 'lost_throne') {
-          const picked = pickPrivateMessage(KRAKEN_MODE.LOST_THRONE, throneVars);
+          const picked = pickPrivateMessage(
+            KRAKEN_MODE.LOST_THRONE,
+            throneVars,
+            KRAKEN_MSG_KEYS.privateLostThrone(change.previousId)
+          );
           await maybeSendPrivate(userId, picked, lostThroneKey(change.previousId));
         }
 
@@ -424,7 +440,11 @@ export function useKrakenMessages(userId) {
 
       if (nextMatch?.kickoff && isWithinBeforeWindow(nextMatch.kickoff, now)) {
         const matchVars = buildMatchVars(nextMatch, vars);
-        const beforeText = resolveMessage(pickRandom(MESSAGES_BEFORE), matchVars);
+        const beforeTemplate = pickStableTemplate(
+          KRAKEN_MSG_KEYS.before(nextMatch.id),
+          MESSAGES_BEFORE
+        );
+        const beforeText = resolveMessage(beforeTemplate, matchVars);
         slides.push({ id: KRAKEN_SLIDE.MATCH_BEFORE, text: beforeText });
         await maybeSendPublic(beforeText, beforeMatchKey(nextMatch.id));
       }
@@ -439,25 +459,35 @@ export function useKrakenMessages(userId) {
           if (cancelled) return;
 
           const matchVars = buildMatchVars(lastScored, { ...vars, exactos });
-          const afterText = resolveMessage(pickRandom(MESSAGES_AFTER), matchVars);
+          const afterTemplate = pickStableTemplate(
+            KRAKEN_MSG_KEYS.after(lastScored.id),
+            MESSAGES_AFTER
+          );
+          const afterText = resolveMessage(afterTemplate, matchVars);
           slides.push({ id: KRAKEN_SLIDE.MATCH_AFTER, text: afterText });
           await maybeSendPublic(afterText, afterMatchKey(lastScored.id));
         }
       }
 
       if (diferencia != null && diferencia === 0) {
-        const tiedText = resolveMessage(pickRandom(BANNER_TIED), vars);
+        const tiedTemplate = pickStableTemplate(KRAKEN_MSG_KEYS.tied(dateStr), BANNER_TIED);
+        const tiedText = resolveMessage(tiedTemplate, vars);
         slides.push({ id: KRAKEN_SLIDE.DISPUTE, text: tiedText });
         await maybeSendPublic(tiedText, tiedKey(dateStr));
 
         if (await userHasElegidoBadge(userId)) {
           if (!wasKrakenSent(privateTiedKey(dateStr))) {
-            const picked = pickPrivateMessage(KRAKEN_MODE.TIED, vars);
+            const picked = pickPrivateMessage(
+              KRAKEN_MODE.TIED,
+              vars,
+              KRAKEN_MSG_KEYS.privateTied(dateStr)
+            );
             await maybeSendPrivate(userId, picked, privateTiedKey(dateStr));
           }
         }
       } else if (diferencia != null && diferencia >= 1 && diferencia <= 2) {
-        const dangerText = resolveMessage(pickRandom(BANNER_DANGER), vars);
+        const dangerTemplate = pickStableTemplate(KRAKEN_MSG_KEYS.danger(dateStr), BANNER_DANGER);
+        const dangerText = resolveMessage(dangerTemplate, vars);
         slides.push({ id: KRAKEN_SLIDE.DISPUTE, text: dangerText });
 
         if (!wasPublicDangerSentInLast2Days(now)) {
@@ -467,7 +497,11 @@ export function useKrakenMessages(userId) {
 
         if (await userHasElegidoBadge(userId)) {
           if (!wasPrivateDangerSentInLast2Days(now)) {
-            const picked = pickPrivateMessage(KRAKEN_MODE.DANGER, vars);
+            const picked = pickPrivateMessage(
+              KRAKEN_MODE.DANGER,
+              vars,
+              KRAKEN_MSG_KEYS.privateDanger(dateStr)
+            );
             if (picked) {
               const content = formatPrivateContent({
                 title: resolveMessage(picked.title, picked.vars),
@@ -484,7 +518,11 @@ export function useKrakenMessages(userId) {
         if (await userHasElegidoBadge(userId)) {
           const storageKey = safeKey(weekKey);
           if (!wasKrakenSent(storageKey)) {
-            const picked = pickPrivateMessage(KRAKEN_MODE.SAFE, vars);
+            const picked = pickPrivateMessage(
+              KRAKEN_MODE.SAFE,
+              vars,
+              KRAKEN_MSG_KEYS.privateSafe(weekKey)
+            );
             await maybeSendPrivate(userId, picked, storageKey);
           }
         }
