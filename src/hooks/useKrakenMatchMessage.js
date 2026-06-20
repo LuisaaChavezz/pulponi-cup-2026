@@ -104,6 +104,32 @@ async function countExactHits(matchId) {
   return count ?? 0;
 }
 
+function resolveMatchScoredAt(match, pickScoreAt) {
+  if (pickScoreAt instanceof Date && !Number.isNaN(pickScoreAt.getTime())) {
+    return pickScoreAt;
+  }
+
+  if (match?.updated_at) {
+    const updated = new Date(match.updated_at);
+    if (!Number.isNaN(updated.getTime())) return updated;
+  }
+
+  return null;
+}
+
+function isWithinAfterWindow(scoredAt, now) {
+  if (!scoredAt || Number.isNaN(scoredAt.getTime())) return false;
+  const elapsed = now.getTime() - scoredAt.getTime();
+  return elapsed >= 0 && elapsed <= AFTER_MS;
+}
+
+function isWithinBeforeWindow(kickoff, now) {
+  const kickoffMs = new Date(kickoff).getTime();
+  if (Number.isNaN(kickoffMs)) return false;
+  const diff = kickoffMs - now.getTime();
+  return diff > 0 && diff <= BEFORE_MS;
+}
+
 function buildMatchVars(match, extras = {}) {
   const home = Number(match?.home_score);
   const away = Number(match?.away_score);
@@ -153,26 +179,17 @@ export function useKrakenMatchMessage() {
 
       let showBefore = false;
       if (nextMatch?.kickoff) {
-        const kickoffMs = new Date(nextMatch.kickoff).getTime();
-        if (!Number.isNaN(kickoffMs)) {
-          const diff = kickoffMs - now.getTime();
-          showBefore = diff > 0 && diff <= BEFORE_MS;
-        }
+        showBefore = isWithinBeforeWindow(nextMatch.kickoff, now);
       }
 
       let showAfter = false;
       let exactos = 0;
       if (lastScored?.id) {
-        const scoredAt =
-          (await fetchMatchScoredAt(lastScored.id)) ??
-          (lastScored.updated_at ? new Date(lastScored.updated_at) : null);
-
+        const pickScoreAt = await fetchMatchScoredAt(lastScored.id);
         if (cancelled) return;
 
-        if (scoredAt && !Number.isNaN(scoredAt.getTime())) {
-          const elapsed = now.getTime() - scoredAt.getTime();
-          showAfter = elapsed >= 0 && elapsed <= AFTER_MS;
-        }
+        const scoredAt = resolveMatchScoredAt(lastScored, pickScoreAt);
+        showAfter = isWithinAfterWindow(scoredAt, now);
 
         if (showAfter) {
           exactos = await countExactHits(lastScored.id);

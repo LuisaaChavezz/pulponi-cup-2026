@@ -83,7 +83,9 @@ export function useKrakenBanner(userId) {
       const bannerMode = diferencia === 0 ? BANNER_MODE.TIED : BANNER_MODE.DANGER;
       const vars = { elegido, retador, miNombre };
       const state = { mode: bannerMode, vars };
+      const message = buildBannerText(bannerMode, vars);
 
+      bannerStateRef.current = state;
       setDisputeActive(true);
 
       if (currentElegido?.id) setLastElegidoId(currentElegido.id);
@@ -91,7 +93,7 @@ export function useKrakenBanner(userId) {
       if (wasKrakenBannerSeenToday()) return;
       if (bannerMode === BANNER_MODE.DANGER && !shouldShowDangerKrakenBanner()) return;
 
-      showBanner(buildBannerText(bannerMode, vars), state);
+      showBanner(message, state);
     }
 
     void load();
@@ -128,13 +130,23 @@ export function useKrakenBanner(userId) {
   }, []);
 
   const reopen = useCallback(() => {
+    if (visible && !fading) {
+      document.querySelector('.kraken-banner')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
+    if (fadeTimerRef.current) {
+      window.clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = null;
+    }
+
     const state = bannerStateRef.current;
     if (!state) return;
 
     showBanner(buildBannerText(state.mode, state.vars), state);
-  }, [showBanner]);
+  }, [showBanner, visible, fading]);
 
-  const showFab = disputeActive && !visible && !fading;
+  const showFab = disputeActive && !visible;
 
   return { visible, text, fading, dismiss, reopen, showFab };
 }

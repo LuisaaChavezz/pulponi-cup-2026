@@ -2810,7 +2810,7 @@
   position: fixed;
   right: 16px;
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  z-index: 1200;
+  z-index: 1310;
   width: 56px;
   height: 56px;
   border: 1px solid rgba(56, 189, 248, 0.45);
@@ -2825,6 +2825,7 @@
   display: grid;
   place-items: center;
   padding: 0;
+  pointer-events: auto;
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease,
