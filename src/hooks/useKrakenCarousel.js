@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BANNER_MODE, buildBannerText } from '../lib/krakenBannerMessages';
+import { BANNER_MODE, buildPublicBannerText } from '../lib/krakenBannerMessages';
 import { syncKrakenBannerChatMessage, syncKrakenMatchChatMessage } from '../lib/krakenChatPost';
 import {
   MESSAGES_AFTER,
@@ -207,7 +207,7 @@ export function useKrakenCarousel(userId) {
         const nuevo = krakenProfileFirstName(currentElegido?.profile, 'El nuevo');
         const anterior = krakenProfileFirstName(anteriorProfile, 'El anterior');
         const vars = { elegido, retador, miNombre, nuevo, anterior };
-        const text = buildBannerText(BANNER_MODE.THRONE_CHANGE, vars);
+        const text = buildPublicBannerText(BANNER_MODE.THRONE_CHANGE, vars);
 
         slides.push({ id: KRAKEN_SLIDE.THRONE_CHANGE, text });
         setLastElegidoId(change.currentId);
@@ -256,7 +256,7 @@ export function useKrakenCarousel(userId) {
       if (dispute && diferencia != null && diferencia <= 2) {
         const bannerMode = diferencia === 0 ? BANNER_MODE.TIED : BANNER_MODE.DANGER;
         const vars = { elegido, retador, miNombre };
-        const text = buildBannerText(bannerMode, vars);
+        const text = buildPublicBannerText(bannerMode, vars);
         slides.push({ id: KRAKEN_SLIDE.DISPUTE, text });
         void syncKrakenBannerChatMessage({
           mode: bannerMode,

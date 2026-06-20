@@ -41,7 +41,6 @@ import {
 } from './lib/dismissedNotifications';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
 import ElegidoTransferToast from './components/ElegidoTransferToast';
-import KrakenAlert from './components/KrakenAlert';
 import KrakenFab from './components/KrakenFab';
 import UserPublicProfile from './components/UserPublicProfile';
 import { usePublicProfile } from './hooks/usePublicProfile';
@@ -49,6 +48,12 @@ import { useProfileUserBadges } from './hooks/useProfileUserBadges';
 import { useElegidoTransferAlerts } from './hooks/useElegidoTransferAlerts';
 import { useKrakenAlert } from './hooks/useKrakenAlert';
 import { useKrakenCarousel } from './hooks/useKrakenCarousel';
+import { useKrakenPrivateMessages } from './hooks/useKrakenPrivateMessages';
+import {
+  hasUnreadKrakenChat,
+  latestKrakenChatMessageId,
+  markKrakenChatSeen,
+} from './lib/krakenChatUnreadStorage';
 import { resolveAvatarUrl } from './lib/avatars';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
@@ -261,8 +266,14 @@ export default function App() {
     enabled: Boolean(sessionUserId),
     isAdmin,
   });
-  const krakenAlert = useKrakenAlert(sessionUserId);
+  const krakenPrivate = useKrakenPrivateMessages(sessionUserId);
+  useKrakenAlert(sessionUserId, { onInserted: krakenPrivate.reload });
   const krakenCarousel = useKrakenCarousel(sessionUserId);
+
+  const unreadKrakenChat = useMemo(
+    () => hasUnreadKrakenChat(data.chatData ?? []),
+    [data.chatData]
+  );
 
   const visiblePendingUnlock = useMemo(() => {
     const badgeId = data.pendingUnlock?.badgeId;
@@ -455,6 +466,12 @@ export default function App() {
   function navigateToSection(id) {
     setActiveNav(id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function openKrakenCommunity() {
+    const latestId = latestKrakenChatMessageId(data.chatData ?? []);
+    if (latestId) markKrakenChatSeen(latestId);
+    navigateToSection('comunidad');
   }
 
   function copyInvite() {
@@ -841,13 +858,11 @@ export default function App() {
           transfer={elegidoTransferAlerts.toast}
           onDismiss={elegidoTransferAlerts.dismissToast}
         />
-        <KrakenAlert
-          open={krakenAlert.open}
-          message={krakenAlert.message}
-          mode={krakenAlert.mode}
-          onDismiss={krakenAlert.dismiss}
+        <KrakenFab
+          visible={krakenCarousel.showFab || unreadKrakenChat}
+          showDot={unreadKrakenChat}
+          onOpen={openKrakenCommunity}
         />
-        <KrakenFab visible={krakenCarousel.showFab} onOpen={() => navigateToSection('comunidad')} />
       <div className="bg-glow" />
 
       {data.bootstrapError ? (
@@ -935,6 +950,8 @@ export default function App() {
                 onToggleReaction={data.toggleReaction}
                 memberCount={(data.communityProfiles ?? data.ranking ?? []).length}
                 krakenMessages={krakenCarousel.messages}
+                krakenPrivateMessages={krakenPrivate.messages}
+                onDismissKrakenPrivate={krakenPrivate.dismiss}
                 onMakePrediction={() => navigateToSection('partidos')}
                 onViewRanking={() => navigateToSection('ranking')}
                 onViewCommunity={() => navigateToSection('comunidad')}

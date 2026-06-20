@@ -72,6 +72,11 @@ export function pickRandomBannerMessage(templates) {
   return templates[Math.floor(Math.random() * templates.length)];
 }
 
+/** Plantillas para chat/comunidad: sin {miNombre} (mensaje privado por usuario). */
+export function filterPublicKrakenTemplates(templates) {
+  return (templates ?? []).filter((template) => !String(template).includes('{miNombre}'));
+}
+
 export function buildBannerText(mode, vars) {
   const templates =
     mode === BANNER_MODE.THRONE_CHANGE
@@ -80,5 +85,26 @@ export function buildBannerText(mode, vars) {
         ? BANNER_TIED
         : BANNER_DANGER;
   const template = pickRandomBannerMessage(templates);
+  return resolveMessage(template, vars);
+}
+
+/** Solo mensajes públicos (dos nombres / trono / sin Pulpo {miNombre}). */
+export function buildPublicBannerText(mode, vars) {
+  const templates =
+    mode === BANNER_MODE.THRONE_CHANGE
+      ? filterPublicKrakenTemplates(BANNER_THRONE_CHANGE)
+      : mode === BANNER_MODE.TIED
+        ? filterPublicKrakenTemplates(BANNER_TIED)
+        : filterPublicKrakenTemplates(BANNER_DANGER);
+
+  const pool = templates.length
+    ? templates
+    : mode === BANNER_MODE.THRONE_CHANGE
+      ? BANNER_THRONE_CHANGE
+      : mode === BANNER_MODE.TIED
+        ? BANNER_TIED
+        : BANNER_DANGER;
+
+  const template = pickRandomBannerMessage(pool);
   return resolveMessage(template, vars);
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { EL_ELEGIDO_BADGE_ID } from '../data/achievements';
 import {
   markKrakenAlertShownForMode,
@@ -10,6 +10,10 @@ import {
   KRAKEN_MODE,
   resolveKrakenMode,
 } from '../lib/krakenMessages';
+import {
+  formatKrakenPrivateContent,
+  insertKrakenPrivateMessage,
+} from '../lib/krakenPrivateMessages';
 import { krakenProfileFirstName } from '../lib/krakenProfileNames';
 import {
   detectThroneChange,
@@ -19,28 +23,41 @@ import {
 } from '../lib/krakenThroneState';
 import { supabase } from '../lib/supabase';
 
-export function useKrakenAlert(userId) {
-  const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState(null);
-  const [mode, setMode] = useState(null);
+/** Sincroniza mensajes privados del Kraken en BD (sin modal). */
+export function useKrakenAlert(userId, { onInserted } = {}) {
   const pendingElegidoIdRef = useRef(null);
+  const onInsertedRef = useRef(onInserted);
+  onInsertedRef.current = onInserted;
+
+  const commitPendingElegido = useCallback(() => {
+    if (pendingElegidoIdRef.current) {
+      setLastElegidoId(pendingElegidoIdRef.current);
+      pendingElegidoIdRef.current = null;
+    }
+  }, []);
+
+  const queuePrivateMessage = useCallback(
+    async (alertMode, pickedMessage) => {
+      const content = formatKrakenPrivateContent(pickedMessage);
+      const { data, error } = await insertKrakenPrivateMessage(userId, content);
+
+      if (error) return false;
+
+      markKrakenAlertShownForMode(alertMode);
+      commitPendingElegido();
+      if (data?.id) onInsertedRef.current?.();
+      return true;
+    },
+    [userId, commitPendingElegido]
+  );
 
   useEffect(() => {
     if (!userId) {
-      setOpen(false);
-      setMessage(null);
-      setMode(null);
       pendingElegidoIdRef.current = null;
       return undefined;
     }
 
     let cancelled = false;
-
-    async function showAlert(alertMode, pickedMessage) {
-      setMode(alertMode);
-      setMessage(pickedMessage);
-      setOpen(true);
-    }
 
     async function load() {
       const [topData, currentElegido] = await Promise.all([
@@ -60,9 +77,12 @@ export function useKrakenAlert(userId) {
         pendingElegidoIdRef.current = change.currentId;
         if (shouldShowKrakenAlertForMode(KRAKEN_MODE.NEW_KING)) {
           const messages = getKrakenMessagesForMode(KRAKEN_MODE.NEW_KING);
-          await showAlert(KRAKEN_MODE.NEW_KING, pickKrakenMessage(messages, KRAKEN_MODE.NEW_KING));
+          await queuePrivateMessage(
+            KRAKEN_MODE.NEW_KING,
+            pickKrakenMessage(messages, KRAKEN_MODE.NEW_KING)
+          );
         } else {
-          setLastElegidoId(change.currentId);
+          commitPendingElegido();
         }
         return;
       }
@@ -71,9 +91,12 @@ export function useKrakenAlert(userId) {
         pendingElegidoIdRef.current = change.currentId;
         if (shouldShowKrakenAlertForMode(KRAKEN_MODE.LOST_THRONE)) {
           const messages = getKrakenMessagesForMode(KRAKEN_MODE.LOST_THRONE);
-          await showAlert(KRAKEN_MODE.LOST_THRONE, pickKrakenMessage(messages, KRAKEN_MODE.LOST_THRONE));
+          await queuePrivateMessage(
+            KRAKEN_MODE.LOST_THRONE,
+            pickKrakenMessage(messages, KRAKEN_MODE.LOST_THRONE)
+          );
         } else {
-          setLastElegidoId(change.currentId);
+          commitPendingElegido();
         }
         return;
       }
@@ -115,7 +138,7 @@ export function useKrakenAlert(userId) {
         body: String(picked.body).replace(/\{elegido\}/g, elegido).replace(/\{retador\}/g, retador),
       };
 
-      await showAlert(alertMode, personalized);
+      await queuePrivateMessage(alertMode, personalized);
     }
 
     void load();
@@ -123,18 +146,7 @@ export function useKrakenAlert(userId) {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, queuePrivateMessage, commitPendingElegido]);
 
-  const dismiss = useCallback(() => {
-    if (mode) {
-      markKrakenAlertShownForMode(mode);
-    }
-    if (pendingElegidoIdRef.current) {
-      setLastElegidoId(pendingElegidoIdRef.current);
-      pendingElegidoIdRef.current = null;
-    }
-    setOpen(false);
-  }, [mode]);
-
-  return { open, message, mode, dismiss };
+  return {};
 }

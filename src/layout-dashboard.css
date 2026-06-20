@@ -2742,6 +2742,79 @@
   box-shadow: 0 0 18px rgba(251, 191, 36, 0.2);
 }
 
+.kraken-private-card {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  background: linear-gradient(155deg, rgba(46, 16, 72, 0.98), rgba(12, 8, 20, 0.99));
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 12px 32px rgba(0, 0, 0, 0.35),
+    0 0 28px rgba(168, 85, 247, 0.15);
+}
+
+.kraken-private-card__head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.kraken-private-card__avatar {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  line-height: 1;
+  border-radius: 999px;
+  background: rgba(59, 7, 100, 0.9);
+  border: 1px solid rgba(168, 85, 247, 0.55);
+}
+
+.kraken-private-card__kicker {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+
+.kraken-private-card__title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.25;
+  color: #fbbf24;
+}
+
+.kraken-private-card__body {
+  margin: 0 0 14px;
+  color: #fff;
+  line-height: 1.45;
+}
+
+.kraken-private-card__close {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.kraken-private-card__close:hover {
+  background: rgba(251, 191, 36, 0.2);
+}
+
+.home-dash-stack__section--kraken-private {
+  display: grid;
+  gap: 12px;
+}
+
 /* Barra superior del Trono Kraken — sin overlay ni backdrop full-screen */
 .kraken-banner {
   position: fixed;

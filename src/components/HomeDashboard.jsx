@@ -8,6 +8,7 @@ import HomeMobileRankingSummary from './HomeMobileRankingSummary';
 import HomeMobileMatchesCarousel from './HomeMobileMatchesCarousel';
 import RankingMovement from './RankingMovement';
 import KrakenCarousel from './KrakenCarousel';
+import KrakenPrivateCard from './KrakenPrivateCard';
 import BadgeIcon from './BadgeIcon';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
@@ -135,6 +136,8 @@ export default function HomeDashboard({
   onViewCommunity,
   onSelectUser,
   krakenMessages = [],
+  krakenPrivateMessages = [],
+  onDismissKrakenPrivate,
 }) {
   const now = useKickoffClock(1000);
   const isMobileHome = useMobileViewport(767);
@@ -454,6 +457,13 @@ export default function HomeDashboard({
       <div className={`home-dash-stack${isMobileHome ? ' home-dash-stack--mobile' : ''}`}>
         <div className="home-dash-stack__center">
           <section className="home-dash-stack__section home-dash-stack__section--hero">{heroBlock}</section>
+          {krakenPrivateMessages.length ? (
+            <section className="home-dash-stack__section home-dash-stack__section--kraken-private">
+              {krakenPrivateMessages.map((msg) => (
+                <KrakenPrivateCard key={msg.id} message={msg} onDismiss={onDismissKrakenPrivate} />
+              ))}
+            </section>
+          ) : null}
           <section className="home-dash-stack__section home-dash-stack__section--kraken-match">
             <KrakenCarousel messages={krakenMessages} />
           </section>
