@@ -43,6 +43,11 @@ import {
   setLastElegidoId,
 } from '../lib/krakenThroneState';
 import { displayTeamName } from '../lib/matchUtils';
+import {
+  hasUnreadKrakenMessages,
+  markKrakenMessagesSeen,
+  setKrakenLatestMessageId,
+} from '../lib/krakenChatUnreadStorage';
 import { supabase } from '../lib/supabase';
 
 const BEFORE_MS = 60 * 60 * 1000;
@@ -62,44 +67,61 @@ async function insertPublicKrakenMessage(body) {
     created_at: new Date().toISOString(),
   };
 
-  let { error } = await supabase.from('comments').insert(row);
+  let { data, error } = await supabase
+    .from('comments')
+    .insert(row)
+    .select('id')
+    .single();
+
   if (error && isMissingKrakenColumnError(error)) {
     const { is_kraken, ...withoutFlag } = row;
-    ({ error } = await supabase.from('comments').insert(withoutFlag));
+    ({ data, error } = await supabase.from('comments').insert(withoutFlag).select('id').single());
   }
 
   if (error) {
     console.warn('[useKrakenMessages] public insert failed', error.message ?? error);
-    return false;
+    return null;
   }
 
-  return true;
+  if (data?.id) {
+    setKrakenLatestMessageId(data.id);
+  }
+
+  return data?.id ?? null;
 }
 
 async function insertPrivateKrakenMessage(profileId, content) {
   const text = String(content ?? '').trim();
   if (!profileId || !text) return false;
 
-  const { error } = await supabase.from('kraken_private_messages').insert({
-    profile_id: profileId,
-    content: text,
-    seen: false,
-    created_at: new Date().toISOString(),
-  });
+  const { data, error } = await supabase
+    .from('kraken_private_messages')
+    .insert({
+      profile_id: profileId,
+      content: text,
+      seen: false,
+      created_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single();
 
   if (error) {
     console.warn('[useKrakenMessages] private insert failed', error.message ?? error);
-    return false;
+    return null;
   }
 
-  return true;
+  if (data?.id) {
+    setKrakenLatestMessageId(data.id);
+  }
+
+  return data?.id ?? null;
 }
 
 async function maybeSendPublic(body, storageKey) {
   if (!body || !storageKey || wasKrakenSent(storageKey)) return false;
-  const ok = await insertPublicKrakenMessage(body);
-  if (ok) markKrakenSent(storageKey);
-  return ok;
+  const insertedId = await insertPublicKrakenMessage(body);
+  if (insertedId) markKrakenSent(storageKey);
+  return Boolean(insertedId);
 }
 
 async function maybeSendPrivate(profileId, picked, storageKey) {
@@ -108,9 +130,9 @@ async function maybeSendPrivate(profileId, picked, storageKey) {
     title: resolveMessage(picked.title, picked.vars),
     body: resolveMessage(picked.body, picked.vars),
   });
-  const ok = await insertPrivateKrakenMessage(profileId, content);
-  if (ok) markKrakenSent(storageKey);
-  return ok;
+  const insertedId = await insertPrivateKrakenMessage(profileId, content);
+  if (insertedId) markKrakenSent(storageKey);
+  return Boolean(insertedId);
 }
 
 async function fetchUnseenPrivateMessages(profileId) {
@@ -291,6 +313,16 @@ async function userHasElegidoBadge(userId) {
 export function useKrakenMessages(userId) {
   const [carouselMessages, setCarouselMessages] = useState([]);
   const [privateMessages, setPrivateMessages] = useState([]);
+  const [hasUnread, setHasUnread] = useState(() => hasUnreadKrakenMessages());
+
+  const refreshUnread = useCallback(() => {
+    setHasUnread(hasUnreadKrakenMessages());
+  }, []);
+
+  const markKrakenSeen = useCallback(() => {
+    markKrakenMessagesSeen();
+    setHasUnread(false);
+  }, []);
 
   const loadPrivateMessages = useCallback(async () => {
     if (!userId) {
@@ -429,8 +461,8 @@ export function useKrakenMessages(userId) {
         slides.push({ id: KRAKEN_SLIDE.DISPUTE, text: dangerText });
 
         if (!wasPublicDangerSentInLast2Days(now)) {
-          const ok = await insertPublicKrakenMessage(dangerText);
-          if (ok) markPublicDangerSent(now);
+          const insertedId = await insertPublicKrakenMessage(dangerText);
+          if (insertedId) markPublicDangerSent(now);
         }
 
         if (await userHasElegidoBadge(userId)) {
@@ -441,8 +473,8 @@ export function useKrakenMessages(userId) {
                 title: resolveMessage(picked.title, picked.vars),
                 body: resolveMessage(picked.body, picked.vars),
               });
-              const ok = await insertPrivateKrakenMessage(userId, content);
-              if (ok) {
+              const insertedId = await insertPrivateKrakenMessage(userId, content);
+              if (insertedId) {
                 markPrivateDangerSent(now);
               }
             }
@@ -462,6 +494,7 @@ export function useKrakenMessages(userId) {
 
       setCarouselMessages(slides);
       await loadPrivateMessages();
+      refreshUnread();
     }
 
     void syncAll();
@@ -469,12 +502,15 @@ export function useKrakenMessages(userId) {
     return () => {
       cancelled = true;
     };
-  }, [userId, loadPrivateMessages]);
+  }, [userId, loadPrivateMessages, refreshUnread]);
 
   return {
     carouselMessages,
     privateMessages,
     showFab: carouselMessages.length > 0,
+    hasUnread,
+    markKrakenSeen,
+    refreshUnread,
     dismissPrivate,
   };
 }

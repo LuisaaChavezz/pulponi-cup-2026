@@ -47,11 +47,6 @@ import { usePublicProfile } from './hooks/usePublicProfile';
 import { useProfileUserBadges } from './hooks/useProfileUserBadges';
 import { useElegidoTransferAlerts } from './hooks/useElegidoTransferAlerts';
 import { useKrakenMessages } from './hooks/useKrakenMessages';
-import {
-  hasUnreadKrakenChat,
-  latestKrakenChatMessageId,
-  markKrakenChatSeen,
-} from './lib/krakenChatUnreadStorage';
 import { resolveAvatarUrl } from './lib/avatars';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
@@ -266,10 +261,9 @@ export default function App() {
   });
   const kraken = useKrakenMessages(sessionUserId);
 
-  const unreadKrakenChat = useMemo(
-    () => hasUnreadKrakenChat(data.chatData ?? []),
-    [data.chatData]
-  );
+  useEffect(() => {
+    kraken.refreshUnread();
+  }, [data.chatData, kraken.refreshUnread]);
 
   const visiblePendingUnlock = useMemo(() => {
     const badgeId = data.pendingUnlock?.badgeId;
@@ -465,8 +459,7 @@ export default function App() {
   }
 
   function openKrakenCommunity() {
-    const latestId = latestKrakenChatMessageId(data.chatData ?? []);
-    if (latestId) markKrakenChatSeen(latestId);
+    kraken.markKrakenSeen();
     navigateToSection('comunidad');
   }
 
@@ -855,8 +848,8 @@ export default function App() {
           onDismiss={elegidoTransferAlerts.dismissToast}
         />
         <KrakenFab
-          visible={kraken.showFab || unreadKrakenChat}
-          showDot={unreadKrakenChat}
+          visible={kraken.showFab || kraken.hasUnread}
+          showDot={kraken.hasUnread}
           onOpen={openKrakenCommunity}
         />
       <div className="bg-glow" />

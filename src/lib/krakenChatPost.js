@@ -10,6 +10,7 @@ import {
 import { BANNER_MODE } from './krakenBannerMessages';
 import { KRAKEN_PRESENTATION_MESSAGE, KRAKEN_PROFILE_ID } from './krakenProfile';
 import { isMissingKrakenColumnError } from './commentsLoad';
+import { setKrakenLatestMessageId } from './krakenChatUnreadStorage';
 import { supabase } from './supabase';
 
 const KRAKEN_CHAT_MATCH_FALLBACK = 'general';
@@ -21,18 +22,26 @@ async function insertKrakenComment(body, matchId) {
     body: body.trim(),
   };
 
-  let { error } = await supabase.from('comments').insert({ ...baseRow, is_kraken: true });
+  let { data, error } = await supabase
+    .from('comments')
+    .insert({ ...baseRow, is_kraken: true })
+    .select('id')
+    .single();
 
   if (error && isMissingKrakenColumnError(error)) {
-    ({ error } = await supabase.from('comments').insert(baseRow));
+    ({ data, error } = await supabase.from('comments').insert(baseRow).select('id').single());
   }
 
   if (error) {
     console.warn('[krakenChatPost] insert failed', error.message ?? error);
-    return false;
+    return null;
   }
 
-  return true;
+  if (data?.id) {
+    setKrakenLatestMessageId(data.id);
+  }
+
+  return data?.id ?? null;
 }
 
 async function krakenPresentationExists() {
@@ -66,11 +75,11 @@ export async function ensureKrakenPresentationMessage() {
     return false;
   }
 
-  const ok = await insertKrakenComment(KRAKEN_PRESENTATION_MESSAGE, KRAKEN_CHAT_MATCH_FALLBACK);
-  if (ok) {
+  const insertedId = await insertKrakenComment(KRAKEN_PRESENTATION_MESSAGE, KRAKEN_CHAT_MATCH_FALLBACK);
+  if (insertedId) {
     markKrakenChatSent(storageKey);
   }
-  return ok;
+  return Boolean(insertedId);
 }
 
 export async function postKrakenChatMessage({ content, matchId = null, storageKey }) {
@@ -79,11 +88,11 @@ export async function postKrakenChatMessage({ content, matchId = null, storageKe
     return false;
   }
 
-  const ok = await insertKrakenComment(text, matchId);
-  if (ok) {
+  const insertedId = await insertKrakenComment(text, matchId);
+  if (insertedId) {
     markKrakenChatSent(storageKey);
   }
-  return ok;
+  return Boolean(insertedId);
 }
 
 export async function syncKrakenMatchChatMessage({ phase, matchId, content }) {
