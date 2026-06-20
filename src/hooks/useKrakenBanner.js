@@ -6,6 +6,7 @@ import {
   shouldShowDangerKrakenBanner,
   wasKrakenBannerSeenToday,
 } from '../lib/krakenBannerStorage';
+import { syncKrakenBannerChatMessage } from '../lib/krakenChatPost';
 import { krakenProfileFirstName } from '../lib/krakenProfileNames';
 import {
   detectThroneChange,
@@ -70,6 +71,11 @@ export function useKrakenBanner(userId) {
 
         setLastElegidoId(change.currentId);
         setDisputeActive(Boolean(dispute && diferencia <= 2));
+        void syncKrakenBannerChatMessage({
+          mode: BANNER_MODE.THRONE_CHANGE,
+          content: message,
+          currentElegidoId: change.currentId,
+        });
         showBanner(message, state);
         return;
       }
@@ -89,6 +95,12 @@ export function useKrakenBanner(userId) {
       setDisputeActive(true);
 
       if (currentElegido?.id) setLastElegidoId(currentElegido.id);
+
+      void syncKrakenBannerChatMessage({
+        mode: bannerMode,
+        content: message,
+        currentElegidoId: currentElegido?.id,
+      });
 
       if (wasKrakenBannerSeenToday()) return;
       if (bannerMode === BANNER_MODE.DANGER && !shouldShowDangerKrakenBanner()) return;

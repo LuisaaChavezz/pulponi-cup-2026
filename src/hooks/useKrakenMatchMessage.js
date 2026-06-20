@@ -6,6 +6,7 @@ import {
   pickRandomKrakenMatchMessage,
   resolveMatchMessage,
 } from '../lib/krakenMatchMessages';
+import { syncKrakenMatchChatMessage } from '../lib/krakenChatPost';
 import { krakenProfileFirstName } from '../lib/krakenProfileNames';
 import { fetchKrakenThroneDispute } from '../lib/krakenThroneState';
 import { displayTeamName } from '../lib/matchUtils';
@@ -200,16 +201,28 @@ export function useKrakenMatchMessage() {
       if (showBefore) {
         const template = pickRandomKrakenMatchMessage(MESSAGES_BEFORE);
         const vars = buildMatchVars(nextMatch, throneVars);
+        const resolved = resolveMatchMessage(template, vars);
         setMode(KRAKEN_MATCH_MODE.BEFORE);
-        setMessage(resolveMatchMessage(template, vars));
+        setMessage(resolved);
+        void syncKrakenMatchChatMessage({
+          phase: 'before',
+          matchId: nextMatch.id,
+          content: resolved,
+        });
         return;
       }
 
       if (showAfter) {
         const template = pickRandomKrakenMatchMessage(MESSAGES_AFTER);
         const vars = buildMatchVars(lastScored, { ...throneVars, exactos });
+        const resolved = resolveMatchMessage(template, vars);
         setMode(KRAKEN_MATCH_MODE.AFTER);
-        setMessage(resolveMatchMessage(template, vars));
+        setMessage(resolved);
+        void syncKrakenMatchChatMessage({
+          phase: 'after',
+          matchId: lastScored.id,
+          content: resolved,
+        });
         return;
       }
 

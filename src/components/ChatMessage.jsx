@@ -86,7 +86,8 @@ export default function ChatMessage({
     };
   }, [popover]);
 
-  const canReact = Boolean(message?.id && currentUserId);
+  const isKraken = Boolean(message?.isKraken);
+  const canReact = Boolean(message?.id && currentUserId && !isKraken);
 
   const handlePickerEmoji = useCallback(
     (emoji) => {
@@ -196,9 +197,13 @@ export default function ChatMessage({
     ) : null;
 
   return (
-    <div className="chat-message">
+    <div className={`chat-message${isKraken ? ' chat-message--kraken' : ''}`}>
       <div className="chat-message-head">
-        {message.profileId && onSelectUser ? (
+        {isKraken ? (
+          <span className="chat-message-kraken-avatar" aria-hidden>
+            🦑
+          </span>
+        ) : message.profileId && onSelectUser ? (
           <button
             type="button"
             className="chat-message-avatar-btn"
@@ -211,7 +216,9 @@ export default function ChatMessage({
           <UserAvatar photoUrl={message.photoUrl} avatarUrl={message.avatarUrl} variant="chat" alt="" />
         )}
         <div>
-          {message.profileId && onSelectUser ? (
+          {isKraken ? (
+            <strong className="chat-message-kraken-user">{message.user}</strong>
+          ) : message.profileId && onSelectUser ? (
             <button
               type="button"
               className="chat-message-user"
@@ -225,7 +232,7 @@ export default function ChatMessage({
           <small>{message.time}</small>
         </div>
       </div>
-      <p className="chat-message-body">{message.body}</p>
+      <p className={`chat-message-body${isKraken ? ' chat-message-body--kraken' : ''}`}>{message.body}</p>
 
       {canReact ? (
         <div className="chat-message-reactions" aria-label="Reacciones">

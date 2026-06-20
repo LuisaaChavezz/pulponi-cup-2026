@@ -854,7 +854,7 @@ export default function App() {
           fading={krakenBanner.fading}
           onDismiss={krakenBanner.dismiss}
         />
-        <KrakenFab visible={krakenBanner.showFab} onOpen={krakenBanner.reopen} />
+        <KrakenFab visible={krakenBanner.showFab} onOpen={() => navigateToSection('comunidad')} />
       <div className="bg-glow" />
 
       {data.bootstrapError ? (

@@ -657,7 +657,7 @@ export function useAppData(session) {
     const { data, error } = await timedQuery('comments', () =>
       supabase
         .from('comments')
-        .select('id, profile_id, body, created_at, profiles(username, name, photo_url)')
+        .select('id, profile_id, body, created_at, is_kraken, profiles(username, name, photo_url)')
         .order('created_at', { ascending: true })
         .limit(80)
     );
@@ -676,15 +676,19 @@ export function useAppData(session) {
     }
 
     setChatData(
-      data.map((c) => ({
-        id: c.id,
-        profileId: c.profile_id ?? null,
-        user: c.profiles?.username ? `@${c.profiles.username}` : '@anon',
-        photoUrl: c.profiles?.photo_url ?? null,
-        avatarUrl: resolveAvatarUrl(c.profiles?.photo_url),
-        time: new Date(c.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-        body: c.body,
-      }))
+      data.map((c) => {
+        const isKraken = Boolean(c.is_kraken);
+        return {
+          id: c.id,
+          profileId: c.profile_id ?? null,
+          user: isKraken ? 'El Kraken 🦑' : c.profiles?.username ? `@${c.profiles.username}` : '@anon',
+          photoUrl: isKraken ? null : (c.profiles?.photo_url ?? null),
+          avatarUrl: isKraken ? null : resolveAvatarUrl(c.profiles?.photo_url),
+          isKraken,
+          time: new Date(c.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+          body: c.body,
+        };
+      })
     );
 
     const ids = data.map((c) => c.id);
