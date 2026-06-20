@@ -41,12 +41,14 @@ import {
 } from './lib/dismissedNotifications';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
 import ElegidoTransferToast from './components/ElegidoTransferToast';
-import KrakenThroneAlert from './components/KrakenThroneAlert';
+import KrakenAlert from './components/KrakenAlert';
+import KrakenBanner from './components/KrakenBanner';
 import UserPublicProfile from './components/UserPublicProfile';
 import { usePublicProfile } from './hooks/usePublicProfile';
 import { useProfileUserBadges } from './hooks/useProfileUserBadges';
 import { useElegidoTransferAlerts } from './hooks/useElegidoTransferAlerts';
-import { useKrakenThroneAlert } from './hooks/useKrakenThroneAlert';
+import { useKrakenAlert } from './hooks/useKrakenAlert';
+import { useKrakenBanner } from './hooks/useKrakenBanner';
 import { resolveAvatarUrl } from './lib/avatars';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
@@ -259,7 +261,8 @@ export default function App() {
     enabled: Boolean(sessionUserId),
     isAdmin,
   });
-  const krakenThroneAlert = useKrakenThroneAlert(sessionUserId);
+  const krakenAlert = useKrakenAlert(sessionUserId);
+  const krakenBanner = useKrakenBanner();
 
   const visiblePendingUnlock = useMemo(() => {
     const badgeId = data.pendingUnlock?.badgeId;
@@ -838,7 +841,14 @@ export default function App() {
           transfer={elegidoTransferAlerts.toast}
           onDismiss={elegidoTransferAlerts.dismissToast}
         />
-        <KrakenThroneAlert open={krakenThroneAlert.open} onDismiss={krakenThroneAlert.dismiss} />
+        <KrakenAlert open={krakenAlert.open} message={krakenAlert.message} onDismiss={krakenAlert.dismiss} />
+        <KrakenBanner
+          visible={krakenBanner.visible}
+          text={krakenBanner.text}
+          fading={krakenBanner.fading}
+          onDismiss={krakenBanner.dismiss}
+          autoDismissMs={krakenBanner.autoDismissMs}
+        />
       <div className="bg-glow" />
 
       {data.bootstrapError ? (
