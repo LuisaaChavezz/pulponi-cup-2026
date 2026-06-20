@@ -3,3 +3,6 @@
 
 [functions.sync-football-scores]
 verify_jwt = false
+
+[functions.kraken-messages]
+verify_jwt = false
