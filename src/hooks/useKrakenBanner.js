@@ -8,10 +8,10 @@ import {
 import {
   markKrakenBannerDangerDay,
   markKrakenBannerSeenToday,
-  profileDisplayName,
   shouldShowDangerKrakenBanner,
   wasKrakenBannerSeenToday,
 } from '../lib/krakenBannerStorage';
+import { krakenProfileFirstName } from '../lib/krakenProfileNames';
 import { supabase } from '../lib/supabase';
 
 const FADE_MS = 500;
@@ -40,8 +40,8 @@ async function fetchKrakenDispute() {
   if (diferencia > 2) return null;
 
   const mode = diferencia === 0 ? 'tied' : 'danger';
-  const elegido = profileDisplayName(top2[0], 'El elegido');
-  const retador = profileDisplayName(top2[1], 'El retador');
+  const elegido = krakenProfileFirstName(top2[0], 'El elegido');
+  const retador = krakenProfileFirstName(top2[1], 'El retador');
 
   return { mode, elegido, retador, diferencia };
 }

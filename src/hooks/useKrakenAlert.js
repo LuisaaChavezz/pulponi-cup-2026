@@ -6,6 +6,7 @@ import {
   shouldShowKrakenAlertForMode,
 } from '../lib/krakenAlertStorage';
 import { getKrakenMessagesForMode, resolveKrakenMode } from '../lib/krakenMessages';
+import { krakenProfileFirstName } from '../lib/krakenProfileNames';
 import { supabase } from '../lib/supabase';
 
 export function useKrakenAlert(userId) {
@@ -44,7 +45,7 @@ export function useKrakenAlert(userId) {
 
       const { data: topProfiles, error: rankErr } = await supabase
         .from('profiles')
-        .select('id, points')
+        .select('id, username, name, points')
         .order('points', { ascending: false })
         .limit(2);
 
@@ -57,6 +58,8 @@ export function useKrakenAlert(userId) {
 
       const top1 = topProfiles?.[0];
       const top2 = topProfiles?.[1];
+      const elegido = krakenProfileFirstName(top1, 'El elegido');
+      const retador = krakenProfileFirstName(top2, 'El retador');
       const alertMode = resolveKrakenMode(top1?.points, top2?.points);
 
       if (!shouldShowKrakenAlertForMode(alertMode)) {
@@ -65,9 +68,14 @@ export function useKrakenAlert(userId) {
 
       const messages = getKrakenMessagesForMode(alertMode);
       const picked = pickKrakenMessage(messages, alertMode);
+      const personalized = {
+        ...picked,
+        title: String(picked.title).replace(/\{elegido\}/g, elegido).replace(/\{retador\}/g, retador),
+        body: String(picked.body).replace(/\{elegido\}/g, elegido).replace(/\{retador\}/g, retador),
+      };
 
       setMode(alertMode);
-      setMessage(picked);
+      setMessage(personalized);
       setOpen(true);
     }
 

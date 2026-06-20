@@ -1,4 +1,5 @@
 import { getDayOfYear } from './krakenAlertStorage';
+import { krakenProfileFirstName } from './krakenProfileNames';
 
 export const KRAKEN_BANNER_SEEN_KEY = 'kraken_banner_seen';
 export const KRAKEN_BANNER_DAY_KEY = 'kraken_banner_day';
@@ -44,5 +45,5 @@ export function markKrakenBannerDangerDay(now = new Date()) {
 }
 
 export function profileDisplayName(row, fallback) {
-  return row?.name || row?.full_name || row?.username || fallback;
+  return krakenProfileFirstName(row, fallback);
 }
