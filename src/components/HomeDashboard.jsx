@@ -7,6 +7,7 @@ import MatchChat from './MatchChat';
 import HomeMobileRankingSummary from './HomeMobileRankingSummary';
 import HomeMobileMatchesCarousel from './HomeMobileMatchesCarousel';
 import RankingMovement from './RankingMovement';
+import KrakenMatchMessage from './KrakenMatchMessage';
 import BadgeIcon from './BadgeIcon';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
@@ -452,6 +453,9 @@ export default function HomeDashboard({
       <div className={`home-dash-stack${isMobileHome ? ' home-dash-stack--mobile' : ''}`}>
         <div className="home-dash-stack__center">
           <section className="home-dash-stack__section home-dash-stack__section--hero">{heroBlock}</section>
+          <section className="home-dash-stack__section home-dash-stack__section--kraken-match">
+            <KrakenMatchMessage />
+          </section>
           <section
             className={`home-dash-stack__section${
               isMobileHome ? ' home-dash-stack__section--mobile-ranking' : ' home-dash-stack__section--ranking'

@@ -2867,6 +2867,37 @@
   }
 }
 
+.kraken-match-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  background: linear-gradient(145deg, rgba(18, 18, 22, 0.98), rgba(10, 10, 12, 0.98));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.kraken-match-message__emoji {
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.kraken-match-message__text {
+  margin: 0;
+  padding-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.home-dash-stack__section--kraken-match:empty {
+  display: none;
+}
+
 .elegido-transfer-toast {
   position: fixed;
   top: 18px;

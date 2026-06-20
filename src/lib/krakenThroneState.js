@@ -48,7 +48,7 @@ export async function fetchProfileById(profileId) {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, name')
+    .select('id, username, name, points')
     .eq('id', profileId)
     .maybeSingle();
 
@@ -126,5 +126,68 @@ export async function fetchTopTwoProfiles() {
     top1: data[0],
     top2: data[1],
     diferencia: Number(data[0].points ?? 0) - Number(data[1].points ?? 0),
+  };
+}
+
+/**
+ * Disputa del trono: elegido = badge el-elegido; retador = más puntos sin el badge.
+ */
+export async function fetchKrakenThroneDispute() {
+  const [currentElegido, topProfilesResult] = await Promise.all([
+    fetchCurrentElegidoProfile(),
+    supabase
+      .from('profiles')
+      .select('id, username, name, points')
+      .order('points', { ascending: false })
+      .limit(2),
+  ]);
+
+  const { data: topProfiles, error: topErr } = topProfilesResult;
+
+  if (topErr) {
+    console.warn('[krakenThroneState] top profiles', topErr.message ?? topErr);
+    return null;
+  }
+
+  if (!currentElegido?.id || !topProfiles?.length) return null;
+
+  const elegidoId = String(currentElegido.id);
+  let elegidoProfile = topProfiles.find((row) => String(row.id) === elegidoId);
+
+  if (!elegidoProfile) {
+    elegidoProfile = await fetchProfileById(currentElegido.id);
+  }
+
+  if (!elegidoProfile) return null;
+
+  let retadorProfile = topProfiles.find((row) => String(row.id) !== elegidoId);
+
+  if (!retadorProfile) {
+    const { data: challenger, error: challengerErr } = await supabase
+      .from('profiles')
+      .select('id, username, name, points')
+      .neq('id', elegidoId)
+      .order('points', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (challengerErr) {
+      console.warn('[krakenThroneState] retador', challengerErr.message ?? challengerErr);
+      return null;
+    }
+
+    retadorProfile = challenger;
+  }
+
+  if (!retadorProfile) return null;
+
+  const diferencia =
+    Number(elegidoProfile.points ?? 0) - Number(retadorProfile.points ?? 0);
+
+  return {
+    currentElegido,
+    elegidoProfile,
+    retadorProfile,
+    diferencia,
   };
 }

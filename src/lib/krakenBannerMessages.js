@@ -44,7 +44,7 @@ export const BANNER_TIED = [
   '⚔️ {elegido} sudando frío. {retador} lo alcanzó. El Trono Kraken podría cambiar de manos hoy.',
   '🦑 Nadie comparte el Trono Kraken. {elegido} y {retador} lo saben. El Kraken también.',
   '💀 La batalla más épica de la quiniela: {elegido} vs {retador}. Empatados. El Kraken decide.',
-  '🦑 {retador} igualó al elegido. {elegido}, el Kraken te está mirando. No lo decepciones.',
+  '🦑 {retador} igualó a {elegido}. El Trono Kraken podría cambiar de manos. El Kraken observa.',
   '🦑 Pulpo {miNombre}, ¡esto está de infarto! {elegido} y {retador} empatados por el Trono Kraken.',
   '👀 Pulpo {miNombre}, el Kraken necesita que estés atento. {elegido} y {retador} igualados. Todo puede cambiar.',
   '🦑 ¡Pulpo {miNombre}! Empate total entre {elegido} y {retador}. El Trono Kraken nunca había estado tan disputado.',

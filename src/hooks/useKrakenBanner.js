@@ -9,9 +9,8 @@ import {
 import { krakenProfileFirstName } from '../lib/krakenProfileNames';
 import {
   detectThroneChange,
-  fetchCurrentElegidoProfile,
+  fetchKrakenThroneDispute,
   fetchProfileById,
-  fetchTopTwoProfiles,
   fetchUserProfile,
   setLastElegidoId,
 } from '../lib/krakenThroneState';
@@ -40,16 +39,20 @@ export function useKrakenBanner(userId) {
     let cancelled = false;
 
     async function load() {
-      const [profileRow, topData, currentElegido] = await Promise.all([
+      const [profileRow, dispute] = await Promise.all([
         fetchUserProfile(userId),
-        fetchTopTwoProfiles(),
-        fetchCurrentElegidoProfile(),
+        fetchKrakenThroneDispute(),
       ]);
 
       if (cancelled) return;
 
       const miNombre = krakenProfileFirstName(profileRow, 'Pulpo');
+      const currentElegido = dispute?.currentElegido;
       const change = detectThroneChange(currentElegido?.id, userId);
+
+      const elegido = krakenProfileFirstName(dispute?.elegidoProfile, 'El elegido');
+      const retador = krakenProfileFirstName(dispute?.retadorProfile, 'El retador');
+      const diferencia = dispute?.diferencia ?? null;
 
       if (change.seed && currentElegido?.id) {
         setLastElegidoId(currentElegido.id);
@@ -59,8 +62,6 @@ export function useKrakenBanner(userId) {
         const anteriorProfile = change.previousId ? await fetchProfileById(change.previousId) : null;
         if (cancelled) return;
 
-        const elegido = krakenProfileFirstName(topData?.top1, 'El elegido');
-        const retador = krakenProfileFirstName(topData?.top2, 'El retador');
         const nuevo = krakenProfileFirstName(currentElegido?.profile, 'El nuevo');
         const anterior = krakenProfileFirstName(anteriorProfile, 'El anterior');
         const vars = { elegido, retador, miNombre, nuevo, anterior };
@@ -68,20 +69,18 @@ export function useKrakenBanner(userId) {
         const state = { mode: BANNER_MODE.THRONE_CHANGE, vars };
 
         setLastElegidoId(change.currentId);
-        setDisputeActive(Boolean(topData && topData.diferencia <= 2));
+        setDisputeActive(Boolean(dispute && diferencia <= 2));
         showBanner(message, state);
         return;
       }
 
-      if (!topData?.top1 || !topData?.top2 || topData.diferencia > 2) {
+      if (!dispute || diferencia == null || diferencia > 2) {
         if (currentElegido?.id) setLastElegidoId(currentElegido.id);
         setDisputeActive(false);
         return;
       }
 
-      const bannerMode = topData.diferencia === 0 ? BANNER_MODE.TIED : BANNER_MODE.DANGER;
-      const elegido = krakenProfileFirstName(topData.top1, 'El elegido');
-      const retador = krakenProfileFirstName(topData.top2, 'El retador');
+      const bannerMode = diferencia === 0 ? BANNER_MODE.TIED : BANNER_MODE.DANGER;
       const vars = { elegido, retador, miNombre };
       const state = { mode: bannerMode, vars };
 
