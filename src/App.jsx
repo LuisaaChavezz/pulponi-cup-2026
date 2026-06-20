@@ -41,10 +41,12 @@ import {
 } from './lib/dismissedNotifications';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
 import ElegidoTransferToast from './components/ElegidoTransferToast';
+import KrakenThroneAlert from './components/KrakenThroneAlert';
 import UserPublicProfile from './components/UserPublicProfile';
 import { usePublicProfile } from './hooks/usePublicProfile';
 import { useProfileUserBadges } from './hooks/useProfileUserBadges';
 import { useElegidoTransferAlerts } from './hooks/useElegidoTransferAlerts';
+import { useKrakenThroneAlert } from './hooks/useKrakenThroneAlert';
 import { resolveAvatarUrl } from './lib/avatars';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
@@ -257,6 +259,7 @@ export default function App() {
     enabled: Boolean(sessionUserId),
     isAdmin,
   });
+  const krakenThroneAlert = useKrakenThroneAlert(sessionUserId);
 
   const visiblePendingUnlock = useMemo(() => {
     const badgeId = data.pendingUnlock?.badgeId;
@@ -835,6 +838,7 @@ export default function App() {
           transfer={elegidoTransferAlerts.toast}
           onDismiss={elegidoTransferAlerts.dismissToast}
         />
+        <KrakenThroneAlert open={krakenThroneAlert.open} onDismiss={krakenThroneAlert.dismiss} />
       <div className="bg-glow" />
 
       {data.bootstrapError ? (
