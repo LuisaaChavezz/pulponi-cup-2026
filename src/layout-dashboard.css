@@ -2760,6 +2760,28 @@
   margin-bottom: 10px;
 }
 
+.kraken-private-card__meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.kraken-private-card__dismiss {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fde68a;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.kraken-private-card__dismiss:hover {
+  background: rgba(88, 28, 135, 0.45);
+}
+
 .kraken-private-card__avatar {
   flex-shrink: 0;
   width: 42px;
@@ -2790,24 +2812,9 @@
 }
 
 .kraken-private-card__body {
-  margin: 0 0 14px;
+  margin: 0;
   color: #fff;
   line-height: 1.45;
-}
-
-.kraken-private-card__close {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(251, 191, 36, 0.45);
-  background: rgba(251, 191, 36, 0.12);
-  color: #fde68a;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.kraken-private-card__close:hover {
-  background: rgba(251, 191, 36, 0.2);
 }
 
 .home-dash-stack__section--kraken-private {

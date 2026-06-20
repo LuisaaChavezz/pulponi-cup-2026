@@ -46,9 +46,7 @@ import UserPublicProfile from './components/UserPublicProfile';
 import { usePublicProfile } from './hooks/usePublicProfile';
 import { useProfileUserBadges } from './hooks/useProfileUserBadges';
 import { useElegidoTransferAlerts } from './hooks/useElegidoTransferAlerts';
-import { useKrakenAlert } from './hooks/useKrakenAlert';
-import { useKrakenCarousel } from './hooks/useKrakenCarousel';
-import { useKrakenPrivateMessages } from './hooks/useKrakenPrivateMessages';
+import { useKrakenMessages } from './hooks/useKrakenMessages';
 import {
   hasUnreadKrakenChat,
   latestKrakenChatMessageId,
@@ -266,9 +264,7 @@ export default function App() {
     enabled: Boolean(sessionUserId),
     isAdmin,
   });
-  const krakenPrivate = useKrakenPrivateMessages(sessionUserId);
-  useKrakenAlert(sessionUserId, { onInserted: krakenPrivate.reload });
-  const krakenCarousel = useKrakenCarousel(sessionUserId);
+  const kraken = useKrakenMessages(sessionUserId);
 
   const unreadKrakenChat = useMemo(
     () => hasUnreadKrakenChat(data.chatData ?? []),
@@ -859,7 +855,7 @@ export default function App() {
           onDismiss={elegidoTransferAlerts.dismissToast}
         />
         <KrakenFab
-          visible={krakenCarousel.showFab || unreadKrakenChat}
+          visible={kraken.showFab || unreadKrakenChat}
           showDot={unreadKrakenChat}
           onOpen={openKrakenCommunity}
         />
@@ -949,9 +945,9 @@ export default function App() {
                 reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
                 onToggleReaction={data.toggleReaction}
                 memberCount={(data.communityProfiles ?? data.ranking ?? []).length}
-                krakenMessages={krakenCarousel.messages}
-                krakenPrivateMessages={krakenPrivate.messages}
-                onDismissKrakenPrivate={krakenPrivate.dismiss}
+                krakenMessages={kraken.carouselMessages}
+                krakenPrivateMessages={kraken.privateMessages}
+                onDismissKrakenPrivate={kraken.dismissPrivate}
                 onMakePrediction={() => navigateToSection('partidos')}
                 onViewRanking={() => navigateToSection('ranking')}
                 onViewCommunity={() => navigateToSection('comunidad')}
