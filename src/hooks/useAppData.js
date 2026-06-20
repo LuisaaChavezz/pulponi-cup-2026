@@ -29,6 +29,7 @@ import {
 /** Máximo de filas cargadas desde activity_log (recientes + historial en UI). */
 const PREDICTION_ACTIVITY_QUERY_LIMIT = 500;
 import { fetchCommunityComments, mapCommentRowToChatMessage } from '../lib/commentsLoad';
+import { ensureKrakenPresentationMessage } from '../lib/krakenChatPost';
 import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 import {
   loadAchievementCatalog,
@@ -654,6 +655,7 @@ export function useAppData(session) {
   reloadReactionsRef.current = reloadReactionsForCommentIds;
 
   const loadComments = useCallback(async () => {
+    await ensureKrakenPresentationMessage();
     const { data, error } = await timedQuery('comments', () => fetchCommunityComments(supabase));
 
     if (error) {

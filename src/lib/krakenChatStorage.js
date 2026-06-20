@@ -27,3 +27,7 @@ export function krakenChatThroneKey(currentElegidoId) {
 export function krakenChatBannerKey(mode, dateKey) {
   return `kraken_chat_banner_${mode}_${dateKey}`;
 }
+
+export function krakenChatPresentationKey() {
+  return 'kraken_chat_presentation_v1';
+}

@@ -11,6 +11,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "seed:fifa": "node scripts/seed-fifa-provisional.mjs",
+    "seed:kraken-presentation": "node scripts/seed-kraken-presentation.mjs",
     "sync:matches": "npx vite-node scripts/sync-matches-api.mjs",
     "sync:worldcup": "npx vite-node scripts/sync-worldcup.mjs",
     "recompute:pulpo": "npx vite-node scripts/recompute-pulpo-indexes.mjs"

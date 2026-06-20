@@ -2,12 +2,13 @@ import { getDayOfYear } from './krakenAlertStorage';
 import {
   krakenChatBannerKey,
   krakenChatMatchKey,
+  krakenChatPresentationKey,
   krakenChatThroneKey,
   markKrakenChatSent,
   wasKrakenChatSent,
 } from './krakenChatStorage';
 import { BANNER_MODE } from './krakenBannerMessages';
-import { KRAKEN_PROFILE_ID } from './krakenProfile';
+import { KRAKEN_PRESENTATION_MESSAGE, KRAKEN_PROFILE_ID } from './krakenProfile';
 import { isMissingKrakenColumnError } from './commentsLoad';
 import { supabase } from './supabase';
 
@@ -32,6 +33,44 @@ async function insertKrakenComment(body, matchId) {
   }
 
   return true;
+}
+
+async function krakenPresentationExists() {
+  let { data, error } = await supabase.from('comments').select('id').eq('is_kraken', true).limit(1);
+
+  if (error && isMissingKrakenColumnError(error)) {
+    ({ data, error } = await supabase
+      .from('comments')
+      .select('id')
+      .eq('profile_id', KRAKEN_PROFILE_ID)
+      .limit(1));
+  }
+
+  if (error) {
+    console.warn('[ensureKrakenPresentationMessage] check failed', error.message ?? error);
+    return null;
+  }
+
+  return Boolean(data?.length);
+}
+
+/** Inserta el mensaje de presentación una sola vez (tabla comments). No bloquea el chat si falla. */
+export async function ensureKrakenPresentationMessage() {
+  const storageKey = krakenChatPresentationKey();
+  if (wasKrakenChatSent(storageKey)) return false;
+
+  const exists = await krakenPresentationExists();
+  if (exists === null) return false;
+  if (exists) {
+    markKrakenChatSent(storageKey);
+    return false;
+  }
+
+  const ok = await insertKrakenComment(KRAKEN_PRESENTATION_MESSAGE, KRAKEN_CHAT_MATCH_FALLBACK);
+  if (ok) {
+    markKrakenChatSent(storageKey);
+  }
+  return ok;
 }
 
 export async function postKrakenChatMessage({ content, matchId = null, storageKey }) {

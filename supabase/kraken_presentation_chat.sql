@@ -1,12 +1,15 @@
 -- Mensaje de presentación del Kraken en el chat de comunidad.
 -- Tabla real del chat: public.comments (no "messages").
---   profile_id  → usuario (FK profiles.id)
---   body        → texto del mensaje (no "content")
---   match_id    → contexto del partido ('general' en comunidad)
---   is_kraken   → boolean, mensaje del Kraken
---   created_at  → timestamp
 --
--- Perfil: public.profiles (username, name — no full_name en este proyecto)
+-- Adaptación del INSERT genérico:
+--   messages.user_id    → comments.profile_id
+--   messages.username   → profiles.username (FK profile_id; no columna en comments)
+--   messages.content    → comments.body
+--   messages.is_kraken  → comments.is_kraken
+--   messages.created_at → comments.created_at
+--   (extra)             → comments.match_id = 'general'
+--
+-- Alternativa CLI: npm run seed:kraken-presentation (requiere SUPABASE_SERVICE_ROLE_KEY)
 
 -- Columnas Kraken en comments (si aún no corriste kraken_chat_comments.sql)
 ALTER TABLE public.comments
