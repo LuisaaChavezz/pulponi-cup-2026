@@ -330,13 +330,24 @@ export async function loadUserBadgeRows(client, userId) {
 
   const { data, error } = await client
     .from('user_badges')
-    .select('profile_id, badge_id, earned_at')
+    .select('profile_id, badge_id, earned_at, badges ( id, name, description, icon )')
     .eq('profile_id', userId)
     .order('earned_at', { ascending: false });
 
   if (error) {
-    console.warn('[achievementSync] loadUserBadgeRows', error.message);
-    return [];
+    console.warn('[achievementSync] loadUserBadgeRows join', error.message);
+    const { data: fallback, error: fallbackError } = await client
+      .from('user_badges')
+      .select('profile_id, badge_id, earned_at')
+      .eq('profile_id', userId)
+      .order('earned_at', { ascending: false });
+
+    if (fallbackError) {
+      console.warn('[achievementSync] loadUserBadgeRows', fallbackError.message);
+      return [];
+    }
+
+    return (fallback ?? []).filter((row) => String(row.profile_id) === String(userId));
   }
 
   return (data ?? []).filter((row) => String(row.profile_id) === String(userId));
@@ -363,7 +374,10 @@ export async function loadAchievementCatalog(client) {
         typeof row.icon === 'string' && row.icon.startsWith('http')
           ? row.icon
           : staticDef?.icon ?? row.icon ?? '🏆',
-      description: staticDef?.description ?? row.description ?? '',
+      description:
+        (staticDef?.description && String(staticDef.description).trim()) ||
+        (row.description && String(row.description).trim()) ||
+        '',
       requirement: staticDef?.requirement ?? row.requirement_text ?? '',
       active: staticDef?.active ?? row.active !== false,
       manualGrant: staticDef?.manualGrant ?? false,

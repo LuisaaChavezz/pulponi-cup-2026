@@ -231,6 +231,14 @@ function asBadgeLabel(value, fallback = '') {
   return fallback;
 }
 
+function firstNonEmptyBadgeText(...values) {
+  for (const value of values) {
+    const text = asBadgeLabel(value, '');
+    if (text.trim()) return text;
+  }
+  return '';
+}
+
 export function resolveBadgePresentation(badgeId, dbBadge = null, catalog = ACHIEVEMENT_CATALOG) {
   const staticDef = getAchievementById(badgeId);
   const fromCatalog = catalog?.find((a) => a.id === badgeId) ?? staticDef;
@@ -249,9 +257,10 @@ export function resolveBadgePresentation(badgeId, dbBadge = null, catalog = ACHI
     name,
     icon,
     iconSrc: resolveBadgeIconSrc(icon),
-    description: asBadgeLabel(
-      staticDef?.description ?? fromCatalog?.description ?? remote?.description,
-      ''
+    description: firstNonEmptyBadgeText(
+      staticDef?.description,
+      fromCatalog?.description,
+      remote?.description
     ),
   };
 }
