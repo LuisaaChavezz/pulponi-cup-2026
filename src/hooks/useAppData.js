@@ -28,7 +28,7 @@ import {
 
 /** Máximo de filas cargadas desde activity_log (recientes + historial en UI). */
 const PREDICTION_ACTIVITY_QUERY_LIMIT = 500;
-import { KRAKEN_USERNAME } from '../lib/krakenProfile';
+import { fetchCommunityComments, mapCommentRowToChatMessage } from '../lib/commentsLoad';
 import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 import {
   loadAchievementCatalog,
@@ -654,13 +654,7 @@ export function useAppData(session) {
   reloadReactionsRef.current = reloadReactionsForCommentIds;
 
   const loadComments = useCallback(async () => {
-    const { data, error } = await timedQuery('comments', () =>
-      supabase
-        .from('comments')
-        .select('id, profile_id, body, created_at, is_kraken, profiles(username, name, photo_url)')
-        .order('created_at', { ascending: true })
-        .limit(80)
-    );
+    const { data, error } = await timedQuery('comments', () => fetchCommunityComments(supabase));
 
     if (error) {
       console.error('[loadComments] comments query failed', error);
@@ -675,26 +669,7 @@ export function useAppData(session) {
       return;
     }
 
-    setChatData(
-      data.map((c) => {
-        const isKraken = Boolean(c.is_kraken);
-        const username = c.profiles?.username;
-        return {
-          id: c.id,
-          profileId: c.profile_id ?? null,
-          user: isKraken
-            ? `@${username || KRAKEN_USERNAME}`
-            : c.profiles?.username
-              ? `@${c.profiles.username}`
-              : '@anon',
-          photoUrl: isKraken ? null : (c.profiles?.photo_url ?? null),
-          avatarUrl: isKraken ? null : resolveAvatarUrl(c.profiles?.photo_url),
-          isKraken,
-          time: new Date(c.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-          body: c.body,
-        };
-      })
-    );
+    setChatData(data.map(mapCommentRowToChatMessage));
 
     const ids = data.map((c) => c.id);
     await reloadReactionsForCommentIds(ids);
