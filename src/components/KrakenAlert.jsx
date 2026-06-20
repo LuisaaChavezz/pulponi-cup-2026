@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
+import { getKrakenAlertCta } from '../lib/krakenMessages';
 
-export default function KrakenAlert({ open, message, onDismiss }) {
+export default function KrakenAlert({ open, message, mode, onDismiss }) {
   useEffect(() => {
     if (!open) return undefined;
     const prev = document.body.style.overflow;
@@ -21,6 +22,8 @@ export default function KrakenAlert({ open, message, onDismiss }) {
 
   if (!open || !message) return null;
 
+  const cta = getKrakenAlertCta(mode);
+
   return (
     <div
       className="kraken-throne-alert-backdrop"
@@ -32,13 +35,16 @@ export default function KrakenAlert({ open, message, onDismiss }) {
       }}
     >
       <div className="kraken-throne-alert">
+        <p className="kraken-throne-alert__emoji" aria-hidden>
+          🦑
+        </p>
         <p className="kraken-throne-alert__kicker">Trono Kraken</p>
         <h2 id="kraken-alert-title" className="kraken-throne-alert__title">
           {message.title}
         </h2>
-        <p className="kraken-throne-alert__body kraken-throne-alert__body--emphasis">{message.body}</p>
+        <p className="kraken-throne-alert__body">{message.body}</p>
         <button type="button" className="kraken-throne-alert__close" onClick={() => onDismiss?.()}>
-          Entendido
+          {cta}
         </button>
       </div>
     </div>

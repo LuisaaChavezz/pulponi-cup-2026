@@ -77,22 +77,11 @@ export function shouldShowSafeKrakenAlert(now = new Date()) {
   }
 }
 
-export function shouldShowKrakenAlertForMode(mode, now = new Date()) {
-  switch (mode) {
-    case KRAKEN_MODE.TIED:
-      return shouldShowTiedKrakenAlert(now);
-    case KRAKEN_MODE.DANGER:
-      return shouldShowDangerKrakenAlert(now);
-    case KRAKEN_MODE.SAFE:
-      return shouldShowSafeKrakenAlert(now);
-    default:
-      return false;
-  }
-}
-
 export function markKrakenAlertShownForMode(mode, now = new Date()) {
   switch (mode) {
     case KRAKEN_MODE.TIED:
+    case KRAKEN_MODE.NEW_KING:
+    case KRAKEN_MODE.LOST_THRONE:
       writeString(KRAKEN_ALERT_SEEN_KEY, now.toDateString());
       break;
     case KRAKEN_MODE.DANGER:
@@ -103,6 +92,22 @@ export function markKrakenAlertShownForMode(mode, now = new Date()) {
       break;
     default:
       break;
+  }
+}
+
+export function shouldShowKrakenAlertForMode(mode, now = new Date()) {
+  switch (mode) {
+    case KRAKEN_MODE.NEW_KING:
+    case KRAKEN_MODE.LOST_THRONE:
+      return true;
+    case KRAKEN_MODE.TIED:
+      return shouldShowTiedKrakenAlert(now);
+    case KRAKEN_MODE.DANGER:
+      return shouldShowDangerKrakenAlert(now);
+    case KRAKEN_MODE.SAFE:
+      return shouldShowSafeKrakenAlert(now);
+    default:
+      return false;
   }
 }
 

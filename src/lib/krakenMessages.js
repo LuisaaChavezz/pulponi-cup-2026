@@ -51,7 +51,36 @@ export const KRAKEN_MODE = {
   TIED: 'tied',
   DANGER: 'danger',
   SAFE: 'safe',
+  NEW_KING: 'new_king',
+  LOST_THRONE: 'lost_throne',
 };
+
+export const KRAKEN_MESSAGES_NEW_KING = [
+  { title: '¡El Trono Kraken es tuyo! 🦑', body: 'Lo arrebataste. El Kraken ha hablado. El trono te pertenece... por ahora.' },
+  { title: '¡Nuevo rey del Kraken! 🦑', body: 'Lo lograste. El trono cambió de manos y ahora es tuyo. El Kraken obedece.' },
+  { title: '¡El Kraken tiene nuevo elegido! 🦑', body: 'Derrocaste al anterior. El trono es tuyo. La quiniela tiembla ante tu nombre.' },
+  { title: '¡Tomaste el trono! 🦑', body: 'El Kraken no olvida a los valientes. Luchaste y ganaste. El trono es tuyo.' },
+  { title: '¡El elegido eres tú! 🦑', body: 'El Kraken ha elegido. La quiniela tiene nuevo rey. Defiéndelo con todo.' },
+];
+
+export const KRAKEN_MESSAGES_LOST_THRONE = [
+  { title: 'Te quitaron el Trono Kraken 🦑', body: 'El Kraken ha elegido a otro. El trono ya no es tuyo. ¿Lo vas a recuperar?' },
+  { title: 'El trono cambió de manos 🦑', body: 'Alguien fue más fuerte. El Kraken no perdona la debilidad. Vuelve más fuerte.' },
+  { title: 'Caíste del trono 🦑', body: 'El Kraken ya no te obedece. Alguien te superó. ¿Qué vas a hacer al respecto?' },
+  { title: 'El Kraken tiene nuevo elegido 🦑', body: 'Y no eres tú. El trono fue arrebatado. La revancha es tuya si la buscas.' },
+  { title: 'Perdiste el Trono Kraken 🦑', body: 'Duele, ¿verdad? El Kraken solo obedece al más fuerte. Demuestra que ese eres tú.' },
+];
+
+export function getKrakenAlertCta(mode) {
+  switch (mode) {
+    case KRAKEN_MODE.NEW_KING:
+      return '¡Voy por él! 🦑';
+    case KRAKEN_MODE.LOST_THRONE:
+      return 'Voy a recuperarlo 🦑';
+    default:
+      return 'Defenderé mi trono 🦑';
+  }
+}
 
 export function getKrakenMessagesForMode(mode) {
   switch (mode) {
@@ -59,6 +88,10 @@ export function getKrakenMessagesForMode(mode) {
       return KRAKEN_MESSAGES_TIED;
     case KRAKEN_MODE.DANGER:
       return KRAKEN_MESSAGES_DANGER;
+    case KRAKEN_MODE.NEW_KING:
+      return KRAKEN_MESSAGES_NEW_KING;
+    case KRAKEN_MODE.LOST_THRONE:
+      return KRAKEN_MESSAGES_LOST_THRONE;
     default:
       return KRAKEN_MESSAGES_SAFE;
   }

@@ -263,7 +263,7 @@ export default function App() {
     isAdmin,
   });
   const krakenAlert = useKrakenAlert(sessionUserId);
-  const krakenBanner = useKrakenBanner();
+  const krakenBanner = useKrakenBanner(sessionUserId);
 
   const visiblePendingUnlock = useMemo(() => {
     const badgeId = data.pendingUnlock?.badgeId;
@@ -842,7 +842,12 @@ export default function App() {
           transfer={elegidoTransferAlerts.toast}
           onDismiss={elegidoTransferAlerts.dismissToast}
         />
-        <KrakenAlert open={krakenAlert.open} message={krakenAlert.message} onDismiss={krakenAlert.dismiss} />
+        <KrakenAlert
+          open={krakenAlert.open}
+          message={krakenAlert.message}
+          mode={krakenAlert.mode}
+          onDismiss={krakenAlert.dismiss}
+        />
         <KrakenBanner
           visible={krakenBanner.visible}
           text={krakenBanner.text}

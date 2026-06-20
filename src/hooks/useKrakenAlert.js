@@ -1,30 +1,87 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { EL_ELEGIDO_BADGE_ID } from '../data/achievements';
 import {
   markKrakenAlertShownForMode,
   pickKrakenMessage,
   shouldShowKrakenAlertForMode,
 } from '../lib/krakenAlertStorage';
-import { getKrakenMessagesForMode, resolveKrakenMode } from '../lib/krakenMessages';
+import {
+  getKrakenMessagesForMode,
+  KRAKEN_MODE,
+  resolveKrakenMode,
+} from '../lib/krakenMessages';
 import { krakenProfileFirstName } from '../lib/krakenProfileNames';
+import {
+  detectThroneChange,
+  fetchCurrentElegidoProfile,
+  fetchTopTwoProfiles,
+  setLastElegidoId,
+} from '../lib/krakenThroneState';
 import { supabase } from '../lib/supabase';
 
 export function useKrakenAlert(userId) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState(null);
   const [mode, setMode] = useState(null);
+  const pendingElegidoIdRef = useRef(null);
 
   useEffect(() => {
     if (!userId) {
       setOpen(false);
       setMessage(null);
       setMode(null);
+      pendingElegidoIdRef.current = null;
       return undefined;
     }
 
     let cancelled = false;
 
+    async function showAlert(alertMode, pickedMessage) {
+      setMode(alertMode);
+      setMessage(pickedMessage);
+      setOpen(true);
+    }
+
     async function load() {
+      const [topData, currentElegido] = await Promise.all([
+        fetchTopTwoProfiles(),
+        fetchCurrentElegidoProfile(),
+      ]);
+
+      if (cancelled) return;
+
+      const change = detectThroneChange(currentElegido?.id, userId);
+
+      if (change.seed && currentElegido?.id) {
+        setLastElegidoId(currentElegido.id);
+      }
+
+      if (change.changed && change.type === 'new_king') {
+        pendingElegidoIdRef.current = change.currentId;
+        if (shouldShowKrakenAlertForMode(KRAKEN_MODE.NEW_KING)) {
+          const messages = getKrakenMessagesForMode(KRAKEN_MODE.NEW_KING);
+          await showAlert(KRAKEN_MODE.NEW_KING, pickKrakenMessage(messages, KRAKEN_MODE.NEW_KING));
+        } else {
+          setLastElegidoId(change.currentId);
+        }
+        return;
+      }
+
+      if (change.changed && change.type === 'lost_throne') {
+        pendingElegidoIdRef.current = change.currentId;
+        if (shouldShowKrakenAlertForMode(KRAKEN_MODE.LOST_THRONE)) {
+          const messages = getKrakenMessagesForMode(KRAKEN_MODE.LOST_THRONE);
+          await showAlert(KRAKEN_MODE.LOST_THRONE, pickKrakenMessage(messages, KRAKEN_MODE.LOST_THRONE));
+        } else {
+          setLastElegidoId(change.currentId);
+        }
+        return;
+      }
+
+      if (change.changed && change.type === 'transfer' && change.currentId) {
+        setLastElegidoId(change.currentId);
+      }
+
       const { data: badgeRow, error: badgeErr } = await supabase
         .from('user_badges')
         .select('badge_id')
@@ -43,29 +100,13 @@ export function useKrakenAlert(userId) {
         return;
       }
 
-      const { data: topProfiles, error: rankErr } = await supabase
-        .from('profiles')
-        .select('id, username, name, points')
-        .order('points', { ascending: false })
-        .limit(2);
+      if (!topData?.top1 || !topData?.top2) return;
 
-      if (cancelled) return;
+      const alertMode = resolveKrakenMode(topData.top1.points, topData.top2.points);
+      if (!shouldShowKrakenAlertForMode(alertMode)) return;
 
-      if (rankErr) {
-        console.warn('[useKrakenAlert] ranking', rankErr.message ?? rankErr);
-        return;
-      }
-
-      const top1 = topProfiles?.[0];
-      const top2 = topProfiles?.[1];
-      const elegido = krakenProfileFirstName(top1, 'El elegido');
-      const retador = krakenProfileFirstName(top2, 'El retador');
-      const alertMode = resolveKrakenMode(top1?.points, top2?.points);
-
-      if (!shouldShowKrakenAlertForMode(alertMode)) {
-        return;
-      }
-
+      const elegido = krakenProfileFirstName(topData.top1, 'El elegido');
+      const retador = krakenProfileFirstName(topData.top2, 'El retador');
       const messages = getKrakenMessagesForMode(alertMode);
       const picked = pickKrakenMessage(messages, alertMode);
       const personalized = {
@@ -74,9 +115,7 @@ export function useKrakenAlert(userId) {
         body: String(picked.body).replace(/\{elegido\}/g, elegido).replace(/\{retador\}/g, retador),
       };
 
-      setMode(alertMode);
-      setMessage(personalized);
-      setOpen(true);
+      await showAlert(alertMode, personalized);
     }
 
     void load();
@@ -90,8 +129,12 @@ export function useKrakenAlert(userId) {
     if (mode) {
       markKrakenAlertShownForMode(mode);
     }
+    if (pendingElegidoIdRef.current) {
+      setLastElegidoId(pendingElegidoIdRef.current);
+      pendingElegidoIdRef.current = null;
+    }
     setOpen(false);
   }, [mode]);
 
-  return { open, message, dismiss };
+  return { open, message, mode, dismiss };
 }

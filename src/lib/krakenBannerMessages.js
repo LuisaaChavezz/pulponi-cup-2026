@@ -1,3 +1,11 @@
+import { resolveKrakenMessageText } from './krakenProfileNames';
+
+export const BANNER_MODE = {
+  THRONE_CHANGE: 'throne_change',
+  TIED: 'tied',
+  DANGER: 'danger',
+};
+
 export const BANNER_DANGER = [
   '🦑 {retador} está acechando el Trono Kraken de {elegido}. Las profundidades se agitan.',
   '👀 {elegido} sigue en la cima pero {retador} no se rinde. El Trono Kraken tiembla.',
@@ -14,6 +22,11 @@ export const BANNER_DANGER = [
   '🦑 {retador} no duerme. {elegido}, el Trono Kraken está en peligro.',
   '👀 El Kraken advierte a {elegido}: {retador} viene con hambre. Mucha hambre.',
   '🦑 ¿Hasta cuándo aguantará {elegido}? {retador} está que arde. El Kraken espera.',
+  '🦑 Pulpo {miNombre}, ¿ya viste lo que está pasando? {retador} viene por el trono de {elegido}.',
+  '👀 Pulpo {miNombre}, el Kraken te pregunta: ¿quién crees que ganará? ¿{elegido} o {retador}?',
+  '🦑 Atención Pulpo {miNombre}, el Trono Kraken de {elegido} está siendo disputado por {retador}.',
+  '👀 Pulpo {miNombre}, las profundidades se agitan. {retador} viene por {elegido}. Esto se pone bueno.',
+  '🦑 El Kraken saluda a Pulpo {miNombre} y le avisa: el trono de {elegido} está en peligro. {retador} acecha.',
 ];
 
 export const BANNER_TIED = [
@@ -32,15 +45,40 @@ export const BANNER_TIED = [
   '🦑 Nadie comparte el Trono Kraken. {elegido} y {retador} lo saben. El Kraken también.',
   '💀 La batalla más épica de la quiniela: {elegido} vs {retador}. Empatados. El Kraken decide.',
   '🦑 {retador} igualó al elegido. {elegido}, el Kraken te está mirando. No lo decepciones.',
+  '🦑 Pulpo {miNombre}, ¡esto está de infarto! {elegido} y {retador} empatados por el Trono Kraken.',
+  '👀 Pulpo {miNombre}, el Kraken necesita que estés atento. {elegido} y {retador} igualados. Todo puede cambiar.',
+  '🦑 ¡Pulpo {miNombre}! Empate total entre {elegido} y {retador}. El Trono Kraken nunca había estado tan disputado.',
+  '👀 El Kraken convoca a Pulpo {miNombre}: {elegido} y {retador} empatados. ¿Quién se lleva el trono?',
+  '🦑 Pulpo {miNombre}, prepárate. {elegido} y {retador} están igualados y el Kraken exige un duelo épico.',
 ];
 
-export function formatKrakenBannerMessage(template, elegido, retador) {
-  return String(template)
-    .replace(/\{elegido\}/g, elegido)
-    .replace(/\{retador\}/g, retador);
+export const BANNER_THRONE_CHANGE = [
+  '🦑 ¡El Trono Kraken cambió de dueño! {nuevo} arrebató el trono a {anterior}. El Kraken ha hablado.',
+  '👑 ¡Nuevo rey en la quiniela! {nuevo} derrocó a {anterior} y se lleva el Trono Kraken.',
+  '🦑 ¡Atención pulpos! {anterior} perdió el Trono Kraken. {nuevo} es el nuevo elegido.',
+  '💀 {anterior} reinó, pero {nuevo} fue más fuerte. El Trono Kraken tiene nuevo dueño.',
+  '🦑 El Kraken ha elegido a {nuevo}. {anterior}, el trono ya no es tuyo.',
+  '🦑 Pulpo {miNombre}, ¿te enteraste? {nuevo} le arrebató el Trono Kraken a {anterior}. El Kraken ha hablado.',
+  '👀 Pulpo {miNombre}, nuevo rey en la quiniela. {nuevo} derrocó a {anterior}. El trono cambió de manos.',
+  '🦑 ¡Atención Pulpo {miNombre}! {anterior} perdió el Trono Kraken. {nuevo} es el nuevo elegido del Kraken.',
+];
+
+export function resolveMessage(template, vars) {
+  return resolveKrakenMessageText(template, vars);
 }
 
 export function pickRandomBannerMessage(templates) {
   if (!templates?.length) return '';
   return templates[Math.floor(Math.random() * templates.length)];
+}
+
+export function buildBannerText(mode, vars) {
+  const templates =
+    mode === BANNER_MODE.THRONE_CHANGE
+      ? BANNER_THRONE_CHANGE
+      : mode === BANNER_MODE.TIED
+        ? BANNER_TIED
+        : BANNER_DANGER;
+  const template = pickRandomBannerMessage(templates);
+  return resolveMessage(template, vars);
 }

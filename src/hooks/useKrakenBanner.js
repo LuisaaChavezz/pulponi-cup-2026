@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  BANNER_DANGER,
-  BANNER_TIED,
-  formatKrakenBannerMessage,
-  pickRandomBannerMessage,
-} from '../lib/krakenBannerMessages';
+import { BANNER_MODE, buildBannerText } from '../lib/krakenBannerMessages';
 import {
   markKrakenBannerDangerDay,
   markKrakenBannerSeenToday,
@@ -12,52 +7,30 @@ import {
   wasKrakenBannerSeenToday,
 } from '../lib/krakenBannerStorage';
 import { krakenProfileFirstName } from '../lib/krakenProfileNames';
-import { supabase } from '../lib/supabase';
+import {
+  detectThroneChange,
+  fetchCurrentElegidoProfile,
+  fetchProfileById,
+  fetchTopTwoProfiles,
+  fetchUserProfile,
+  setLastElegidoId,
+} from '../lib/krakenThroneState';
 
 const FADE_MS = 500;
 
-function buildBannerMessage(mode, elegido, retador) {
-  const templates = mode === 'tied' ? BANNER_TIED : BANNER_DANGER;
-  const template = pickRandomBannerMessage(templates);
-  return formatKrakenBannerMessage(template, elegido, retador);
-}
-
-async function fetchKrakenDispute() {
-  const { data: top2, error } = await supabase
-    .from('profiles')
-    .select('username, name, points')
-    .order('points', { ascending: false })
-    .limit(2);
-
-  if (error) {
-    console.warn('[useKrakenBanner]', error.message ?? error);
-    return null;
-  }
-
-  if (!top2?.[0] || !top2?.[1]) return null;
-
-  const diferencia = Number(top2[0].points ?? 0) - Number(top2[1].points ?? 0);
-  if (diferencia > 2) return null;
-
-  const mode = diferencia === 0 ? 'tied' : 'danger';
-  const elegido = krakenProfileFirstName(top2[0], 'El elegido');
-  const retador = krakenProfileFirstName(top2[1], 'El retador');
-
-  return { mode, elegido, retador, diferencia };
-}
-
-export function useKrakenBanner() {
+export function useKrakenBanner(userId) {
   const [visible, setVisible] = useState(false);
   const [text, setText] = useState(null);
   const [fading, setFading] = useState(false);
   const [disputeActive, setDisputeActive] = useState(false);
 
-  const disputeRef = useRef(null);
+  const bannerStateRef = useRef(null);
   const dismissedRef = useRef(false);
   const fadeTimerRef = useRef(null);
 
-  const showBanner = useCallback((message) => {
+  const showBanner = useCallback((message, state) => {
     dismissedRef.current = false;
+    bannerStateRef.current = state;
     setText(message);
     setFading(false);
     setVisible(true);
@@ -67,16 +40,59 @@ export function useKrakenBanner() {
     let cancelled = false;
 
     async function load() {
-      const dispute = await fetchKrakenDispute();
-      if (cancelled || !dispute) return;
+      const [profileRow, topData, currentElegido] = await Promise.all([
+        fetchUserProfile(userId),
+        fetchTopTwoProfiles(),
+        fetchCurrentElegidoProfile(),
+      ]);
 
-      disputeRef.current = dispute;
+      if (cancelled) return;
+
+      const miNombre = krakenProfileFirstName(profileRow, 'Pulpo');
+      const change = detectThroneChange(currentElegido?.id, userId);
+
+      if (change.seed && currentElegido?.id) {
+        setLastElegidoId(currentElegido.id);
+      }
+
+      if (change.changed) {
+        const anteriorProfile = change.previousId ? await fetchProfileById(change.previousId) : null;
+        if (cancelled) return;
+
+        const elegido = krakenProfileFirstName(topData?.top1, 'El elegido');
+        const retador = krakenProfileFirstName(topData?.top2, 'El retador');
+        const nuevo = krakenProfileFirstName(currentElegido?.profile, 'El nuevo');
+        const anterior = krakenProfileFirstName(anteriorProfile, 'El anterior');
+        const vars = { elegido, retador, miNombre, nuevo, anterior };
+        const message = buildBannerText(BANNER_MODE.THRONE_CHANGE, vars);
+        const state = { mode: BANNER_MODE.THRONE_CHANGE, vars };
+
+        setLastElegidoId(change.currentId);
+        setDisputeActive(Boolean(topData && topData.diferencia <= 2));
+        showBanner(message, state);
+        return;
+      }
+
+      if (!topData?.top1 || !topData?.top2 || topData.diferencia > 2) {
+        if (currentElegido?.id) setLastElegidoId(currentElegido.id);
+        setDisputeActive(false);
+        return;
+      }
+
+      const bannerMode = topData.diferencia === 0 ? BANNER_MODE.TIED : BANNER_MODE.DANGER;
+      const elegido = krakenProfileFirstName(topData.top1, 'El elegido');
+      const retador = krakenProfileFirstName(topData.top2, 'El retador');
+      const vars = { elegido, retador, miNombre };
+      const state = { mode: bannerMode, vars };
+
       setDisputeActive(true);
 
-      if (wasKrakenBannerSeenToday()) return;
-      if (dispute.mode === 'danger' && !shouldShowDangerKrakenBanner()) return;
+      if (currentElegido?.id) setLastElegidoId(currentElegido.id);
 
-      showBanner(buildBannerMessage(dispute.mode, dispute.elegido, dispute.retador));
+      if (wasKrakenBannerSeenToday()) return;
+      if (bannerMode === BANNER_MODE.DANGER && !shouldShowDangerKrakenBanner()) return;
+
+      showBanner(buildBannerText(bannerMode, vars), state);
     }
 
     void load();
@@ -84,7 +100,7 @@ export function useKrakenBanner() {
     return () => {
       cancelled = true;
     };
-  }, [showBanner]);
+  }, [userId, showBanner]);
 
   useEffect(() => {
     return () => {
@@ -96,9 +112,12 @@ export function useKrakenBanner() {
     if (dismissedRef.current) return;
     dismissedRef.current = true;
 
-    markKrakenBannerSeenToday();
-    if (disputeRef.current?.mode === 'danger') {
-      markKrakenBannerDangerDay();
+    const state = bannerStateRef.current;
+    if (state?.mode !== BANNER_MODE.THRONE_CHANGE) {
+      markKrakenBannerSeenToday();
+      if (state?.mode === BANNER_MODE.DANGER) {
+        markKrakenBannerDangerDay();
+      }
     }
 
     setFading(true);
@@ -110,10 +129,10 @@ export function useKrakenBanner() {
   }, []);
 
   const reopen = useCallback(() => {
-    const dispute = disputeRef.current;
-    if (!dispute) return;
+    const state = bannerStateRef.current;
+    if (!state) return;
 
-    showBanner(buildBannerMessage(dispute.mode, dispute.elegido, dispute.retador));
+    showBanner(buildBannerText(state.mode, state.vars), state);
   }, [showBanner]);
 
   const showFab = disputeActive && !visible && !fading;
