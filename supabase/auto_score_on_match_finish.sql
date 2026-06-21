@@ -135,6 +135,11 @@ BEGIN
         END IF;
       END IF;
 
+      IF scored_picks > 0
+         AND to_regprocedure('public.transfer_kraken_throne_if_needed()') IS NOT NULL THEN
+        PERFORM public.transfer_kraken_throne_if_needed();
+      END IF;
+
       RETURN jsonb_build_object(
         'match_id', mid_db,
         'home_score', m.home_score,

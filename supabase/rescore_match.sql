@@ -11,6 +11,73 @@ BEGIN
   END IF;
 
   EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION public.transfer_kraken_throne_if_needed()
+    RETURNS void
+    LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public
+    AS $body$
+    DECLARE
+      v_new_elegido uuid;
+      v_current_elegido uuid;
+      v_previous_username text;
+      v_new_username text;
+    BEGIN
+      IF to_regclass('public.user_badges') IS NULL THEN
+        RETURN;
+      END IF;
+
+      SELECT p.id
+      INTO v_new_elegido
+      FROM public.profiles p
+      ORDER BY p.points DESC, p.exacts DESC, p.streak DESC NULLS LAST, p.username ASC NULLS LAST
+      LIMIT 1;
+
+      IF v_new_elegido IS NULL THEN
+        RETURN;
+      END IF;
+
+      SELECT ub.profile_id
+      INTO v_current_elegido
+      FROM public.user_badges ub
+      WHERE ub.badge_id = 'el-elegido'
+      LIMIT 1;
+
+      IF v_new_elegido IS NOT DISTINCT FROM v_current_elegido THEN
+        RETURN;
+      END IF;
+
+      SELECT lower(trim(replace(coalesce(p.username, ''), '@', '')))
+      INTO v_previous_username
+      FROM public.profiles p
+      WHERE p.id = v_current_elegido;
+
+      SELECT lower(trim(replace(coalesce(p.username, ''), '@', '')))
+      INTO v_new_username
+      FROM public.profiles p
+      WHERE p.id = v_new_elegido;
+
+      IF v_new_username IS NULL OR v_new_username = '' THEN
+        RETURN;
+      END IF;
+
+      DELETE FROM public.user_badges
+      WHERE badge_id = 'el-elegido';
+
+      INSERT INTO public.user_badges (profile_id, badge_id, earned_at)
+      VALUES (v_new_elegido, 'el-elegido', now())
+      ON CONFLICT (profile_id, badge_id) DO UPDATE
+        SET earned_at = excluded.earned_at;
+
+      IF to_regclass('public.elegido_history') IS NOT NULL THEN
+        INSERT INTO public.elegido_history (previous_username, new_username, transferred_at)
+        VALUES (nullif(v_previous_username, ''), v_new_username, now());
+      END IF;
+    END;
+    $body$;
+  $fn$;
+
+  EXECUTE $fn$
     CREATE OR REPLACE FUNCTION public.score_match(
       p_match_id text,
       p_home_score integer,
@@ -50,6 +117,9 @@ BEGIN
       WHERE id::text = target_match_id;
 
       score_result := public.score_finished_match(target_match_id, true);
+
+      -- Trono Kraken: transferir al #1 automáticamente
+      PERFORM public.transfer_kraken_throne_if_needed();
 
       RETURN score_result
         || jsonb_build_object(
@@ -177,6 +247,6 @@ BEGIN
   GRANT EXECUTE ON FUNCTION public.rescore_match(text, integer, integer) TO service_role;
   GRANT EXECUTE ON FUNCTION public.apply_rescore_match(text, integer, integer) TO authenticated;
 
-  RAISE NOTICE '[rescore_match] score_match, rescore_match y apply_rescore_match instaladas.';
+  RAISE NOTICE '[rescore_match] score_match, rescore_match, transfer_kraken_throne_if_needed y apply_rescore_match instaladas.';
 END;
 $rescore_match$;
