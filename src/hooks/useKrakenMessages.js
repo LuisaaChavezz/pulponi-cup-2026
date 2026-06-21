@@ -165,7 +165,7 @@ async function fetchNextMatch(now) {
   const { data, error } = await supabase
     .from('matches')
     .select(MATCH_SELECT)
-    .neq('status', 'scored')
+    .neq('status', 'finished')
     .gte('kickoff', now.toISOString())
     .order('kickoff', { ascending: true })
     .limit(1)
@@ -183,7 +183,7 @@ async function fetchLastScoredMatch() {
   const { data, error } = await supabase
     .from('matches')
     .select(MATCH_SELECT)
-    .eq('status', 'scored')
+    .eq('status', 'finished')
     .order('kickoff', { ascending: false })
     .limit(1)
     .maybeSingle();

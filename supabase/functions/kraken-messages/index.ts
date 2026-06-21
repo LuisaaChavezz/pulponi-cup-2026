@@ -470,7 +470,7 @@ Deno.serve(async (req) => {
   const { data: upcomingMatch } = await supabase
     .from('matches')
     .select('id, home_team, away_team, kickoff')
-    .neq('status', 'scored')
+    .neq('status', 'finished')
     .gte('kickoff', now.toISOString())
     .lte('kickoff', in60)
     .order('kickoff', { ascending: true })
@@ -504,7 +504,7 @@ Deno.serve(async (req) => {
   const { data: lastScored } = await supabase
     .from('matches')
     .select('id, home_team, away_team, home_score, away_score, updated_at')
-    .eq('status', 'scored')
+    .eq('status', 'finished')
     .gte('updated_at', threeHoursAgo)
     .order('updated_at', { ascending: false })
     .limit(1)
