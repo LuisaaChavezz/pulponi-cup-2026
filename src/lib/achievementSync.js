@@ -38,13 +38,16 @@ const QUINIELA_INSCRITO_USERNAMES = new Set(
     'adriespinoza',
     'claudioroca',
     'costalitocampeon',
+    'delpegol',
     'lizbeth',
     'michrobertsv',
     'piyu',
     'ucg',
     'vv',
     'ivan',
+    'jcpe',
     'scs',
+    'tata',
   ].map((u) => normalizeAchievementUsername(u))
 );
 const PARLAY_INSCRITO_USERNAMES = new Set(

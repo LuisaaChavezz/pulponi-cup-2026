@@ -66,11 +66,13 @@ const QUINIELA_INSCRITOS = [
   { username: 'chovitz', amount: 500 },
   { username: 'claudioroca', amount: 500 },
   { username: 'costalitocampeon', amount: 500 },
+  { username: 'delpegol', amount: 500 },
   { username: 'ecantu8', amount: 500 },
   { username: 'góngora', amount: 500 },
   { username: 'imanol', amount: 500 },
   { username: 'itsmariachavez', amount: 500 },
   { username: 'ivan', amount: 500 },
+  { username: 'jcpe', amount: 500 },
   { username: 'lizbeth', amount: 500 },
   { username: 'luisaachavezz', amount: 500 },
   { username: 'manolo', amount: 500 },
@@ -81,6 +83,7 @@ const QUINIELA_INSCRITOS = [
   { username: 'pirata12', amount: 500 },
   { username: 'piyu', amount: 500 },
   { username: 'scs', amount: 500 },
+  { username: 'tata', amount: 500 },
   { username: 'ucg', amount: 500 },
   { username: 'vv', amount: 500 },
 ];
@@ -513,7 +516,10 @@ export default function HomeDashboard({
               <InscritoChip key={row.username} username={row.username} amount={row.amount} />
             ))}
           </div>
-          <p className="home-dash-pool__bolsa">💰 Bolsa Quiniela: $11,500 MXN</p>
+          <p className="home-dash-pool__bolsa">
+            💰 Bolsa Quiniela: $
+            {QUINIELA_INSCRITOS.reduce((sum, row) => sum + row.amount, 0).toLocaleString('es-MX')} MXN
+          </p>
         </section>
         <section className="home-dash-pool">
           <h3 className="home-dash-pool__title">🏆 Parlay</h3>
