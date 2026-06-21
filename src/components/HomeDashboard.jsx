@@ -14,8 +14,7 @@ import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   displayTeamName,
   formatCountdownToKickoff,
-  formatMatchDate,
-  formatMatchTime,
+  formatKickoff,
   formatScoreLine,
   formatVenue,
   formatVenueCity,
@@ -232,12 +231,8 @@ export default function HomeDashboard({
             </div>
 
             <div className="home-dash-hero__meta">
-              {formatMatchDate(heroMatch.kickoff) || formatMatchTime(heroMatch.kickoff) ? (
-                <p>
-                  {[formatMatchDate(heroMatch.kickoff), formatMatchTime(heroMatch.kickoff)]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
+              {formatKickoff(heroMatch.kickoff) ? (
+                <p>{formatKickoff(heroMatch.kickoff)}</p>
               ) : (
                 <MatchSchedule match={heroMatch} showGroup={false} />
               )}

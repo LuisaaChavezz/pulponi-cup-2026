@@ -262,46 +262,64 @@ export function formatScoreLine(match) {
   return `${home} - ${away}`;
 }
 
-export function formatKickoff(kickoff) {
-  if (!kickoff) return null;
-  return new Date(kickoff).toLocaleString('es-MX', {
+const KICKOFF_DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const KICKOFF_MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const KICKOFF_WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function kickoffPartsInDisplayTimezone(kickoff) {
+  const date = new Date(kickoff);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: MATCH_DISPLAY_TIMEZONE,
     weekday: 'short',
     day: 'numeric',
-    month: 'short',
+    month: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: MATCH_DISPLAY_TIMEZONE,
+    hour12: false,
   });
+
+  const parts = Object.fromEntries(
+    fmt.formatToParts(date).filter((p) => p.type !== 'literal').map((p) => [p.type, p.value])
+  );
+
+  const weekdayIndex = KICKOFF_WEEKDAY_INDEX[parts.weekday] ?? date.getDay();
+  const monthIndex = Number(parts.month) - 1;
+
+  return {
+    dia: KICKOFF_DIAS[weekdayIndex] ?? KICKOFF_DIAS[date.getDay()],
+    numero: Number(parts.day),
+    mes: KICKOFF_MESES[monthIndex] ?? KICKOFF_MESES[date.getMonth()],
+    horas: String(parts.hour ?? '0').padStart(2, '0'),
+    minutos: String(parts.minute ?? '0').padStart(2, '0'),
+  };
+}
+
+/** Fecha y hora del partido: "Sáb 21 jun · 22:00" */
+export function formatKickoff(kickoff) {
+  if (!kickoff) return null;
+  const parts = kickoffPartsInDisplayTimezone(kickoff);
+  if (!parts?.mes) return null;
+  return `${parts.dia} ${parts.numero} ${parts.mes} · ${parts.horas}:${parts.minutos}`;
 }
 
 export function formatMatchDate(kickoff) {
   if (!kickoff) return null;
-  return new Date(kickoff).toLocaleDateString('es-MX', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: MATCH_DISPLAY_TIMEZONE,
-  });
+  const parts = kickoffPartsInDisplayTimezone(kickoff);
+  if (!parts?.mes) return null;
+  return `${parts.dia} ${parts.numero} ${parts.mes}`;
 }
 
 export function formatMatchDateShort(kickoff) {
-  if (!kickoff) return null;
-  return new Date(kickoff).toLocaleDateString('es-MX', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: MATCH_DISPLAY_TIMEZONE,
-  });
+  return formatMatchDate(kickoff);
 }
 
 export function formatMatchTime(kickoff) {
   if (!kickoff) return null;
-  return new Date(kickoff).toLocaleTimeString('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: MATCH_DISPLAY_TIMEZONE,
-  });
+  const parts = kickoffPartsInDisplayTimezone(kickoff);
+  if (!parts) return null;
+  return `${parts.horas}:${parts.minutos}`;
 }
 
 export function formatVenue(match) {
@@ -378,7 +396,9 @@ function formatEventLabel(ev) {
 function formatMatchVersusShort(match) {
   const home = match?.home_team ?? 'Local';
   const away = match?.away_team ?? 'Visitante';
-  return `${home} vs ${away}`;
+  const base = `${home} vs ${away}`;
+  const kickoff = formatKickoff(match?.kickoff);
+  return kickoff ? `${base} · ${kickoff}` : base;
 }
 
 /** Countdown legible hasta kickoff: 02h 14m 35s */

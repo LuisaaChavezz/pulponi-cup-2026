@@ -1,26 +1,10 @@
 import { supabase } from './supabase';
 import { parsePickScore } from './communityPicks';
 
-const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-const MESES = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-];
+import { formatKickoff } from './matchUtils';
 
 export function formatMatchDateForPdf(kickoff) {
-  const d = kickoff ? new Date(kickoff) : new Date();
-  if (Number.isNaN(d.getTime())) return '';
-  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}, ${d.getFullYear()}`;
+  return formatKickoff(kickoff) ?? '';
 }
 
 function formatPredictionFromPick(pick) {

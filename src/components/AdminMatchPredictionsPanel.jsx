@@ -4,6 +4,7 @@ import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   buildAdminMatchPredictionRows,
   canAdminExportPredictions,
+  formatKickoff,
   formatMatchVersusLabel,
   loadEligibleParticipantProfiles,
 } from '../lib/predictionActivity';
@@ -76,7 +77,12 @@ export default function AdminMatchPredictionsPanel({
       </div>
 
       {activeMatch ? (
-        <p className="dash-notifications__export-match-name">{formatMatchVersusLabel(activeMatch)}</p>
+        <>
+          <p className="dash-notifications__export-match-name">{formatMatchVersusLabel(activeMatch)}</p>
+          {formatKickoff(activeMatch.kickoff) ? (
+            <p className="dash-notifications__admin-pred-kickoff">{formatKickoff(activeMatch.kickoff)}</p>
+          ) : null}
+        </>
       ) : null}
 
       <p className="dash-notifications__admin-pred-summary" role="status">

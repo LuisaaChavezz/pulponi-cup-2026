@@ -10,6 +10,7 @@ import {
   pickDefaultFocusedMatch,
   resolveMatchForScoring,
   sortMatchesForFocusedDropdown,
+  formatKickoff,
 } from '../lib/matchUtils';
 
 export default function AdminMatchResultPanel({
@@ -157,7 +158,7 @@ export default function AdminMatchResultPanel({
               const id = matchScoringId(m);
               return (
                 <option key={id} value={id}>
-                  {formatMatchVersusLabel(m)}
+                  {formatMatchVersusLabel(m, { withKickoff: true })}
                 </option>
               );
             })}
@@ -165,7 +166,12 @@ export default function AdminMatchResultPanel({
         </label>
 
         {activeMatch ? (
-          <p className="dash-notifications__export-match-name">{formatMatchVersusLabel(activeMatch)}</p>
+          <>
+            <p className="dash-notifications__export-match-name">{formatMatchVersusLabel(activeMatch)}</p>
+            {formatKickoff(activeMatch.kickoff) ? (
+              <p className="dash-notifications__export-kickoff">{formatKickoff(activeMatch.kickoff)}</p>
+            ) : null}
+          </>
         ) : null}
 
         <div className="dash-notifications__admin-score-inputs">

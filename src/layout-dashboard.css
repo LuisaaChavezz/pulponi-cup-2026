@@ -453,6 +453,7 @@
   gap: 1px;
 }
 
+.dash-inicio .match-schedule-kickoff,
 .dash-inicio .match-schedule-date,
 .dash-inicio .match-schedule-time,
 .dash-inicio .match-schedule-venue,
@@ -2126,6 +2127,18 @@
 .dash-notifications__admin-pred-status {
   font-size: 16px;
   line-height: 1;
+}
+
+.dash-notifications__export-match-name {
+  margin: 0 0 4px;
+}
+
+.dash-notifications__export-kickoff,
+.dash-notifications__admin-pred-kickoff {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f4f4f5;
 }
 
 .dash-notifications__pred-badge-icon {

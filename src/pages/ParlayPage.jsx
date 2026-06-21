@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import TeamLogo from '../components/TeamLogo';
-import { displayTeamName, formatMatchDateShort, formatMatchTime } from '../lib/matchUtils';
+import { displayTeamName, formatKickoff } from '../lib/matchUtils';
 import { useParlayOdds } from '../hooks/useParlayOdds';
 import {
   PARLAY_MIN_SELECTIONS,
@@ -40,13 +40,6 @@ const OUTCOMES = ['home', 'draw', 'away'];
 
 function selectionKey(matchId, outcome) {
   return `${matchId}:${outcome}`;
-}
-
-function formatKickoff(kickoff) {
-  const date = formatMatchDateShort(kickoff);
-  const time = formatMatchTime(kickoff);
-  if (date && time) return `${date} • ${time}`;
-  return date || time || '';
 }
 
 function outcomePickLabel(outcome, homeLabel, awayLabel) {

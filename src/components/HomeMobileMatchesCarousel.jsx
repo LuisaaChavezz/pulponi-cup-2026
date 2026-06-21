@@ -4,8 +4,7 @@ import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   displayMatchStatus,
   displayTeamName,
-  formatMatchDate,
-  formatMatchTime,
+  formatKickoff,
   formatVenue,
   formatVenueCity,
   isPickLocked,
@@ -60,11 +59,7 @@ export default function HomeMobileMatchesCarousel({ matches = [], excludeMatchId
                   </div>
                 </div>
                 <div className="home-dash-mobile-carousel__meta">
-                  {[formatMatchDate(match.kickoff), formatMatchTime(match.kickoff)].filter(Boolean).length > 0 ? (
-                    <p>
-                      {[formatMatchDate(match.kickoff), formatMatchTime(match.kickoff)].filter(Boolean).join(' · ')}
-                    </p>
-                  ) : null}
+                  {formatKickoff(match.kickoff) ? <p>{formatKickoff(match.kickoff)}</p> : null}
                   {venueLine ? <p className="home-dash-mobile-carousel__venue">{venueLine}</p> : null}
                   <span className="home-dash-mobile-carousel__status">{status}</span>
                 </div>

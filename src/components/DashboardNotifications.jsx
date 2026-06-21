@@ -8,6 +8,7 @@ import {
   buildMatchDownloadRows,
   canAdminExportPredictions,
   formatExportTime,
+  formatKickoff,
   formatMatchVersusLabel,
   listMatchesWithPicks,
 } from '../lib/predictionActivity';
@@ -173,8 +174,6 @@ export default function DashboardNotifications({
     [sortedFeed]
   );
 
-  const matchLabel = formatMatchVersusLabel(downloadMatch);
-
   const communityTrendMatches = useMemo(() => {
     const list = listMatchesForCommunityTrends(communityPickProfiles, matches);
     return list.sort((a, b) => {
@@ -271,7 +270,16 @@ export default function DashboardNotifications({
 
         <div className="dash-notifications__export-panel dash-notifications__export-panel--standalone">
           {downloadMatch ? (
-            <p className="dash-notifications__export-match-name">{matchLabel}</p>
+            <>
+              <p className="dash-notifications__export-match-name">
+                {formatMatchVersusLabel(downloadMatch)}
+              </p>
+              {formatKickoff(downloadMatch.kickoff) ? (
+                <p className="dash-notifications__export-kickoff">
+                  {formatKickoff(downloadMatch.kickoff)}
+                </p>
+              ) : null}
+            </>
           ) : (
             <p className="dash-notifications__empty dash-notifications__export-wait">
               Aún no hay partidos con predicciones para descargar.
@@ -288,7 +296,7 @@ export default function DashboardNotifications({
               >
                 {sortedPredictionMatches.map((m) => (
                   <option key={m.id} value={String(m.id)}>
-                    {formatMatchVersusLabel(m)}
+                    {formatMatchVersusLabel(m, { withKickoff: adminToolsAllowed })}
                   </option>
                 ))}
               </select>

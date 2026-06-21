@@ -81,6 +81,7 @@
     margin: 0;
   }
 
+  #partidos .match-card__meta .match-schedule-kickoff,
   #partidos .match-card__meta .match-schedule-date,
   #partidos .match-card__meta .match-schedule-time {
     margin: 0;

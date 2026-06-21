@@ -10,6 +10,8 @@ import {
 import { isEligiblePredictionParticipant } from './quinielaParticipants';
 import { supabase } from './supabase';
 
+export { formatKickoff } from './matchUtils';
+
 const PREDICTION_ACTIONS = new Set([
   'prediction_created',
   'prediction_updated',
@@ -156,11 +158,14 @@ export function listExportableMatches(matches, now = new Date(), username = null
   );
 }
 
-export function formatMatchVersusLabel(match) {
+export function formatMatchVersusLabel(match, { withKickoff = false } = {}) {
   if (!match) return '';
   const home = trimStr(match.home_team) || 'Local';
   const away = trimStr(match.away_team) || 'Visitante';
-  return `${home} vs ${away}`;
+  const base = `${home} vs ${away}`;
+  if (!withKickoff) return base;
+  const kickoff = formatKickoff(match?.kickoff);
+  return kickoff ? `${base} · ${kickoff}` : base;
 }
 
 /** Etiqueta del botón según el partido mostrado (vivo → próximo → más reciente). */
