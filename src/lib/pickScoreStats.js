@@ -54,7 +54,7 @@ export function applyPickScoreAggregatesToProfiles(profiles, aggregatesMap) {
   });
 }
 
-/** exacts + streak + points derivados de pick_scores (fuente de verdad para ranking y logros). */
+/** exacts + racha acumulada (total winner_hit) + points derivados de pick_scores. */
 export function buildPerformanceStatsByProfile(pickScoreRows, matches = []) {
   const matchesById = new Map((matches ?? []).map((m) => [String(m.id), m]));
   const rowsByProfile = new Map();

@@ -48,18 +48,10 @@ export function matchFinalScores(match, { requireFinishedStatus = true } = {}) {
 }
 
 /**
- * Racha actual (última seguidilla): partidos con pick, ordenados por kickoff;
- * cuenta acierto de ganador o marcador exacto.
+ * Racha acumulada: total de aciertos de ganador (winner_hit) en pick_scores.
  */
-export function computeStreakFromPickScores(pickScoreRows, matchesById) {
-  const sorted = sortPickScoresByKickoff(pickScoreRows, matchesById);
-
-  let run = 0;
-  for (const row of sorted) {
-    if (row.exact_hit || row.winner_hit) run += 1;
-    else run = 0;
-  }
-  return run;
+export function computeStreakFromPickScores(pickScoreRows, _matchesById) {
+  return (pickScoreRows ?? []).filter((row) => row.winner_hit).length;
 }
 
 /**

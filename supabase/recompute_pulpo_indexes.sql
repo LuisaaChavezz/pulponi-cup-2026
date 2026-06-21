@@ -5,7 +5,7 @@
 --   exactos     = COUNT(exact_hit) en pick_scores
 --   ganadores   = COUNT(winner_hit) en pick_scores
 --   total_picks = COUNT(*) en pick_scores
---   racha_actual = profiles.streak
+--   racha acumulada = profiles.streak = COUNT(winner_hit) en pick_scores
 --   pulpo_index = ROUND((exactos/total×100×0.5) + (ganadores/total×100×0.3) + LEAST(racha×5, 20))
 
 DO $recompute_pulpo$
@@ -47,59 +47,57 @@ BEGIN
     AS $body$
     DECLARE
       updated_count integer := 0;
-      affected integer;
+      prof record;
     BEGIN
-      UPDATE public.profiles p
-      SET
-        pulpo_index = public._compute_pulpo_index(
-          agg.exactos,
-          agg.ganadores,
-          agg.total_picks,
-          p.streak
-        ),
-        pulpo_stats = jsonb_build_object(
-          'computed_at', now(),
-          'totalPicks', agg.total_picks,
-          'exacts', agg.exactos,
-          'winners', agg.ganadores,
-          'streak', p.streak,
-          'exactTerm', CASE
-            WHEN agg.total_picks > 0 THEN round(agg.exactos::numeric / agg.total_picks * 100 * 0.5)::integer
-            ELSE 0
-          END,
-          'winnerTerm', CASE
-            WHEN agg.total_picks > 0 THEN round(agg.ganadores::numeric / agg.total_picks * 100 * 0.3)::integer
-            ELSE 0
-          END,
-          'streakTerm', least(greatest(p.streak, 0) * 5, 20)
-        )
-      FROM (
-        SELECT
-          profile_id,
-          count(*)::integer AS total_picks,
-          count(*) FILTER (WHERE exact_hit)::integer AS exactos,
-          count(*) FILTER (WHERE winner_hit)::integer AS ganadores
-        FROM public.pick_scores
-        GROUP BY profile_id
-      ) agg
-      WHERE p.id = agg.profile_id;
-
-      GET DIAGNOSTICS updated_count = ROW_COUNT;
-
+      -- Perfil a perfil: compatible con Supabase safeupdate (evita UPDATE masivo sin WHERE).
       FOR prof IN
-        SELECT p.id
+        SELECT
+          p.id,
+          p.streak,
+          coalesce(agg.total_picks, 0) AS total_picks,
+          coalesce(agg.exactos, 0) AS exactos,
+          coalesce(agg.ganadores, 0) AS ganadores
         FROM public.profiles p
-        WHERE NOT EXISTS (
-          SELECT 1 FROM public.pick_scores ps WHERE ps.profile_id = p.id
-        )
+        LEFT JOIN (
+          SELECT
+            profile_id,
+            count(*)::integer AS total_picks,
+            count(*) FILTER (WHERE exact_hit)::integer AS exactos,
+            count(*) FILTER (WHERE winner_hit)::integer AS ganadores
+          FROM public.pick_scores
+          GROUP BY profile_id
+        ) agg ON p.id = agg.profile_id
       LOOP
-        UPDATE public.profiles
-        SET pulpo_index = 0, pulpo_stats = '{}'::jsonb
-        WHERE id = prof.id;
+        IF prof.total_picks <= 0 THEN
+          UPDATE public.profiles
+          SET pulpo_index = 0, pulpo_stats = '{}'::jsonb
+          WHERE id = prof.id;
+        ELSE
+          UPDATE public.profiles
+          SET
+            pulpo_index = public._compute_pulpo_index(
+              prof.exactos,
+              prof.ganadores,
+              prof.total_picks,
+              prof.streak
+            ),
+            pulpo_stats = jsonb_build_object(
+              'computed_at', now(),
+              'totalPicks', prof.total_picks,
+              'exacts', prof.exactos,
+              'winners', prof.ganadores,
+              'streak', prof.streak,
+              'exactTerm', round(prof.exactos::numeric / prof.total_picks * 100 * 0.5)::integer,
+              'winnerTerm', round(prof.ganadores::numeric / prof.total_picks * 100 * 0.3)::integer,
+              'streakTerm', least(greatest(prof.streak, 0) * 5, 20)
+            )
+          WHERE id = prof.id;
+        END IF;
+
+        updated_count := updated_count + 1;
       END LOOP;
 
-      GET DIAGNOSTICS affected = ROW_COUNT;
-      RETURN updated_count + affected;
+      RETURN updated_count;
     END;
     $body$;
   $fn$;

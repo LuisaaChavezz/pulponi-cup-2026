@@ -1,4 +1,5 @@
 -- Parche: Supabase safeupdate exige WHERE en UPDATE masivos de perfiles.
+-- Preferir supabase/fix_admin_scoring_and_streak.sql (incluye racha acumulada + pulpo_index).
 -- Ejecutar en SQL Editor si score_all_finished_matches() falla con
 -- "UPDATE requires a WHERE clause".
 
