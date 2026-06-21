@@ -1,12 +1,18 @@
 import { supabase } from './supabase';
 import {
   isSafeUpdateError,
+  rescoreMatchById,
   scoreFinishedMatchesByIds,
   scoreMatchByTeams,
   scoreSingleFinishedMatchClient,
 } from './scoringEngine';
 import { resolveMatchScoringContext } from './matchPickKeyResolver';
-import { isMatchFinished, normalizeMatchId, resolveMatchForScoring } from './matchUtils';
+import {
+  hasRecordedScores,
+  isMatchFinished,
+  normalizeMatchId,
+  resolveMatchForScoring,
+} from './matchUtils';
 
 export { normalizeMatchId } from './matchUtils';
 
@@ -191,6 +197,44 @@ export async function applyMatchFinalResultByTeams(
     away_score: away,
     scored_picks: scoredPicks,
     via: clientScore.via ?? 'client_score',
+  };
+}
+
+/** Corrige marcador de un partido ya puntuado (RPC rescore_match). */
+export async function applyMatchRescore(
+  client,
+  matchId,
+  homeScore,
+  awayScore,
+  { matches = [] } = {}
+) {
+  if (!client) client = supabase;
+
+  const resolvedDbId = resolveDbMatchId(matchId, matches);
+  if (!resolvedDbId) return { error: 'match_id_required' };
+
+  const home = Math.max(0, Math.round(Number(homeScore)));
+  const away = Math.max(0, Math.round(Number(awayScore)));
+  if (!Number.isFinite(home) || !Number.isFinite(away)) {
+    return { error: 'invalid_scores' };
+  }
+
+  const match = (matches ?? []).find((m) => normalizeMatchId(m?.id) === resolvedDbId) ?? null;
+  if (!match || !isMatchFinished(match) || !hasRecordedScores(match)) {
+    return { error: 'match_not_scored_yet', match_id: resolvedDbId };
+  }
+
+  const rescoreResult = await rescoreMatchById(client, resolvedDbId, home, away);
+  if (rescoreResult?.error) return rescoreResult;
+
+  return {
+    ...rescoreResult,
+    match_id: rescoreResult.match_id ?? resolvedDbId,
+    home_score: home,
+    away_score: away,
+    scored_picks: Number(rescoreResult.scored_picks ?? 0),
+    via: rescoreResult.via ?? 'rescore_match',
+    rescored: true,
   };
 }
 

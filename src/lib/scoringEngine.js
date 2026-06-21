@@ -382,6 +382,37 @@ export async function scoreMatchByTeams(client, homeTeam, awayTeam, homeScore, a
   return { error: error.message, home_team: pHomeTeam, away_team: pAwayTeam };
 }
 
+/** Re-puntúa un partido ya calificado (RPC apply_rescore_match). */
+export async function rescoreMatchById(client, matchId, homeScore, awayScore) {
+  const resolvedMatchId = String(matchId ?? '').trim();
+  if (!resolvedMatchId || resolvedMatchId === 'undefined' || resolvedMatchId === 'null') {
+    return { error: 'match_id_required' };
+  }
+
+  const pHomeScore = Math.max(0, Math.round(Number(homeScore)));
+  const pAwayScore = Math.max(0, Math.round(Number(awayScore)));
+  if (!Number.isFinite(pHomeScore) || !Number.isFinite(pAwayScore)) {
+    return { error: 'invalid_scores' };
+  }
+
+  const { data, error } = await client.rpc('apply_rescore_match', {
+    p_match_id: resolvedMatchId,
+    p_home_score: pHomeScore,
+    p_away_score: pAwayScore,
+  });
+
+  if (!error) {
+    return { ...(data && typeof data === 'object' ? data : {}), fallback: false };
+  }
+
+  if (isRpcMissing(error)) {
+    return { error: 'rpc_missing', match_id: resolvedMatchId };
+  }
+
+  console.warn('[scoring] apply_rescore_match', error.message);
+  return { error: error.message, match_id: resolvedMatchId };
+}
+
 /**
  * Puntúa un partido finalizado vía RPC (trigger en Supabase también lo hace al UPDATE).
  */

@@ -4,6 +4,8 @@ import { useKickoffClock } from '../hooks/useKickoffClock';
 import { canAdminExportPredictions, formatMatchVersusLabel } from '../lib/predictionActivity';
 import { validatePickScores } from '../lib/pickScoreInput';
 import {
+  hasRecordedScores,
+  isMatchFinished,
   normalizeMatchId,
   pickDefaultFocusedMatch,
   resolveMatchForScoring,
@@ -53,6 +55,14 @@ export default function AdminMatchResultPanel({
 
   const activeMatchId = normalizeMatchId(selectedMatchId) || defaultMatchId;
   const activeMatch = selectableMatches.find((m) => matchScoringId(m) === activeMatchId) ?? null;
+  const alreadyScored =
+    Boolean(activeMatch) && isMatchFinished(activeMatch) && hasRecordedScores(activeMatch);
+
+  useEffect(() => {
+    if (!activeMatch || !alreadyScored) return;
+    setHomeScore(String(activeMatch.home_score ?? ''));
+    setAwayScore(String(activeMatch.away_score ?? ''));
+  }, [activeMatchId, activeMatch?.home_score, activeMatch?.away_score, alreadyScored]);
 
   const scoreValidation = validatePickScores(homeScore, awayScore);
   const canSubmit =
@@ -60,8 +70,7 @@ export default function AdminMatchResultPanel({
 
   if (!allowed) return null;
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function submitResult(rescore) {
     if (busy || !activeMatch || !onApplyFinalResult) {
       if (!activeMatch) {
         setNotice({ type: 'error', text: 'Selecciona un partido válido.' });
@@ -88,15 +97,24 @@ export default function AdminMatchResultPanel({
         awayTeam,
         scoreValidation.home,
         scoreValidation.away,
-        activeMatchId
+        activeMatchId,
+        rescore
       );
       if (res?.error) {
-        setNotice({ type: 'error', text: String(res.error) });
+        const errorText =
+          res.error === 'no_previous_scores'
+            ? 'Este partido aún no tiene predicciones puntuadas.'
+            : res.error === 'match_not_scored_yet'
+              ? 'Primero registra el marcador inicial antes de corregirlo.'
+              : String(res.error);
+        setNotice({ type: 'error', text: errorText });
       } else {
         const picks = res?.scored_picks ?? res?.score?.scored_picks ?? '—';
         setNotice({
           type: 'ok',
-          text: `Marcador registrado (${scoreValidation.home}-${scoreValidation.away}). Predicciones puntuadas: ${picks}.`,
+          text: rescore
+            ? `Marcador corregido (${scoreValidation.home}-${scoreValidation.away}). Predicciones re-puntuadas: ${picks}.`
+            : `Marcador registrado (${scoreValidation.home}-${scoreValidation.away}). Predicciones puntuadas: ${picks}.`,
         });
       }
     } catch (err) {
@@ -106,12 +124,23 @@ export default function AdminMatchResultPanel({
     }
   }
 
+  async function handleSubmit(e) {
+    e.preventDefault();
+    await submitResult(false);
+  }
+
+  async function handleRescore(e) {
+    e.preventDefault();
+    await submitResult(true);
+  }
+
   return (
     <section className="dash-notifications__section dash-notifications__section--admin-score">
       <div className="dash-notifications__head">
         <h3 className="dash-notifications__subtitle">Admin — marcador final</h3>
         <p className="dash-notifications__hint">
           Registra el resultado (90&apos;) y puntúa automáticamente: 3 pts exacto, 1 pt ganador, 0 si falla.
+          {alreadyScored ? ' Este partido ya fue puntuado: usa “Corregir marcador” para re-puntuar.' : null}
         </p>
       </div>
 
@@ -161,13 +190,20 @@ export default function AdminMatchResultPanel({
           </label>
         </div>
 
-        <button
-          type="submit"
-          className="dash-notifications__export-toggle"
-          disabled={!canSubmit}
-        >
-          {busy ? 'Puntuando…' : 'Registrar marcador y puntuar'}
-        </button>
+        {alreadyScored ? (
+          <button
+            type="button"
+            className="dash-notifications__export-toggle dash-notifications__admin-score-rescore"
+            disabled={!canSubmit}
+            onClick={handleRescore}
+          >
+            {busy ? 'Corrigiendo…' : 'Corregir marcador'}
+          </button>
+        ) : (
+          <button type="submit" className="dash-notifications__export-toggle" disabled={!canSubmit}>
+            {busy ? 'Puntuando…' : 'Registrar marcador y puntuar'}
+          </button>
+        )}
 
         {notice ? (
           <p

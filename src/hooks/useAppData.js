@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { resolveAvatarUrl } from '../lib/avatars';
 import { runScoringAndPulpoPipeline, refreshPulpoIndexesAfterPickScores } from '../lib/pulpoSync';
-import { applyMatchFinalResultByTeams } from '../lib/matchScoring';
+import { applyMatchFinalResultByTeams, applyMatchRescore } from '../lib/matchScoring';
 import { canAdminExportPredictions } from '../lib/predictionActivity';
 import { isMatchFinished, normalizeMatchId, resolveMatchForScoring } from '../lib/matchUtils';
 import { syncWorldCupFixtures } from '../lib/footballApi';
@@ -1351,7 +1351,7 @@ export function useAppData(session) {
   }
 
   const applyManualMatchResult = useCallback(
-    async (homeTeam, awayTeam, homeScore, awayScore, matchId) => {
+    async (homeTeam, awayTeam, homeScore, awayScore, matchId, rescore = false) => {
       const allowed =
         profile?.is_admin || canAdminExportPredictions(profile?.username ?? null);
       if (!userId || !allowed) return { error: 'No autorizado' };
@@ -1368,18 +1368,22 @@ export function useAppData(session) {
       await loadAllMatchesComplete();
 
       try {
-        const applyResult = await applyMatchFinalResultByTeams(
-          supabase,
-          homeName,
-          awayName,
-          homeScore,
-          awayScore,
-          {
-            matchId: resolvedMatchId,
-            matches: matchesRef.current,
-            profiles: communityPickProfilesRef.current,
-          }
-        );
+        const applyResult = rescore
+          ? await applyMatchRescore(supabase, resolvedMatchId, homeScore, awayScore, {
+              matches: matchesRef.current,
+            })
+          : await applyMatchFinalResultByTeams(
+              supabase,
+              homeName,
+              awayName,
+              homeScore,
+              awayScore,
+              {
+                matchId: resolvedMatchId,
+                matches: matchesRef.current,
+                profiles: communityPickProfilesRef.current,
+              }
+            );
 
         if (applyResult?.error) return applyResult;
 
