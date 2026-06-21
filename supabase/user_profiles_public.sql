@@ -80,6 +80,7 @@ BEGIN
   ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS points integer NOT NULL DEFAULT 0;
   ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS exacts integer NOT NULL DEFAULT 0;
   ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS streak integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS total_winner_hits integer NOT NULL DEFAULT 0;
 END;
 $profiles_cols$;
 

@@ -297,7 +297,10 @@ export function buildUserStats(
       effectiveness: scored.effectiveness,
       riskyHits: countRiskyExactHits(profile?.id, pickScoreRows, communityProfiles, profile),
       bestStreak: computeBestContinuousStreak(pickScoreRows, matches),
-      accumulatedStreak: countAccumulatedWinnerHits(pickScoreRows),
+      accumulatedStreak:
+        profile?.total_winner_hits != null
+          ? Number(profile.total_winner_hits)
+          : countAccumulatedWinnerHits(pickScoreRows),
       bestRank: rankingSummary?.currentRank ?? null,
       currentRank: rankingSummary?.currentRank ?? null,
       points: scored.points,

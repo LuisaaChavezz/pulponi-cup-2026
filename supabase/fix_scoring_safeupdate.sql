@@ -75,6 +75,11 @@ BEGIN
             SELECT count(*)::integer
             FROM public.pick_scores ps
             WHERE ps.profile_id = prof.id AND ps.exact_hit
+          ), 0),
+          total_winner_hits = coalesce((
+            SELECT count(*)::integer
+            FROM public.pick_scores ps
+            WHERE ps.profile_id = prof.id AND ps.winner_hit
           ), 0)
         WHERE p.id = prof.id;
       END LOOP;

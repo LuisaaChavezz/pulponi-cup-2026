@@ -3,7 +3,7 @@
 --
 -- 1) recompute_all_pulpo_indexes: UPDATE perfil a perfil (evita "UPDATE requires a WHERE clause"
 --    al puntuar desde admin con score_match_by_teams).
--- 2) recompute_profile_streaks: profiles.streak = total winner_hit (racha acumulada).
+-- 2) recompute_profile_streaks: racha consecutiva actual (ranking / desempates).
 
 DO $fix_admin_scoring$
 BEGIN
@@ -22,16 +22,38 @@ BEGIN
     AS $body$
     DECLARE
       prof record;
+      m record;
+      ex_hit boolean;
+      win_hit boolean;
+      run_streak integer;
     BEGIN
       FOR prof IN SELECT id FROM public.profiles LOOP
-        UPDATE public.profiles p SET
-          streak = coalesce((
-            SELECT count(*)::integer
-            FROM public.pick_scores ps
-            WHERE ps.profile_id = prof.id
-              AND ps.winner_hit
-          ), 0)
-        WHERE p.id = prof.id;
+        run_streak := 0;
+
+        FOR m IN
+          SELECT id::text AS id, kickoff
+          FROM public.matches
+          WHERE public._match_is_finished(matches.*)
+          ORDER BY kickoff ASC NULLS LAST, id ASC
+        LOOP
+          SELECT ps.exact_hit, ps.winner_hit
+          INTO ex_hit, win_hit
+          FROM public.pick_scores ps
+          WHERE ps.profile_id = prof.id AND ps.match_id = m.id;
+
+          IF NOT FOUND THEN
+            run_streak := 0;
+            CONTINUE;
+          END IF;
+
+          IF ex_hit OR win_hit THEN
+            run_streak := run_streak + 1;
+          ELSE
+            run_streak := 0;
+          END IF;
+        END LOOP;
+
+        UPDATE public.profiles SET streak = run_streak WHERE id = prof.id;
       END LOOP;
     END;
     $body$;
@@ -113,6 +135,6 @@ BEGIN
 END;
 $fix_admin_scoring$;
 
--- Backfill: racha acumulada + índice Pulpo con el nuevo streak
+-- Backfill: racha consecutiva + índice Pulpo
 SELECT public.recompute_profile_streaks();
 SELECT public.recompute_all_pulpo_indexes();

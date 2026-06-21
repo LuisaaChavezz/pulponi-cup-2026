@@ -5,7 +5,7 @@
 --   exactos     = COUNT(exact_hit) en pick_scores
 --   ganadores   = COUNT(winner_hit) en pick_scores
 --   total_picks = COUNT(*) en pick_scores
---   racha acumulada = profiles.streak = COUNT(winner_hit) en pick_scores
+--   racha consecutiva = profiles.streak; racha acumulada en perfil = profiles.total_winner_hits
 --   pulpo_index = ROUND((exactos/total×100×0.5) + (ganadores/total×100×0.3) + LEAST(racha×5, 20))
 
 DO $recompute_pulpo$

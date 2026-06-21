@@ -7,7 +7,7 @@ export const LEADERBOARD_SOURCE = 'ranking_leaderboard';
 export const LEADERBOARD_COLUMNS = 'id, username, name, photo_url, points, exacts, streak';
 
 export const LEADERBOARD_PUBLIC_COLUMNS =
-  'id, username, name, photo_url, points, exacts, streak, pulpo_index, pulpo_stats, picks, created_at';
+  'id, username, name, photo_url, points, exacts, streak, total_winner_hits, pulpo_index, pulpo_stats, picks, created_at';
 
 export const LEADERBOARD_ACHIEVEMENT_COLUMNS =
   'id, username, name, photo_url, points, exacts, streak, picks, pulpo_index, pulpo_stats';

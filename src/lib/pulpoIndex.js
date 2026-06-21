@@ -20,7 +20,7 @@ export function getPulpoLevel(index) {
 
 /**
  * Índice Pulpo:
- * exactos/ganadores/total desde pick_scores; racha acumulada = profiles.streak (total winner_hit)
+ * exactos/ganadores/total desde pick_scores; racha consecutiva = profiles.streak
  * ROUND((exactos/total×100×0.5) + (ganadores/total×100×0.3) + LEAST(racha×5, 20))
  */
 export function computePulpoIndexFromPickScores({

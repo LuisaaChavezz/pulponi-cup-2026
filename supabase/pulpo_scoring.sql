@@ -14,6 +14,7 @@ BEGIN
   ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS points integer NOT NULL DEFAULT 0;
   ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS exacts integer NOT NULL DEFAULT 0;
   ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS streak integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS total_winner_hits integer NOT NULL DEFAULT 0;
   ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pulpo_index integer NOT NULL DEFAULT 0;
   ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pulpo_stats jsonb NOT NULL DEFAULT '{}'::jsonb;
 
@@ -186,17 +187,38 @@ BEGIN
     AS $body$
     DECLARE
       prof record;
+      m record;
+      ex_hit boolean;
+      win_hit boolean;
+      run_streak integer;
     BEGIN
-      -- Racha acumulada = total de aciertos de ganador (winner_hit) en pick_scores.
       FOR prof IN SELECT id FROM public.profiles LOOP
-        UPDATE public.profiles p SET
-          streak = coalesce((
-            SELECT count(*)::integer
-            FROM public.pick_scores ps
-            WHERE ps.profile_id = prof.id
-              AND ps.winner_hit
-          ), 0)
-        WHERE p.id = prof.id;
+        run_streak := 0;
+
+        FOR m IN
+          SELECT id::text AS id, kickoff
+          FROM public.matches
+          WHERE public._match_is_finished(matches.*)
+          ORDER BY kickoff ASC NULLS LAST, id ASC
+        LOOP
+          SELECT ps.exact_hit, ps.winner_hit
+          INTO ex_hit, win_hit
+          FROM public.pick_scores ps
+          WHERE ps.profile_id = prof.id AND ps.match_id = m.id;
+
+          IF NOT FOUND THEN
+            run_streak := 0;
+            CONTINUE;
+          END IF;
+
+          IF ex_hit OR win_hit THEN
+            run_streak := run_streak + 1;
+          ELSE
+            run_streak := 0;
+          END IF;
+        END LOOP;
+
+        UPDATE public.profiles SET streak = run_streak WHERE id = prof.id;
       END LOOP;
     END;
     $body$;
@@ -267,6 +289,11 @@ BEGIN
             SELECT count(*)::integer
             FROM public.pick_scores ps
             WHERE ps.profile_id = prof.id AND ps.exact_hit
+          ), 0),
+          total_winner_hits = coalesce((
+            SELECT count(*)::integer
+            FROM public.pick_scores ps
+            WHERE ps.profile_id = prof.id AND ps.winner_hit
           ), 0)
         WHERE p.id = prof.id;
       END LOOP;

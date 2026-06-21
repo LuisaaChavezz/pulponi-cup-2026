@@ -180,7 +180,8 @@ BEGIN
       UPDATE public.profiles p
       SET
         points = greatest(0, p.points - ps.points_awarded),
-        exacts = greatest(0, p.exacts - CASE WHEN ps.exact_hit THEN 1 ELSE 0 END)
+        exacts = greatest(0, p.exacts - CASE WHEN ps.exact_hit THEN 1 ELSE 0 END),
+        total_winner_hits = greatest(0, p.total_winner_hits - CASE WHEN ps.winner_hit THEN 1 ELSE 0 END)
       FROM public.pick_scores ps
       WHERE ps.profile_id = p.id
         AND (

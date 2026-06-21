@@ -33,6 +33,11 @@ BEGIN
           SELECT count(*)::integer
           FROM public.pick_scores ps
           WHERE ps.profile_id = p.id AND ps.exact_hit
+        ), 0),
+        total_winner_hits = coalesce((
+          SELECT count(*)::integer
+          FROM public.pick_scores ps
+          WHERE ps.profile_id = p.id AND ps.winner_hit
         ), 0)
       WHERE p.id = ANY (p_profile_ids);
     END;
@@ -59,6 +64,7 @@ BEGIN
       affected_profiles uuid[] := '{}'::uuid[];
       mid_db text;
       mid_official text;
+      prior_winner_hit boolean;
     BEGIN
       SELECT * INTO m
       FROM public.matches
@@ -106,6 +112,17 @@ BEGIN
           CONTINUE;
         END IF;
 
+        prior_winner_hit := false;
+        SELECT ps.winner_hit
+        INTO prior_winner_hit
+        FROM public.pick_scores ps
+        WHERE ps.profile_id = prof.id
+          AND ps.match_id = pick_key;
+
+        IF NOT FOUND THEN
+          prior_winner_hit := false;
+        END IF;
+
         SELECT * INTO g
         FROM public._grade_pick(pick, m.home_score::integer, m.away_score::integer);
 
@@ -120,6 +137,16 @@ BEGIN
           exact_hit = excluded.exact_hit,
           winner_hit = excluded.winner_hit,
           scored_at = now();
+
+        IF g.winner_hit AND NOT coalesce(prior_winner_hit, false) THEN
+          UPDATE public.profiles
+          SET total_winner_hits = coalesce(total_winner_hits, 0) + 1
+          WHERE id = prof.id;
+        ELSIF NOT g.winner_hit AND coalesce(prior_winner_hit, false) THEN
+          UPDATE public.profiles
+          SET total_winner_hits = greatest(0, coalesce(total_winner_hits, 0) - 1)
+          WHERE id = prof.id;
+        END IF;
 
         scored_picks := scored_picks + 1;
         affected_profiles := array_append(affected_profiles, prof.id);

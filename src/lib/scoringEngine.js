@@ -48,9 +48,22 @@ export function matchFinalScores(match, { requireFinishedStatus = true } = {}) {
 }
 
 /**
- * Racha acumulada: total de aciertos de ganador (winner_hit) en pick_scores.
+ * Racha consecutiva actual: partidos con pick, ordenados por kickoff;
+ * cuenta acierto de ganador o marcador exacto.
  */
-export function computeStreakFromPickScores(pickScoreRows, _matchesById) {
+export function computeStreakFromPickScores(pickScoreRows, matchesById) {
+  const sorted = sortPickScoresByKickoff(pickScoreRows, matchesById);
+
+  let run = 0;
+  for (const row of sorted) {
+    if (row.exact_hit || row.winner_hit) run += 1;
+    else run = 0;
+  }
+  return run;
+}
+
+/** Total de aciertos de ganador (racha acumulada en perfil). */
+export function computeTotalWinnerHitsFromPickScores(pickScoreRows) {
   return (pickScoreRows ?? []).filter((row) => row.winner_hit).length;
 }
 
@@ -246,10 +259,11 @@ export async function scoreSingleFinishedMatchClient(
       const points = (rows ?? []).reduce((sum, r) => sum + Number(r.points_awarded ?? 0), 0);
       const exacts = (rows ?? []).filter((r) => r.exact_hit).length;
       const streak = computeStreakFromPickScores(rows ?? [], matchesById);
+      const totalWinnerHits = computeTotalWinnerHitsFromPickScores(rows ?? []);
 
       const { error: updateErr } = await client
         .from('profiles')
-        .update({ points, exacts, streak })
+        .update({ points, exacts, streak, total_winner_hits: totalWinnerHits })
         .eq('id', profileId);
 
       if (updateErr) console.warn('[scoring] profile update', profileId, updateErr.message);
@@ -323,10 +337,11 @@ export async function scoreAllFinishedMatchesFallback(client, { matches, profile
     const points = (rows ?? []).reduce((s, r) => s + Number(r.points_awarded ?? 0), 0);
     const exacts = (rows ?? []).filter((r) => r.exact_hit).length;
     const streak = computeStreakFromPickScores(rows ?? [], matchesById);
+    const totalWinnerHits = computeTotalWinnerHitsFromPickScores(rows ?? []);
 
     const { error: uErr } = await client
       .from('profiles')
-      .update({ points, exacts, streak })
+      .update({ points, exacts, streak, total_winner_hits: totalWinnerHits })
       .eq('id', pid);
 
     if (uErr) console.warn('[scoring] profile update', pid, uErr.message);
