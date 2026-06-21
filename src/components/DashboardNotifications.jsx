@@ -6,6 +6,7 @@ import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   buildAllMatchesExportGroups,
   buildMatchDownloadRows,
+  canAdminExportPredictions,
   formatExportTime,
   formatMatchVersusLabel,
   listMatchesWithPicks,
@@ -16,6 +17,7 @@ import {
   downloadMatchPredictionsPdf,
 } from '../lib/exportPredictions';
 import AdminMatchResultPanel from './AdminMatchResultPanel';
+import AdminMatchPredictionsPanel from './AdminMatchPredictionsPanel';
 import ElegidoAdminHistory from './ElegidoAdminHistory';
 import BadgeIcon from './BadgeIcon';
 import { ACTIVITY_TYPE_BADGE } from '../lib/recentActivityFeed';
@@ -98,40 +100,48 @@ export default function DashboardNotifications({
 
   const profiles = Array.isArray(communityPickProfiles) ? communityPickProfiles : [];
   const activityLog = Array.isArray(predictionActivityLog) ? predictionActivityLog : [];
+  const adminToolsAllowed = isAdmin || canAdminExportPredictions(currentUsername);
 
   const matchesWithPicks = useMemo(
     () => listMatchesWithPicks(profiles, matches),
     [profiles, matches]
   );
 
-  const sortedMatchesWithPicks = useMemo(
-    () => sortMatchesForFocusedDropdown(matchesWithPicks, now),
-    [matchesWithPicks, now]
+  const adminMatchOptions = useMemo(
+    () => sortMatchesForFocusedDropdown(matches ?? [], now),
+    [matches, now]
+  );
+
+  const predictionMatchOptions = adminToolsAllowed ? adminMatchOptions : matchesWithPicks;
+
+  const sortedPredictionMatches = useMemo(
+    () => sortMatchesForFocusedDropdown(predictionMatchOptions, now),
+    [predictionMatchOptions, now]
   );
 
   useEffect(() => {
-    if (!sortedMatchesWithPicks.length) {
+    if (!sortedPredictionMatches.length) {
       setSelectedMatchId('');
       return;
     }
     setSelectedMatchId((prev) => {
-      if (prev && sortedMatchesWithPicks.some((m) => String(m.id) === prev)) return prev;
-      const focused = pickDefaultFocusedMatch(sortedMatchesWithPicks, now);
+      if (prev && sortedPredictionMatches.some((m) => String(m.id) === prev)) return prev;
+      const focused = pickDefaultFocusedMatch(sortedPredictionMatches, now);
       if (focused) return String(focused.id);
-      return String(sortedMatchesWithPicks[0].id);
+      return String(sortedPredictionMatches[0].id);
     });
-  }, [sortedMatchesWithPicks, now]);
+  }, [sortedPredictionMatches, now]);
 
   const downloadMatch = useMemo(() => {
     if (selectedMatchId) {
-      const picked = sortedMatchesWithPicks.find((m) => String(m.id) === selectedMatchId);
+      const picked = sortedPredictionMatches.find((m) => String(m.id) === selectedMatchId);
       if (picked) return picked;
       return (matches ?? []).find((m) => String(m.id) === selectedMatchId) ?? null;
     }
     return (
-      pickDefaultFocusedMatch(sortedMatchesWithPicks, now) ?? sortedMatchesWithPicks[0] ?? null
+      pickDefaultFocusedMatch(sortedPredictionMatches, now) ?? sortedPredictionMatches[0] ?? null
     );
-  }, [selectedMatchId, sortedMatchesWithPicks, matches, now]);
+  }, [selectedMatchId, sortedPredictionMatches, matches, now]);
 
   const exportRows = useMemo(() => {
     if (!downloadMatch?.id) return [];
@@ -268,7 +278,7 @@ export default function DashboardNotifications({
             </p>
           )}
 
-          {sortedMatchesWithPicks.length > 1 ? (
+          {sortedPredictionMatches.length > 1 ? (
             <label className="dash-notifications__export-select-label">
               Partido
               <select
@@ -276,7 +286,7 @@ export default function DashboardNotifications({
                 value={selectedMatchId}
                 onChange={(e) => setSelectedMatchId(e.target.value)}
               >
-                {sortedMatchesWithPicks.map((m) => (
+                {sortedPredictionMatches.map((m) => (
                   <option key={m.id} value={String(m.id)}>
                     {formatMatchVersusLabel(m)}
                   </option>
@@ -304,6 +314,15 @@ export default function DashboardNotifications({
             </button>
           </div>
         </div>
+
+        {adminToolsAllowed ? (
+          <AdminMatchPredictionsPanel
+            matches={matches}
+            isAdmin={isAdmin}
+            currentUsername={currentUsername}
+            selectedMatchId={selectedMatchId}
+          />
+        ) : null}
 
         {!sortedFeed.length ? (
           <p className="dash-notifications__empty dash-notifications-community-mobile-hide">

@@ -1,4 +1,5 @@
 import { parsePickScore } from './communityPicks';
+import { isSameLogicalMatch } from './matchPickKeyResolver';
 import {
   formatKickoff,
   isMatchLive,
@@ -6,6 +7,8 @@ import {
   isProfilePickRevealed,
   listCarouselUpcomingMatches,
 } from './matchUtils';
+import { isEligiblePredictionParticipant } from './quinielaParticipants';
+import { supabase } from './supabase';
 
 const PREDICTION_ACTIONS = new Set([
   'prediction_created',
@@ -377,4 +380,92 @@ export function formatMatchSectionHeading(match) {
   const home = trimStr(match.home_team) || 'Local';
   const away = trimStr(match.away_team) || 'Visitante';
   return `Partido: ${home} vs ${away}`;
+}
+
+function indexMatchInLookup(map, match) {
+  if (!match) return;
+  if (match.id != null) map.set(String(match.id), match);
+  if (match.official_id) map.set(String(match.official_id), match);
+}
+
+function pickKeyRefersToTarget(pickKey, targetMatch, matchIndex) {
+  const key = String(pickKey);
+  if (!key || !targetMatch) return false;
+  if (key === String(targetMatch.id)) return true;
+  if (targetMatch.official_id && key === String(targetMatch.official_id)) return true;
+  const ref = matchIndex.get(key);
+  if (!ref) return false;
+  return isSameLogicalMatch(targetMatch, ref);
+}
+
+/** Pick válido de un perfil para un partido (id, official_id o clave lógica). */
+export function findProfilePickForMatch(profile, targetMatch, matchIndex = new Map()) {
+  const picks = profile?.picks;
+  if (!picks || typeof picks !== 'object' || !targetMatch) return null;
+
+  const direct = parsePickScore(getProfilePickForMatch(picks, targetMatch.id));
+  if (direct) return direct;
+  if (targetMatch.official_id) {
+    const byOfficial = parsePickScore(getProfilePickForMatch(picks, targetMatch.official_id));
+    if (byOfficial) return byOfficial;
+  }
+
+  for (const [pickKey, rawPick] of Object.entries(picks)) {
+    const parsed = parsePickScore(rawPick);
+    if (!parsed) continue;
+    if (pickKeyRefersToTarget(pickKey, targetMatch, matchIndex)) return parsed;
+  }
+
+  return null;
+}
+
+/**
+ * Lista admin: todos los participantes elegibles con o sin pick para un partido.
+ * Orden: con predicción primero, sin predicción al final (rojo).
+ */
+export function buildAdminMatchPredictionRows(participantProfiles, match, cachedMatches = []) {
+  if (!match?.id) {
+    return { rows: [], sentCount: 0, totalCount: 0 };
+  }
+
+  const matchIndex = new Map();
+  indexMatchInLookup(matchIndex, match);
+  for (const row of cachedMatches ?? []) {
+    indexMatchInLookup(matchIndex, row);
+  }
+
+  const rows = (participantProfiles ?? []).map((prof) => {
+    const parsed = findProfilePickForMatch(prof, match, matchIndex);
+    const hasPick = Boolean(parsed);
+    return {
+      profileId: prof.id,
+      displayName: formatActivityDisplayName(prof),
+      photoUrl: prof.photo_url ?? null,
+      hasPick,
+      scoreLabel: hasPick ? `${parsed.home}-${parsed.away}` : 'Sin predicción',
+    };
+  });
+
+  rows.sort((a, b) => {
+    if (a.hasPick !== b.hasPick) return a.hasPick ? -1 : 1;
+    return (a.displayName || '').localeCompare(b.displayName || '', 'es', { sensitivity: 'base' });
+  });
+
+  const sentCount = rows.filter((row) => row.hasPick).length;
+  return { rows, sentCount, totalCount: rows.length };
+}
+
+/** Perfiles verificados Pulponi o inscritos en quiniela. */
+export async function loadEligibleParticipantProfiles(client = supabase) {
+  const { data, error } = await client
+    .from('profiles')
+    .select('id, username, name, photo_url, picks, pulponi_verified')
+    .order('username', { ascending: true, nullsFirst: false });
+
+  if (error) {
+    console.warn('[loadEligibleParticipantProfiles]', error.message);
+    return [];
+  }
+
+  return (data ?? []).filter(isEligiblePredictionParticipant);
 }
