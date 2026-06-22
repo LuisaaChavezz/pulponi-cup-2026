@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.send-results-email]
 verify_jwt = false
+
+[functions.test-email]
+verify_jwt = false
