@@ -4,7 +4,6 @@ import { buildAchievementGrants } from './achievementEngine';
 import { buildRankedLeaderboard } from './rankingHistory';
 import { fetchLeaderboardProfiles, LEADERBOARD_ACHIEVEMENT_COLUMNS } from './leaderboardQuery';
 import {
-  applyPerformanceStatsToProfiles,
   buildPerformanceStatsByProfile,
 } from './pickScoreStats';
 import { computePulpoDerivedStats } from './pulpoIndex';
@@ -240,7 +239,7 @@ function enrichProfilesForAchievementEval(profiles, pickScoreRows, matchRows, co
   const statsByProfileId = buildPerformanceStatsByProfile(pickScoreRows, matchRows);
   const pulpoIndexByProfileId = new Map();
 
-  const enriched = applyPerformanceStatsToProfiles(profiles, statsByProfileId).map((profile) => {
+  const enriched = (profiles ?? []).map((profile) => {
     const perf = statsByProfileId.get(String(profile.id));
     const pulpoStats = computePulpoDerivedStats({
       profile,

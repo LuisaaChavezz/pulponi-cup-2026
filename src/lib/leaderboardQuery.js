@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { enrichProfilesWithPickScores } from './pickScoreStats';
 
 /** Vista public.ranking_leaderboard (profiles ⨝ auth.users). */
 export const LEADERBOARD_SOURCE = 'ranking_leaderboard';
@@ -82,18 +81,24 @@ export async function fetchProfileById(client, profileId, { source = LEADERBOARD
  * Perfiles válidos para ranking / leaderboard (excluye huérfanos sin auth.users).
  * Intenta vista ranking_leaderboard; si no existe, RPC get_ranking_leaderboard().
  */
+function orderLeaderboardByPoints(query) {
+  return query
+    .order('points', { ascending: false })
+    .order('username', { ascending: true, nullsFirst: false });
+}
+
 export async function fetchLeaderboardProfiles(
   client = supabase,
   columns = LEADERBOARD_COLUMNS
 ) {
-  const viewResult = await client
-    .from(LEADERBOARD_SOURCE)
-    .select(columns)
-    .order('points', { ascending: false });
+  const fetchedAt = Date.now();
+  const viewResult = await orderLeaderboardByPoints(
+    client.from(LEADERBOARD_SOURCE).select(columns)
+  );
 
   if (!viewResult.error) {
-    const enriched = await enrichProfilesWithPickScores(client, viewResult.data ?? []);
-    return { data: enriched, error: null };
+    const rows = (viewResult.data ?? []).map((row) => ({ ...row, _leaderboardFetchedAt: fetchedAt }));
+    return { data: rows, error: null };
   }
 
   if (!isMissingLeaderboardSource(viewResult.error)) {
@@ -115,21 +120,25 @@ export async function fetchLeaderboardProfiles(
       }
       return out;
     });
-    const enriched = await enrichProfilesWithPickScores(client, rows);
-    return { data: enriched, error: null };
+    return {
+      data: rows.map((row) => ({ ...row, _leaderboardFetchedAt: fetchedAt })),
+      error: null,
+    };
   }
 
   console.warn(
     '[leaderboard] RPC get_ranking_leaderboard no disponible; usando public.profiles. Ejecuta supabase/ranking_leaderboard.sql'
   );
 
-  const fallback = await client.from('profiles').select(columns).order('points', { ascending: false });
+  const fallback = await orderLeaderboardByPoints(client.from('profiles').select(columns));
   if (fallback.error) return fallback;
-  const enriched = await enrichProfilesWithPickScores(client, fallback.data ?? []);
-  return { data: enriched, error: null };
+  return {
+    data: (fallback.data ?? []).map((row) => ({ ...row, _leaderboardFetchedAt: fetchedAt })),
+    error: null,
+  };
 }
 
 /** @deprecated Usar fetchLeaderboardProfiles (async). */
 export function queryLeaderboardProfiles(client = supabase, columns = LEADERBOARD_COLUMNS) {
-  return client.from(LEADERBOARD_SOURCE).select(columns).order('points', { ascending: false });
+  return orderLeaderboardByPoints(client.from(LEADERBOARD_SOURCE).select(columns));
 }

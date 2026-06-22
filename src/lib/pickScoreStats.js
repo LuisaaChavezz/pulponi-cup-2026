@@ -1,5 +1,6 @@
 /**
- * Agregados de puntuación desde public.pick_scores (fuente de verdad del ranking).
+ * Agregados derivados de public.pick_scores (efectividad, rachas, índice Pulpo).
+ * El leaderboard usa profiles.points / profiles.exacts en Supabase como fuente de verdad.
  */
 
 import { computeStreakFromPickScores, computeWinnerStreakFromPickScores } from './scoringEngine';
@@ -36,7 +37,9 @@ export function aggregatePickScoreRowsForProfile(rows) {
   return { points, exacts, predicted, correctResults, effectiveness };
 }
 
-export function applyPickScoreAggregatesToProfiles(profiles, aggregatesMap) {
+export function applyPickScoreAggregatesToProfiles(profiles, aggregatesMap, { overwriteTotals = false } = {}) {
+  if (!overwriteTotals) return profiles ?? [];
+
   if (!aggregatesMap?.size) {
     return (profiles ?? []).map((p) => ({ ...p, points: 0, exacts: 0 }));
   }
@@ -97,12 +100,13 @@ export function getPerformanceStatsForProfile(profileId, pickScoreRows, matches 
   );
 }
 
-export function applyPerformanceStatsToProfiles(profiles, statsByProfileId) {
+export function applyPerformanceStatsToProfiles(profiles, statsByProfileId, { overwriteTotals = false } = {}) {
   if (!statsByProfileId?.size) return profiles ?? [];
 
   return (profiles ?? []).map((profile) => {
     const stats = statsByProfileId.get(String(profile.id));
     if (!stats) return profile;
+    if (!overwriteTotals) return profile;
     return {
       ...profile,
       points: stats.points,
@@ -137,13 +141,15 @@ export async function fetchDistinctPlayedMatchCount(client) {
   return { count: distinct.size, error: null };
 }
 
-export async function enrichProfilesWithPickScores(client, profiles) {
+export async function enrichProfilesWithPickScores(client, profiles, { overwriteTotals = false } = {}) {
+  if (!overwriteTotals) return profiles ?? [];
+
   const { map, error } = await fetchPickScoreAggregates(client);
   if (error) {
     console.warn('[pickScoreStats] fetch aggregates', error.message);
     return profiles ?? [];
   }
-  return applyPickScoreAggregatesToProfiles(profiles, map);
+  return applyPickScoreAggregatesToProfiles(profiles, map, { overwriteTotals: true });
 }
 
 export async function enrichProfileWithPickScores(client, profile, matches = []) {
@@ -163,8 +169,6 @@ export async function enrichProfileWithPickScores(client, profile, matches = [])
   const performanceStats = getPerformanceStatsForProfile(profile.id, rows, matches);
   return {
     ...profile,
-    points: performanceStats.points,
-    exacts: performanceStats.exacts,
-    streak: performanceStats.streak,
+    pickScoreDerived: performanceStats,
   };
 }

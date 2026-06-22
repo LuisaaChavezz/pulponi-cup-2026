@@ -1,7 +1,6 @@
 import { supabase } from './supabase';
-import { computePulpoDerivedStats, getPulpoLevel } from './pulpoIndex';
+import { computePulpoDerivedStats } from './pulpoIndex';
 import {
-  applyPerformanceStatsToProfiles,
   buildPerformanceStatsByProfile,
 } from './pickScoreStats';
 import { isSafeUpdateError, scoreAllFinishedMatches } from './scoringEngine';
@@ -149,21 +148,18 @@ export async function runScoringAndPulpoPipeline(
   }
 
   const statsByProfileId = buildPerformanceStatsByProfile(pickScoreRows, matches);
-  profilesForReturn = applyPerformanceStatsToProfiles(profilesForReturn, statsByProfileId).map(
-    (profile) => {
-      const perf = statsByProfileId.get(String(profile.id));
-      const pulpoStats = computePulpoDerivedStats({
-        profile,
-        performanceStats: perf,
-      });
-      const level = getPulpoLevel(profile.pulpo_index ?? pulpoStats.index);
-      return {
-        ...profile,
-        pulpo_index: Number(profile.pulpo_index ?? pulpoStats.index),
-        pulpo_stats: profile.pulpo_stats?.computed_at ? profile.pulpo_stats : buildPulpoStatsPayload(pulpoStats),
-      };
-    }
-  );
+  profilesForReturn = profilesForReturn.map((profile) => {
+    const perf = statsByProfileId.get(String(profile.id));
+    const pulpoStats = computePulpoDerivedStats({
+      profile,
+      performanceStats: perf,
+    });
+    return {
+      ...profile,
+      pulpo_index: Number(profile.pulpo_index ?? pulpoStats.index),
+      pulpo_stats: profile.pulpo_stats?.computed_at ? profile.pulpo_stats : buildPulpoStatsPayload(pulpoStats),
+    };
+  });
 
   let rankingCaptured = false;
   if (captureRanking) {

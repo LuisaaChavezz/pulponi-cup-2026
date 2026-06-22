@@ -20,7 +20,7 @@ import {
   isNotificationDismissed,
 } from '../lib/dismissedNotifications';
 import { fetchLeaderboardProfiles, fetchProfileById } from '../lib/leaderboardQuery';
-import { enrichProfileWithPickScores, enrichProfilesWithPickScores } from '../lib/pickScoreStats';
+import { enrichProfileWithPickScores } from '../lib/pickScoreStats';
 import {
   buildPredictionPublicMessage,
   formatActivityDisplayName,
@@ -384,6 +384,7 @@ export function useAppData(session) {
 
   const loadRanking = useCallback(async () => {
     cacheDelete('ranking');
+    cacheInvalidate('profile:');
     try {
       const { data, error } = await timedQuery('ranking', () => fetchLeaderboardProfiles(supabase));
       if (error) {
@@ -444,9 +445,8 @@ export function useAppData(session) {
         return fallback.data ?? [];
       }
       const rows = data ?? [];
-      const enriched = await enrichProfilesWithPickScores(supabase, rows);
-      setCommunityProfiles(enriched);
-      return enriched;
+      setCommunityProfiles(rows);
+      return rows;
     } catch (e) {
       console.warn('[loadCommunityProfiles]', e?.message ?? e);
       setCommunityProfiles([]);
@@ -1015,6 +1015,7 @@ export function useAppData(session) {
         { event: '*', schema: 'public', table: 'pick_scores' },
         () => {
           void (async () => {
+            cacheInvalidate('profile:');
             const refresh = await refreshPulpoIndexesAfterPickScores(supabase, {
               matches: matchesRef.current,
             });
@@ -1026,11 +1027,25 @@ export function useAppData(session) {
       )
       .subscribe();
 
+    const profilesChannel = supabase
+      .channel('profiles-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        () => {
+          cacheInvalidate('profile:');
+          void loadRankingRef.current?.();
+          void loadProfileRef.current?.();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(commentsChannel);
       supabase.removeChannel(rxChannel);
       supabase.removeChannel(matchesChannel);
       supabase.removeChannel(pickScoresChannel);
+      supabase.removeChannel(profilesChannel);
     };
   }, [userId]);
 

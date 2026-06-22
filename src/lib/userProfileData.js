@@ -5,7 +5,7 @@ import { formatKickoff, hasRecordedScores, isProfilePickRevealed, matchHasFinalS
 import { formatActivityLogMessage } from './activityMessages';
 import { filterUserBadgeRowsForProfile, resolveBadgePresentation } from '../data/achievements';
 import { computePulpoDerivedStats } from './pulpoIndex';
-import { aggregatePickScoreRowsForProfile, enrichProfilesWithPickScores, fetchDistinctPlayedMatchCount, getPerformanceStatsForProfile } from './pickScoreStats';
+import { aggregatePickScoreRowsForProfile, fetchDistinctPlayedMatchCount, getPerformanceStatsForProfile } from './pickScoreStats';
 import { computeWinnerStreakFromPickScores } from './scoringEngine';
 
 function pickMap(profile) {
@@ -417,8 +417,7 @@ export async function loadPublicProfile(
     let ranked = [];
     let rankingSummary = { currentRank: null, bestRank: null };
     try {
-      const mergedProfiles = await enrichProfilesWithPickScores(client, allProfilesRows ?? []);
-      ranked = buildRankedLeaderboard(mergedProfiles);
+      ranked = buildRankedLeaderboard(allProfilesRows ?? []);
       rankingSummary = getProfileRankingSummary(profileId, ranked, historyRows ?? []) ?? rankingSummary;
     } catch (e) {
       console.warn('[loadPublicProfile] rankingSummary', e?.message ?? e);
@@ -427,8 +426,8 @@ export async function loadPublicProfile(
     const scoredProfile = aggregatePickScoreRowsForProfile(pickScoreRows ?? []);
     const profileWithScores = {
       ...profile,
-      points: scoredProfile.points,
-      exacts: scoredProfile.exacts,
+      points: Number(profile?.points ?? scoredProfile.points ?? 0),
+      exacts: Number(profile?.exacts ?? scoredProfile.exacts ?? 0),
     };
     const matchIndex = matchesById(matchesForHistory);
     const stats = buildUserStats(
