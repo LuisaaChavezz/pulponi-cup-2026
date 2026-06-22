@@ -19,7 +19,7 @@ import {
   dismissNotification,
   isNotificationDismissed,
 } from '../lib/dismissedNotifications';
-import { fetchLeaderboardProfiles } from '../lib/leaderboardQuery';
+import { fetchLeaderboardProfiles, fetchProfileById } from '../lib/leaderboardQuery';
 import { enrichProfileWithPickScores, enrichProfilesWithPickScores } from '../lib/pickScoreStats';
 import {
   buildPredictionPublicMessage,
@@ -199,7 +199,7 @@ export function useAppData(session) {
 
     await ensureOwnProfileRow(supabase, userId);
 
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+    const { data, error } = await fetchProfileById(supabase, userId, { source: 'profiles' });
     console.log('QUERY RESULT loadProfile profiles.select', data, error);
     if (error) {
       console.warn('[loadProfile]', error.message, error);

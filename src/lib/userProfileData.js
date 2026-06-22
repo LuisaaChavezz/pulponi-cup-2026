@@ -1,6 +1,6 @@
 import { parsePickScore, collectMatchPickScores } from './communityPicks';
 import { buildRankedLeaderboard, getProfileRankingSummary } from './rankingHistory';
-import { LEADERBOARD_PUBLIC_COLUMNS, LEADERBOARD_SOURCE } from './leaderboardQuery';
+import { fetchProfileById, LEADERBOARD_SOURCE } from './leaderboardQuery';
 import { formatKickoff, hasRecordedScores, isProfilePickRevealed, matchHasFinalScore, uiStatus } from './matchUtils';
 import { formatActivityLogMessage } from './activityMessages';
 import { filterUserBadgeRowsForProfile, resolveBadgePresentation } from '../data/achievements';
@@ -105,30 +105,12 @@ async function loadMatchesForProfileHistory(client, profile, pickScoreRows, cach
 }
 
 async function loadProfileRow(client, profileId) {
-  const fromView = await client
-    .from(LEADERBOARD_SOURCE)
-    .select(LEADERBOARD_PUBLIC_COLUMNS)
-    .eq('id', profileId)
-    .maybeSingle();
-
-  if (!fromView.error && fromView.data) return fromView.data;
-
-  if (fromView.error) {
-    console.warn('[loadPublicProfile] ranking_leaderboard', fromView.error.message);
-  }
-
-  const fromProfiles = await client
-    .from('profiles')
-    .select(LEADERBOARD_PUBLIC_COLUMNS)
-    .eq('id', profileId)
-    .maybeSingle();
-
-  if (fromProfiles.error) {
-    console.warn('[loadPublicProfile] profiles', fromProfiles.error.message);
+  const { data, error } = await fetchProfileById(client, profileId, { source: LEADERBOARD_SOURCE });
+  if (error) {
+    console.warn('[loadPublicProfile] profiles', error.message);
     return null;
   }
-
-  return fromProfiles.data ?? null;
+  return data ?? null;
 }
 
 const EMPTY_STATS = {

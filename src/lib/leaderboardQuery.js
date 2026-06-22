@@ -6,8 +6,16 @@ export const LEADERBOARD_SOURCE = 'ranking_leaderboard';
 
 export const LEADERBOARD_COLUMNS = 'id, username, name, photo_url, points, exacts, streak';
 
-export const LEADERBOARD_PUBLIC_COLUMNS =
-  'id, username, name, photo_url, points, exacts, streak, total_winner_hits, pulpo_index, pulpo_stats, picks, created_at';
+/** Columnas de perfil validadas en Supabase (sin total_winner_hits hasta migrar). */
+export const PROFILE_SELECT_COLUMNS =
+  'id, username, name, points, exacts, streak, pulpo_index, photo_url, picks, picks_updated_at';
+
+export const PROFILE_SELECT_COLUMNS_FULL = `${PROFILE_SELECT_COLUMNS}, pulpo_stats, created_at`;
+
+/** Solo cuando supabase/total_winner_hits.sql ya se ejecutó en producción. */
+export const PROFILE_SELECT_COLUMNS_EXTENDED = `${PROFILE_SELECT_COLUMNS_FULL}, total_winner_hits`;
+
+export const LEADERBOARD_PUBLIC_COLUMNS = PROFILE_SELECT_COLUMNS_FULL;
 
 export const LEADERBOARD_ACHIEVEMENT_COLUMNS =
   'id, username, name, photo_url, points, exacts, streak, picks, pulpo_index, pulpo_stats';
@@ -21,6 +29,53 @@ function isMissingLeaderboardSource(error) {
     msg.includes('pgrst205') ||
     msg.includes('pgrst204')
   );
+}
+
+export function isMissingColumnError(error) {
+  const msg = String(error?.message ?? error ?? '').toLowerCase();
+  return (
+    msg.includes('column') &&
+    (msg.includes('does not exist') || msg.includes('42703') || msg.includes('could not find'))
+  );
+}
+
+/** Intenta cargar un perfil con columnas extendidas y cae a las base si falta una columna nueva. */
+export async function fetchProfileById(client, profileId, { source = LEADERBOARD_SOURCE } = {}) {
+  if (!client || !profileId) return { data: null, error: null };
+
+  const columnSets = [
+    PROFILE_SELECT_COLUMNS_EXTENDED,
+    PROFILE_SELECT_COLUMNS_FULL,
+    PROFILE_SELECT_COLUMNS,
+  ];
+
+  for (const columns of columnSets) {
+    const fromView = await client.from(source).select(columns).eq('id', profileId).maybeSingle();
+
+    if (!fromView.error && fromView.data) {
+      return { data: fromView.data, error: null };
+    }
+
+    if (
+      fromView.error &&
+      !isMissingLeaderboardSource(fromView.error) &&
+      !isMissingColumnError(fromView.error)
+    ) {
+      console.warn('[fetchProfileById] ranking_leaderboard', fromView.error.message);
+    }
+
+    const fromProfiles = await client.from('profiles').select(columns).eq('id', profileId).maybeSingle();
+
+    if (!fromProfiles.error && fromProfiles.data) {
+      return { data: fromProfiles.data, error: null };
+    }
+
+    if (fromProfiles.error && !isMissingColumnError(fromProfiles.error)) {
+      return { data: null, error: fromProfiles.error };
+    }
+  }
+
+  return { data: null, error: null };
 }
 
 /**

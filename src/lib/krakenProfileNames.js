@@ -2,9 +2,9 @@ export function firstName(name) {
   return name?.split(' ')[0] || name;
 }
 
-/** Primer nombre: full_name → name → username. */
+/** Primer nombre: name → username. */
 export function krakenProfileFirstName(row, fallback) {
-  const raw = row?.full_name || row?.name || row?.username || fallback;
+  const raw = row?.name || row?.username || fallback;
   return firstName(raw) || fallback;
 }
 
