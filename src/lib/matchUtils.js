@@ -77,24 +77,95 @@ export function matchHasFinalScore(match) {
 
 /** Tendencias de comunidad visibles solo desde el kickoff (sin cambiar guardado de picks). */
 export function areCommunityTrendsRevealed(match, now = new Date()) {
-  return isProfilePickRevealed(match, now);
+  return areMatchPredictionsRevealed(match, now);
+}
+
+/** Convierte hora de calendario en CDMX a instante UTC (para kickoffs sin zona en ISO). */
+function wallTimeInTimezoneToUtcMs(year, month, day, hour, minute, second, timeZone) {
+  let utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
+  for (let i = 0; i < 4; i++) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date(utcGuess));
+    const p = Object.fromEntries(parts.filter((x) => x.type !== 'literal').map((x) => [x.type, x.value]));
+    const got = Date.UTC(
+      Number(p.year),
+      Number(p.month) - 1,
+      Number(p.day),
+      Number(p.hour),
+      Number(p.minute),
+      Number(p.second)
+    );
+    const want = Date.UTC(year, month - 1, day, hour, minute, second);
+    utcGuess += want - got;
+  }
+  return utcGuess;
+}
+
+/** Instantánea UTC del kickoff; fechas sin offset se interpretan en MATCH_DISPLAY_TIMEZONE. */
+export function kickoffInstantMs(kickoff) {
+  if (kickoff == null || kickoff === '') return null;
+  const raw = String(kickoff).trim();
+  if (!raw) return null;
+
+  const hasExplicitTz = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(raw);
+  if (hasExplicitTz) {
+    const t = new Date(raw).getTime();
+    return Number.isNaN(t) ? null : t;
+  }
+
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (m) {
+    const [, y, mo, d, h, mi, sec = '0'] = m;
+    return wallTimeInTimezoneToUtcMs(
+      Number(y),
+      Number(mo),
+      Number(d),
+      Number(h),
+      Number(mi),
+      Number(sec),
+      MATCH_DISPLAY_TIMEZONE
+    );
+  }
+
+  const t = new Date(raw).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+/**
+ * Predicciones visibles cuando ya pasó el kickoff o el partido terminó.
+ * Misma zona horaria que la UI (America/Mexico_City) para kickoffs sin offset.
+ */
+export function areMatchPredictionsRevealed(match, now = new Date()) {
+  if (!match) return false;
+
+  const status = String(match.status ?? '').toLowerCase();
+  if (status === 'finished' || isMatchFinished(match)) return true;
+  if (isMatchLive(match)) return true;
+
+  const kickoffMs = kickoffInstantMs(match.kickoff);
+  if (kickoffMs == null) return false;
+
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  if (Number.isNaN(nowMs)) return false;
+  return nowMs >= kickoffMs;
 }
 
 /** Partido ya comenzó (en vivo, finalizado o kickoff <= ahora). */
 export function hasMatchStarted(match, now = new Date()) {
-  if (!match) return false;
-  if (isMatchLive(match) || isMatchFinished(match)) return true;
-
-  const kickoff = match?.kickoff;
-  if (!kickoff) return false;
-  const kickoffMs = new Date(kickoff).getTime();
-  if (Number.isNaN(kickoffMs)) return false;
-  return now.getTime() >= kickoffMs;
+  return areMatchPredictionsRevealed(match, now);
 }
 
 /** Perfiles / historial: revelar pick cuando el partido ya empezó o terminó. */
 export function isProfilePickRevealed(match, now = new Date()) {
-  return hasMatchStarted(match, now);
+  return areMatchPredictionsRevealed(match, now);
 }
 
 export function isPickLocked(match, now = new Date()) {
@@ -120,9 +191,7 @@ export function showLivePill(match) {
 }
 
 function kickoffMsFromIso(kickoff) {
-  if (!kickoff) return null;
-  const t = new Date(kickoff).getTime();
-  return Number.isNaN(t) ? null : t;
+  return kickoffInstantMs(kickoff);
 }
 
 function kickoffMs(m) {

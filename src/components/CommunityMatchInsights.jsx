@@ -2,13 +2,30 @@ import {
   buildCommunityGeneralInsights,
   getInsufficientMessage,
 } from '../lib/communityPicks';
-import { formatKickoff } from '../lib/matchUtils';
+import { useKickoffClock } from '../hooks/useKickoffClock';
+import { formatKickoff, isProfilePickRevealed } from '../lib/matchUtils';
 import DownloadPdfButton from './DownloadPdfButton';
 
 export default function CommunityMatchInsights({ match, scores, compact = false }) {
+  const now = useKickoffClock(1000);
+  const revealed = isProfilePickRevealed(match, now);
   const { outcome } = buildCommunityGeneralInsights(scores, match);
   const matchLabel = `${match?.home_team ?? 'Local'} vs ${match?.away_team ?? 'Visitante'}`;
   const kickoffLabel = formatKickoff(match?.kickoff);
+
+  if (!revealed) {
+    return (
+      <article className="community-insights community-insights--locked">
+        <header className="community-insights__head">
+          <strong>{matchLabel}</strong>
+          {kickoffLabel ? <span className="community-insights__meta">{kickoffLabel}</span> : null}
+        </header>
+        <p className="community-insights__empty">
+          🔒 Predicciones ocultas hasta el inicio del partido
+        </p>
+      </article>
+    );
+  }
 
   if (!outcome.sufficient) {
     return (

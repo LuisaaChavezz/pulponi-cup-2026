@@ -12,7 +12,7 @@ import {
   formatMatchVersusLabel,
   listMatchesWithPicks,
 } from '../lib/predictionActivity';
-import { pickDefaultFocusedMatch, sortMatchesForFocusedDropdown } from '../lib/matchUtils';
+import { pickDefaultFocusedMatch, sortMatchesForFocusedDropdown, isProfilePickRevealed, kickoffInstantMs } from '../lib/matchUtils';
 import {
   downloadAllPredictionsPdf,
   downloadMatchPredictionsPdf,
@@ -175,13 +175,15 @@ export default function DashboardNotifications({
   );
 
   const communityTrendMatches = useMemo(() => {
-    const list = listMatchesForCommunityTrends(communityPickProfiles, matches);
+    const list = listMatchesForCommunityTrends(communityPickProfiles, matches).filter((m) =>
+      isProfilePickRevealed(m, now)
+    );
     return list.sort((a, b) => {
-      const ta = a?.kickoff ? new Date(a.kickoff).getTime() : 0;
-      const tb = b?.kickoff ? new Date(b.kickoff).getTime() : 0;
+      const ta = a?.kickoff ? kickoffInstantMs(a.kickoff) ?? 0 : 0;
+      const tb = b?.kickoff ? kickoffInstantMs(b.kickoff) ?? 0 : 0;
       return ta - tb;
     });
-  }, [matches, communityPickProfiles]);
+  }, [matches, communityPickProfiles, now]);
 
   async function handleSubmitAnnouncement(e) {
     e.preventDefault();

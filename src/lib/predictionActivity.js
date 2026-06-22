@@ -5,6 +5,7 @@ import {
   isMatchLive,
   isPickLocked,
   isProfilePickRevealed,
+  kickoffInstantMs,
   listCarouselUpcomingMatches,
 } from './matchUtils';
 import { isEligiblePredictionParticipant } from './quinielaParticipants';
@@ -122,10 +123,7 @@ export function formatPredictionActivityMessage(row, matchById) {
 }
 
 function kickoffMs(match) {
-  const k = match?.kickoff;
-  if (!k) return 0;
-  const t = new Date(k).getTime();
-  return Number.isNaN(t) ? 0 : t;
+  return kickoffInstantMs(match?.kickoff) ?? 0;
 }
 
 function sortMatchesByKickoffDesc(matches) {

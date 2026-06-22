@@ -1,6 +1,22 @@
+import { useKickoffClock } from '../hooks/useKickoffClock';
 import { getCommunityOutcomeStats, getInsufficientMessage } from '../lib/communityPicks';
+import { isProfilePickRevealed } from '../lib/matchUtils';
 
 export default function MatchCommunityPrediction({ scores, match }) {
+  const now = useKickoffClock(1000);
+  const revealed = isProfilePickRevealed(match, now);
+
+  if (!revealed) {
+    return (
+      <div className="pulponi-social pulponi-social--community" role="status">
+        <p className="pulponi-social__title">Tendencia de la comunidad</p>
+        <p className="pulponi-social__locked-hint">
+          🔒 Las predicciones se revelan al iniciar el partido
+        </p>
+      </div>
+    );
+  }
+
   const stats = getCommunityOutcomeStats(scores, match);
 
   if (!stats.sufficient) {

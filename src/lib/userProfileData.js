@@ -1,7 +1,13 @@
 import { parsePickScore, collectMatchPickScores } from './communityPicks';
 import { buildRankedLeaderboard, getProfileRankingSummary } from './rankingHistory';
 import { fetchProfileById, LEADERBOARD_SOURCE } from './leaderboardQuery';
-import { formatKickoff, hasRecordedScores, isProfilePickRevealed, matchHasFinalScore, uiStatus } from './matchUtils';
+import {
+  formatKickoff,
+  hasRecordedScores,
+  isProfilePickRevealed,
+  matchHasFinalScore,
+  uiStatus,
+} from './matchUtils';
 import { formatActivityLogMessage } from './activityMessages';
 import { filterUserBadgeRowsForProfile, resolveBadgePresentation } from '../data/achievements';
 import { computePulpoDerivedStats } from './pulpoIndex';
