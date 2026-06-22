@@ -1,0 +1,86 @@
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.0';
+
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+export function createServiceClient(): SupabaseClient {
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !key) throw new Error('SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no configurados');
+  return createClient(url, key);
+}
+
+export function formatPick(pick: unknown): string {
+  if (!pick) return 'Sin predicción';
+  if (typeof pick === 'string') return pick;
+  if (Array.isArray(pick)) return `${pick[0]}-${pick[1]}`;
+  if (typeof pick === 'object') {
+    const row = pick as Record<string, unknown>;
+    const home = row.home_pick ?? row.home ?? row.local ?? '?';
+    const away = row.away_pick ?? row.away ?? row.visitante ?? '?';
+    return `${home}-${away}`;
+  }
+  return 'Sin predicción';
+}
+
+export function getPickFromProfile(
+  picks: Record<string, unknown> | null | undefined,
+  matchId: string | number
+): unknown {
+  if (!picks || typeof picks !== 'object') return null;
+  const matchIdStr = String(matchId);
+  return picks[matchIdStr] ?? picks[matchId as unknown as string] ?? null;
+}
+
+export async function listParticipantEmails(client: SupabaseClient): Promise<string[]> {
+  const emails: string[] = [];
+  let page = 1;
+  const perPage = 1000;
+
+  while (true) {
+    const { data, error } = await client.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+
+    for (const user of data.users ?? []) {
+      const email = user.email;
+      if (!email) continue;
+      if (email.includes('cursor-bot') || email.includes('verify-')) continue;
+      emails.push(email);
+    }
+
+    if ((data.users ?? []).length < perPage) break;
+    page += 1;
+  }
+
+  return [...new Set(emails)];
+}
+
+export async function sendResendEmail(options: {
+  to: string[];
+  subject: string;
+  html: string;
+}): Promise<void> {
+  const apiKey = Deno.env.get('RESEND_API_KEY');
+  if (!apiKey) throw new Error('RESEND_API_KEY no configurada en Supabase Secrets');
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Pulponi Cup 2026 <pulponi@pulponicup.com.mx>',
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend error ${res.status}: ${body}`);
+  }
+}

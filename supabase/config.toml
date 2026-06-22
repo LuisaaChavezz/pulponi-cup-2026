@@ -6,3 +6,9 @@ verify_jwt = false
 
 [functions.kraken-messages]
 verify_jwt = false
+
+[functions.send-predictions-email]
+verify_jwt = false
+
+[functions.send-results-email]
+verify_jwt = false

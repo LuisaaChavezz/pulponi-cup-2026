@@ -1431,6 +1431,20 @@ export function useAppData(session) {
         await syncAchievementsForProfiles(pipeline?.profiles);
         loadActivity();
 
+        try {
+          const { error: emailErr } = await supabase.functions.invoke('send-results-email', {
+            body: { match_id: resolvedMatchId },
+          });
+          if (emailErr) {
+            console.warn('[applyManualMatchResult] send-results-email', emailErr.message);
+          }
+        } catch (emailInvokeErr) {
+          console.warn(
+            '[applyManualMatchResult] send-results-email',
+            emailInvokeErr?.message ?? emailInvokeErr
+          );
+        }
+
         return {
           ...applyResult,
           score: pipeline?.score,
