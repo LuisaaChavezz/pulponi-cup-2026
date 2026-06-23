@@ -27,7 +27,7 @@ serve(async (req) => {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Pulponi Cup 2026 <onboarding@resend.dev>',
+      from: 'Pulponi Cup 2026 <noreply@pulponicup.com.mx>',
       to: ['luisaa.chavezz@gmail.com'],
       subject: '🦑 Prueba Pulponi Cup 2026',
       html: '<h1>🦑 Pulponi funciona!</h1><p>El sistema de correos está listo.</p>',

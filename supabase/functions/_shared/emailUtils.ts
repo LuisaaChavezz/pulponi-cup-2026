@@ -72,7 +72,7 @@ export async function sendResendEmail(options: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Pulponi Cup 2026 <pulponi@pulponicup.com.mx>',
+      from: 'Pulponi Cup 2026 <noreply@pulponicup.com.mx>',
       to: options.to,
       subject: options.subject,
       html: options.html,
