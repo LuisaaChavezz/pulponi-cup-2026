@@ -130,7 +130,9 @@ export async function fetchLeaderboardProfiles(
     '[leaderboard] RPC get_ranking_leaderboard no disponible; usando public.profiles. Ejecuta supabase/ranking_leaderboard.sql'
   );
 
-  const fallback = await orderLeaderboardByPoints(client.from('profiles').select(columns));
+  const fallback = await orderLeaderboardByPoints(
+    client.from('profiles').select(columns).eq('pulponi_verified', true)
+  );
   if (fallback.error) return fallback;
   return {
     data: (fallback.data ?? []).map((row) => ({ ...row, _leaderboardFetchedAt: fetchedAt })),

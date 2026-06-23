@@ -458,11 +458,12 @@ export function buildAdminMatchPredictionRows(participantProfiles, match, cached
   return { rows, sentCount, totalCount: rows.length };
 }
 
-/** Perfiles verificados Pulponi o inscritos en quiniela. */
+/** Perfiles verificados Pulponi (pulponi_verified = true). */
 export async function loadEligibleParticipantProfiles(client = supabase) {
   const { data, error } = await client
     .from('profiles')
     .select('id, username, name, photo_url, picks, pulponi_verified')
+    .eq('pulponi_verified', true)
     .order('username', { ascending: true, nullsFirst: false });
 
   if (error) {

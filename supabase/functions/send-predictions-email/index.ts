@@ -54,6 +54,7 @@ serve(async (req) => {
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, username, name, picks')
+      .eq('pulponi_verified', true)
       .neq('username', 'el-kraken')
       .not('picks', 'is', null);
 

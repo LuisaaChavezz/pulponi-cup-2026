@@ -409,7 +409,10 @@ export function useAppData(session) {
     }
     try {
       const { data, error } = await timedQuery('communityPicks', () =>
-        supabase.from('profiles').select('id, username, name, photo_url, picks')
+        supabase
+          .from('profiles')
+          .select('id, username, name, photo_url, picks')
+          .eq('pulponi_verified', true)
       );
       if (error) {
         console.warn('[communityPicks]', error?.message ?? error);
@@ -436,6 +439,7 @@ export function useAppData(session) {
         supabase
           .from('profiles')
           .select('id, username, name, photo_url, points')
+          .eq('pulponi_verified', true)
           .order('username', { ascending: true, nullsFirst: false })
       );
       if (error) {

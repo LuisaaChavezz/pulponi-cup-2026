@@ -35,6 +35,16 @@ export function getPickFromProfile(
 }
 
 export async function listParticipantEmails(client: SupabaseClient): Promise<string[]> {
+  const { data: verifiedProfiles, error: profilesError } = await client
+    .from('profiles')
+    .select('id')
+    .eq('pulponi_verified', true);
+
+  if (profilesError) throw profilesError;
+
+  const verifiedIds = new Set((verifiedProfiles ?? []).map((row) => row.id));
+  if (!verifiedIds.size) return [];
+
   const emails: string[] = [];
   let page = 1;
   const perPage = 1000;
@@ -44,6 +54,7 @@ export async function listParticipantEmails(client: SupabaseClient): Promise<str
     if (error) throw error;
 
     for (const user of data.users ?? []) {
+      if (!verifiedIds.has(user.id)) continue;
       const email = user.email;
       if (!email) continue;
       if (email.includes('cursor') || email.includes('verify-')) continue;
