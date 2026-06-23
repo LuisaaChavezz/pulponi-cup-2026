@@ -751,11 +751,7 @@ export default function App() {
             ) : null}
           </div>
         </div>
-        <MatchCommunityPrediction
-          scores={communityScores}
-          match={m}
-          profileRows={data.communityPickProfiles}
-        />
+        <MatchCommunityPrediction scores={communityScores} match={m} />
         <div className="match-card__pick-row">
           <div className="pick-inputs">
             <PickScoreInput

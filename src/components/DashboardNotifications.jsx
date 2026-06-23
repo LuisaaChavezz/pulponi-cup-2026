@@ -375,7 +375,6 @@ export default function DashboardNotifications({
                   key={m.id}
                   match={m}
                   scores={scores}
-                  profileRows={communityPickProfiles}
                   compact
                 />
               );

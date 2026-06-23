@@ -1,9 +1,7 @@
-import { getCommunityOutcomeStatsDisplay, aggregateVoteDistribution } from '../lib/communityPicks';
-import VoteDistributionList from './VoteDistributionList';
+import { getCommunityOutcomeStatsDisplay } from '../lib/communityPicks';
 
-export default function MatchCommunityPrediction({ scores, match, profileRows = [] }) {
+export default function MatchCommunityPrediction({ scores, match }) {
   const stats = getCommunityOutcomeStatsDisplay(scores, match);
-  const voteDistribution = aggregateVoteDistribution(profileRows, match?.id, match);
 
   return (
     <div
@@ -47,7 +45,6 @@ export default function MatchCommunityPrediction({ scores, match, profileRows = 
       {stats.total === 0 ? (
         <p className="pulponi-social__empty">Aún no hay predicciones para este partido.</p>
       ) : null}
-      <VoteDistributionList items={voteDistribution?.items} title="Distribución de votos por marcador" />
     </div>
   );
 }
