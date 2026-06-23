@@ -673,7 +673,7 @@ export default function App() {
     const draft = pickDrafts[m.id] ?? {};
     const status = displayMatchStatus(m);
     const finalLabel = finalScoreLabel(m);
-    const communityScores = collectMatchPickScores(data.communityPickProfiles, m.id);
+    const communityScores = collectMatchPickScores(data.communityPickProfiles, m.id, m);
     const pickFeedback = pickSaveFeedback[m.id];
     const pickSaving = pickFeedback?.type === 'saving';
     const hasSavedPick = pick != null && parsePickScore(pick) != null;
@@ -751,7 +751,11 @@ export default function App() {
             ) : null}
           </div>
         </div>
-        <MatchCommunityPrediction scores={communityScores} match={m} />
+        <MatchCommunityPrediction
+          scores={communityScores}
+          match={m}
+          profileRows={data.communityPickProfiles}
+        />
         <div className="match-card__pick-row">
           <div className="pick-inputs">
             <PickScoreInput

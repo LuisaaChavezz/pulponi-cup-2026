@@ -10,8 +10,8 @@ export function getInsufficientMessage() {
 /** @param {unknown} pick */
 export function parsePickScore(pick) {
   if (!pick || typeof pick !== 'object') return null;
-  const h = Math.round(Number(pick.home_pick));
-  const a = Math.round(Number(pick.away_pick));
+  const h = Math.round(Number(pick.home_pick ?? pick.home ?? pick.local));
+  const a = Math.round(Number(pick.away_pick ?? pick.away ?? pick.visitante));
   if (
     !Number.isFinite(h) ||
     !Number.isFinite(a) ||
@@ -25,6 +25,42 @@ export function parsePickScore(pick) {
   return { home: h, away: a };
 }
 
+/** Etiqueta legible de un pick (2-1, etc.). */
+export function formatPickPredictionLabel(pick) {
+  if (!pick) return null;
+  if (typeof pick === 'string') return pick.trim() || null;
+  if (Array.isArray(pick)) return `${pick[0]}-${pick[1]}`;
+  if (typeof pick === 'object') {
+    const parsed = parsePickScore(pick);
+    if (parsed) return `${parsed.home}-${parsed.away}`;
+    const home = pick.home_pick ?? pick.home ?? pick.local;
+    const away = pick.away_pick ?? pick.away ?? pick.visitante;
+    if (home != null && away != null) return `${home}-${away}`;
+  }
+  return null;
+}
+
+export function getPickForMatchId(picks, matchId, match = null) {
+  if (!picks || typeof picks !== 'object') return null;
+
+  const keys = new Set();
+  if (matchId != null && matchId !== '') keys.add(String(matchId));
+  if (match?.id != null) keys.add(String(match.id));
+  if (match?.official_id) keys.add(String(match.official_id));
+
+  for (const key of keys) {
+    if (picks[key] != null) return picks[key];
+    const numeric = Number(key);
+    if (Number.isFinite(numeric) && picks[numeric] != null) return picks[numeric];
+  }
+
+  for (const [pickKey, value] of Object.entries(picks)) {
+    if (keys.has(String(pickKey))) return value;
+  }
+
+  return null;
+}
+
 export function outcomeFromScore(home, away) {
   if (home > away) return 'home';
   if (away > home) return 'away';
@@ -35,12 +71,12 @@ export function outcomeFromScore(home, away) {
  * @param {Array<{ id: string, picks?: Record<string, unknown> }>} profileRows
  * @param {string} matchId
  */
-export function collectMatchPickScores(profileRows, matchId) {
+export function collectMatchPickScores(profileRows, matchId, match = null) {
   const scores = [];
   if (!matchId || !Array.isArray(profileRows)) return scores;
 
   for (const row of profileRows) {
-    const pick = row.picks?.[matchId];
+    const pick = getPickForMatchId(row.picks, matchId, match);
     const parsed = parsePickScore(pick);
     if (parsed) scores.push(parsed);
   }
@@ -156,8 +192,72 @@ export function getPickThermometer(scores, homePick, awayPick) {
   };
 }
 
+/**
+ * Agrupa picks por marcador exacto y calcula % de votos.
+ * @param {Array<{ picks?: Record<string, unknown> }>} profileRows
+ */
+export function aggregateVoteDistribution(profileRows, matchId, match = null) {
+  const predictions = {};
+  let total = 0;
+
+  for (const profile of profileRows ?? []) {
+    const pick = getPickForMatchId(profile.picks, matchId, match);
+    const pred = formatPickPredictionLabel(pick);
+    if (!pred) continue;
+    predictions[pred] = (predictions[pred] || 0) + 1;
+    total += 1;
+  }
+
+  if (!total) {
+    return { total: 0, sufficient: false, items: [] };
+  }
+
+  const items = Object.entries(predictions)
+    .sort((a, b) => b[1] - a[1])
+    .map(([prediction, count]) => ({
+      prediction,
+      count,
+      percentage: Math.round((count / total) * 100),
+    }));
+
+  return {
+    total,
+    sufficient: total >= MIN_COMMUNITY_PICKS,
+    items,
+  };
+}
+
+export function aggregateVoteDistributionFromScores(scores) {
+  const predictions = {};
+  let total = 0;
+
+  for (const score of scores ?? []) {
+    const pred = formatScoreLabel(score.home, score.away);
+    predictions[pred] = (predictions[pred] || 0) + 1;
+    total += 1;
+  }
+
+  if (!total) {
+    return { total: 0, sufficient: false, items: [] };
+  }
+
+  const items = Object.entries(predictions)
+    .sort((a, b) => b[1] - a[1])
+    .map(([prediction, count]) => ({
+      prediction,
+      count,
+      percentage: Math.round((count / total) * 100),
+    }));
+
+  return {
+    total,
+    sufficient: total >= MIN_COMMUNITY_PICKS,
+    items,
+  };
+}
+
 function scoreKey(home, away) {
-  return `${home}-${away}`;
+  return formatScoreLabel(home, away);
 }
 
 function formatScoreLabel(home, away) {
@@ -228,11 +328,16 @@ export function getRiskiestCommunityPick(scores) {
   };
 }
 
-/** Solo tendencia general (1X2 %), sin marcadores exactos ni picks individuales. */
-export function buildCommunityGeneralInsights(scores, match) {
+/** Tendencia general (1X2) + distribución de votos por marcador. */
+export function buildCommunityGeneralInsights(scores, match, profileRows = null) {
+  const voteDistribution = profileRows?.length
+    ? aggregateVoteDistribution(profileRows, match?.id, match)
+    : aggregateVoteDistributionFromScores(scores);
+
   return {
     outcome: getCommunityOutcomeStats(scores, match),
-    total: scores?.length ?? 0,
+    voteDistribution,
+    total: scores?.length ?? voteDistribution.total ?? 0,
   };
 }
 
@@ -255,7 +360,7 @@ export function hasSufficientCommunityTrends(scores, match) {
 export function listMatchesForCommunityTrends(profileRows, matches) {
   const list = Array.isArray(matches) ? matches : [];
   return list.filter((m) => {
-    const scores = collectMatchPickScores(profileRows, m.id);
+    const scores = collectMatchPickScores(profileRows, m.id, m);
     return hasSufficientCommunityTrends(scores, m);
   });
 }

@@ -1,8 +1,9 @@
 import { useKickoffClock } from '../hooks/useKickoffClock';
-import { getCommunityOutcomeStats, getInsufficientMessage } from '../lib/communityPicks';
+import { getCommunityOutcomeStats, getInsufficientMessage, aggregateVoteDistribution } from '../lib/communityPicks';
 import { isProfilePickRevealed } from '../lib/matchUtils';
+import VoteDistributionList from './VoteDistributionList';
 
-export default function MatchCommunityPrediction({ scores, match }) {
+export default function MatchCommunityPrediction({ scores, match, profileRows = [] }) {
   const now = useKickoffClock(1000);
   const revealed = isProfilePickRevealed(match, now);
 
@@ -18,8 +19,9 @@ export default function MatchCommunityPrediction({ scores, match }) {
   }
 
   const stats = getCommunityOutcomeStats(scores, match);
+  const voteDistribution = aggregateVoteDistribution(profileRows, match?.id, match);
 
-  if (!stats.sufficient) {
+  if (!stats.sufficient && !voteDistribution.items.length) {
     return (
       <div className="pulponi-social pulponi-social--community" role="status">
         <p className="pulponi-social__title">Tendencia de la comunidad</p>
@@ -35,7 +37,8 @@ export default function MatchCommunityPrediction({ scores, match }) {
       aria-label="Tendencia de la comunidad"
     >
       <p className="pulponi-social__title">Tendencia de la comunidad</p>
-      <ul className="pulponi-social__bars">
+      {stats.sufficient ? (
+        <ul className="pulponi-social__bars">
         <li>
           <span className="pulponi-social__bar-label">{stats.homeLabel} gana</span>
           <div className="pulponi-social__bar-track">
@@ -58,6 +61,8 @@ export default function MatchCommunityPrediction({ scores, match }) {
           <span className="pulponi-social__bar-pct">{stats.awayPct}%</span>
         </li>
       </ul>
+      ) : null}
+      <VoteDistributionList items={voteDistribution?.items} title="Distribución de votos por marcador" />
     </div>
   );
 }

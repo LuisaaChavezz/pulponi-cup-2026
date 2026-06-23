@@ -9,7 +9,7 @@ import HomeMobileMatchesCarousel from './HomeMobileMatchesCarousel';
 import RankingMovement from './RankingMovement';
 import KrakenCarousel from './KrakenCarousel';
 import KrakenPrivateCard from './KrakenPrivateCard';
-import BadgeIcon from './BadgeIcon';
+import VoteDistributionList from './VoteDistributionList';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   displayTeamName,
@@ -162,8 +162,8 @@ export default function HomeDashboard({
   const trendInsights = useMemo(() => {
     if (!heroMatch?.id) return null;
     if (!isProfilePickRevealed(heroMatch, now)) return null;
-    const scores = collectMatchPickScores(communityPickProfiles, heroMatch.id);
-    return buildCommunityGeneralInsights(scores, heroMatch);
+    const scores = collectMatchPickScores(communityPickProfiles, heroMatch.id, heroMatch);
+    return buildCommunityGeneralInsights(scores, heroMatch, communityPickProfiles);
   }, [heroMatch, communityPickProfiles, now]);
 
   const activityFeed = useMemo(() => {
@@ -335,41 +335,46 @@ export default function HomeDashboard({
           <p className="home-dash-empty">No hay próximo partido</p>
         ) : !isProfilePickRevealed(heroMatch, now) ? (
           <p className="home-dash-empty">🔒 Las predicciones se revelan al iniciar el partido</p>
-        ) : !trendInsights?.outcome?.sufficient ? (
+        ) : !trendInsights?.outcome?.sufficient && !trendInsights?.voteDistribution?.items?.length ? (
           <p className="home-dash-empty">{trendInsights?.outcome?.message ?? 'Sin datos todavía'}</p>
         ) : (
-          <ul className="home-dash-bars">
-            <li>
-              <div className="home-dash-bar__head">
-                <span>{trendInsights.outcome.homeLabel} gana</span>
-                <strong>{trendInsights.outcome.homePct}%</strong>
-              </div>
-              <div className="home-dash-bar__track">
-                <div className="home-dash-bar__fill" style={{ width: `${trendInsights.outcome.homePct}%` }} />
-              </div>
-            </li>
-            <li>
-              <div className="home-dash-bar__head">
-                <span>Empate</span>
-                <strong>{trendInsights.outcome.drawPct}%</strong>
-              </div>
-              <div className="home-dash-bar__track">
-                <div
-                  className="home-dash-bar__fill home-dash-bar__fill--draw"
-                  style={{ width: `${trendInsights.outcome.drawPct}%` }}
-                />
-              </div>
-            </li>
-            <li>
-              <div className="home-dash-bar__head">
-                <span>{trendInsights.outcome.awayLabel} gana</span>
-                <strong>{trendInsights.outcome.awayPct}%</strong>
-              </div>
-              <div className="home-dash-bar__track">
-                <div className="home-dash-bar__fill home-dash-bar__fill--away" style={{ width: `${trendInsights.outcome.awayPct}%` }} />
-              </div>
-            </li>
-          </ul>
+          <>
+            {trendInsights?.outcome?.sufficient ? (
+              <ul className="home-dash-bars">
+                <li>
+                  <div className="home-dash-bar__head">
+                    <span>{trendInsights.outcome.homeLabel} gana</span>
+                    <strong>{trendInsights.outcome.homePct}%</strong>
+                  </div>
+                  <div className="home-dash-bar__track">
+                    <div className="home-dash-bar__fill" style={{ width: `${trendInsights.outcome.homePct}%` }} />
+                  </div>
+                </li>
+                <li>
+                  <div className="home-dash-bar__head">
+                    <span>Empate</span>
+                    <strong>{trendInsights.outcome.drawPct}%</strong>
+                  </div>
+                  <div className="home-dash-bar__track">
+                    <div
+                      className="home-dash-bar__fill home-dash-bar__fill--draw"
+                      style={{ width: `${trendInsights.outcome.drawPct}%` }}
+                    />
+                  </div>
+                </li>
+                <li>
+                  <div className="home-dash-bar__head">
+                    <span>{trendInsights.outcome.awayLabel} gana</span>
+                    <strong>{trendInsights.outcome.awayPct}%</strong>
+                  </div>
+                  <div className="home-dash-bar__track">
+                    <div className="home-dash-bar__fill home-dash-bar__fill--away" style={{ width: `${trendInsights.outcome.awayPct}%` }} />
+                  </div>
+                </li>
+              </ul>
+            ) : null}
+            <VoteDistributionList items={trendInsights?.voteDistribution?.items} />
+          </>
         )}
       </article>
 

@@ -2527,6 +2527,26 @@
   line-height: 1.25;
 }
 
+.community-insights__block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.community-insights__section-label {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f9c907;
+}
+
+.community-insights__list--votes {
+  margin-top: 2px;
+}
+
 .community-insights__list {
   list-style: none;
   margin: 0;

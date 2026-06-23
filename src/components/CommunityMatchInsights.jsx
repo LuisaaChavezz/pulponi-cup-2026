@@ -5,11 +5,12 @@ import {
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import { formatKickoff, isProfilePickRevealed } from '../lib/matchUtils';
 import DownloadPdfButton from './DownloadPdfButton';
+import VoteDistributionList from './VoteDistributionList';
 
-export default function CommunityMatchInsights({ match, scores, compact = false }) {
+export default function CommunityMatchInsights({ match, scores, profileRows = [], compact = false }) {
   const now = useKickoffClock(1000);
   const revealed = isProfilePickRevealed(match, now);
-  const { outcome } = buildCommunityGeneralInsights(scores, match);
+  const { outcome, voteDistribution } = buildCommunityGeneralInsights(scores, match, profileRows);
   const matchLabel = `${match?.home_team ?? 'Local'} vs ${match?.away_team ?? 'Visitante'}`;
   const kickoffLabel = formatKickoff(match?.kickoff);
 
@@ -27,7 +28,7 @@ export default function CommunityMatchInsights({ match, scores, compact = false 
     );
   }
 
-  if (!outcome.sufficient) {
+  if (!outcome.sufficient && !voteDistribution?.items?.length) {
     return (
       <article className="community-insights community-insights--empty">
         <header className="community-insights__head">
@@ -35,6 +36,7 @@ export default function CommunityMatchInsights({ match, scores, compact = false 
           {kickoffLabel ? <span className="community-insights__meta">{kickoffLabel}</span> : null}
         </header>
         <p className="community-insights__empty">{outcome.message ?? getInsufficientMessage()}</p>
+        <VoteDistributionList items={voteDistribution?.items} />
         <DownloadPdfButton match={match} />
       </article>
     );
@@ -47,6 +49,7 @@ export default function CommunityMatchInsights({ match, scores, compact = false 
         {kickoffLabel ? <span className="community-insights__meta">{kickoffLabel}</span> : null}
       </header>
 
+      {outcome.sufficient ? (
       <ul className="community-insights__list">
         <li>
           <span className="community-insights__pct-label">{outcome.homeLabel} gana:</span>
@@ -61,6 +64,8 @@ export default function CommunityMatchInsights({ match, scores, compact = false 
           <span className="community-insights__pct-value">{outcome.awayPct}%</span>
         </li>
       </ul>
+      ) : null}
+      <VoteDistributionList items={voteDistribution?.items} />
       <DownloadPdfButton match={match} />
     </article>
   );

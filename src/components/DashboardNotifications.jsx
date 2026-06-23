@@ -371,8 +371,16 @@ export default function DashboardNotifications({
         ) : (
           <div className="dash-notifications__community-list">
             {communityTrendMatches.map((m) => {
-              const scores = collectMatchPickScores(communityPickProfiles, m.id);
-              return <CommunityMatchInsights key={m.id} match={m} scores={scores} compact />;
+              const scores = collectMatchPickScores(communityPickProfiles, m.id, m);
+              return (
+                <CommunityMatchInsights
+                  key={m.id}
+                  match={m}
+                  scores={scores}
+                  profileRows={communityPickProfiles}
+                  compact
+                />
+              );
             })}
           </div>
         )}
