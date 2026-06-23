@@ -100,9 +100,9 @@ export function collectThermometerScores(profileRows, matchId, userId, homePick,
  * @param {Array<{ home: number, away: number }>} scores
  * @param {{ home_team?: string, away_team?: string }} match
  */
-export function getCommunityOutcomeStats(scores, match) {
+export function getCommunityOutcomeStats(scores, match, { minPicks = MIN_COMMUNITY_PICKS } = {}) {
   const total = scores.length;
-  if (total < MIN_COMMUNITY_PICKS) {
+  if (total < minPicks) {
     return { sufficient: false, total, message: INSUFFICIENT_MSG };
   }
 
@@ -222,7 +222,7 @@ export function aggregateVoteDistribution(profileRows, matchId, match = null) {
 
   return {
     total,
-    sufficient: total >= MIN_COMMUNITY_PICKS,
+    sufficient: total > 0,
     items,
   };
 }
@@ -251,7 +251,7 @@ export function aggregateVoteDistributionFromScores(scores) {
 
   return {
     total,
-    sufficient: total >= MIN_COMMUNITY_PICKS,
+    sufficient: total > 0,
     items,
   };
 }
@@ -329,13 +329,13 @@ export function getRiskiestCommunityPick(scores) {
 }
 
 /** Tendencia general (1X2) + distribución de votos por marcador. */
-export function buildCommunityGeneralInsights(scores, match, profileRows = null) {
+export function buildCommunityGeneralInsights(scores, match, profileRows = null, { minPicks = 1 } = {}) {
   const voteDistribution = profileRows?.length
     ? aggregateVoteDistribution(profileRows, match?.id, match)
     : aggregateVoteDistributionFromScores(scores);
 
   return {
-    outcome: getCommunityOutcomeStats(scores, match),
+    outcome: getCommunityOutcomeStats(scores, match, { minPicks }),
     voteDistribution,
     total: scores?.length ?? voteDistribution.total ?? 0,
   };
@@ -356,11 +356,11 @@ export function hasSufficientCommunityTrends(scores, match) {
   return getCommunityOutcomeStats(scores, match).sufficient;
 }
 
-/** Partidos con al menos MIN_COMMUNITY_PICKS para mostrar tendencia general. */
-export function listMatchesForCommunityTrends(profileRows, matches) {
+/** Partidos con al menos una predicción (tendencia siempre visible en UI). */
+export function listMatchesForCommunityTrends(profileRows, matches, { minPicks = 1 } = {}) {
   const list = Array.isArray(matches) ? matches : [];
   return list.filter((m) => {
     const scores = collectMatchPickScores(profileRows, m.id, m);
-    return hasSufficientCommunityTrends(scores, m);
+    return scores.length >= minPicks;
   });
 }

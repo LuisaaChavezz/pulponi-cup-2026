@@ -2547,6 +2547,69 @@
   margin-top: 2px;
 }
 
+.vote-distribution__list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vote-distribution__row {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.vote-distribution__score {
+  color: #f6f6f6;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.vote-distribution__bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #ffffff12;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.vote-distribution__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff1e27 0%, #f9c907 100%);
+  min-width: 2px;
+  transition: width 0.35s ease;
+}
+
+.vote-distribution__meta {
+  color: #a1a1aa;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.vote-distribution__empty {
+  margin: 4px 0 0;
+  font-size: 11px;
+}
+
+.match-card .vote-distribution__row {
+  grid-template-columns: 38px 1fr auto;
+  gap: 6px;
+}
+
+.match-card .vote-distribution__meta {
+  font-size: 9px;
+}
+
 .community-insights__list {
   list-style: none;
   margin: 0;

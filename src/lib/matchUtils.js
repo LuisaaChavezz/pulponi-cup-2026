@@ -75,9 +75,9 @@ export function matchHasFinalScore(match) {
   return hasRecordedScores(match);
 }
 
-/** Tendencias de comunidad visibles solo desde el kickoff (sin cambiar guardado de picks). */
-export function areCommunityTrendsRevealed(match, now = new Date()) {
-  return areMatchPredictionsRevealed(match, now);
+/** Tendencias de comunidad: siempre visibles (predicciones individuales siguen ocultas hasta kickoff). */
+export function areCommunityTrendsRevealed() {
+  return true;
 }
 
 /** Convierte hora de calendario en CDMX a instante UTC (para kickoffs sin zona en ISO). */

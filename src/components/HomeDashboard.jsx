@@ -20,7 +20,6 @@ import {
   formatVenueCity,
   hasRecordedScores,
   isPickLocked,
-  isProfilePickRevealed,
   kickoffInstantMs,
   pickInicioMatch,
 } from '../lib/matchUtils';
@@ -161,10 +160,9 @@ export default function HomeDashboard({
 
   const trendInsights = useMemo(() => {
     if (!heroMatch?.id) return null;
-    if (!isProfilePickRevealed(heroMatch, now)) return null;
     const scores = collectMatchPickScores(communityPickProfiles, heroMatch.id, heroMatch);
-    return buildCommunityGeneralInsights(scores, heroMatch, communityPickProfiles);
-  }, [heroMatch, communityPickProfiles, now]);
+    return buildCommunityGeneralInsights(scores, heroMatch, communityPickProfiles, { minPicks: 1 });
+  }, [heroMatch, communityPickProfiles]);
 
   const activityFeed = useMemo(() => {
     const list = Array.isArray(predictionActivityFeed) ? predictionActivityFeed : [];
@@ -333,10 +331,6 @@ export default function HomeDashboard({
         <h3 className="home-dash-card__title">TENDENCIA DEL PRÓXIMO PARTIDO</h3>
         {!heroMatch ? (
           <p className="home-dash-empty">No hay próximo partido</p>
-        ) : !isProfilePickRevealed(heroMatch, now) ? (
-          <p className="home-dash-empty">🔒 Las predicciones se revelan al iniciar el partido</p>
-        ) : !trendInsights?.outcome?.sufficient && !trendInsights?.voteDistribution?.items?.length ? (
-          <p className="home-dash-empty">{trendInsights?.outcome?.message ?? 'Sin datos todavía'}</p>
         ) : (
           <>
             {trendInsights?.outcome?.sufficient ? (

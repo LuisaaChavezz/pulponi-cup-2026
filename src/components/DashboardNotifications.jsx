@@ -12,7 +12,7 @@ import {
   formatMatchVersusLabel,
   listMatchesWithPicks,
 } from '../lib/predictionActivity';
-import { pickDefaultFocusedMatch, sortMatchesForFocusedDropdown, isProfilePickRevealed, kickoffInstantMs } from '../lib/matchUtils';
+import { pickDefaultFocusedMatch, sortMatchesForFocusedDropdown, kickoffInstantMs } from '../lib/matchUtils';
 import {
   downloadAllPredictionsPdf,
   downloadMatchPredictionsPdf,
@@ -175,15 +175,13 @@ export default function DashboardNotifications({
   );
 
   const communityTrendMatches = useMemo(() => {
-    const list = listMatchesForCommunityTrends(communityPickProfiles, matches).filter((m) =>
-      isProfilePickRevealed(m, now)
-    );
+    const list = listMatchesForCommunityTrends(communityPickProfiles, matches, { minPicks: 1 });
     return list.sort((a, b) => {
       const ta = a?.kickoff ? kickoffInstantMs(a.kickoff) ?? 0 : 0;
       const tb = b?.kickoff ? kickoffInstantMs(b.kickoff) ?? 0 : 0;
       return ta - tb;
     });
-  }, [matches, communityPickProfiles, now]);
+  }, [matches, communityPickProfiles]);
 
   async function handleSubmitAnnouncement(e) {
     e.preventDefault();
@@ -366,7 +364,7 @@ export default function DashboardNotifications({
 
         {!communityTrendMatches.length ? (
           <p className="dash-notifications__empty">
-            Las tendencias aparecerán cuando haya suficientes predicciones en un partido.
+            Aún no hay predicciones en ningún partido.
           </p>
         ) : (
           <div className="dash-notifications__community-list">
