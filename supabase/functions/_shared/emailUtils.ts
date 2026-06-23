@@ -57,30 +57,57 @@ export async function listParticipantEmails(client: SupabaseClient): Promise<str
   return [...new Set(emails)];
 }
 
+const RESEND_FROM = 'Pulponi Cup 2026 <noreply@pulponicup.com.mx>';
+const SEND_DELAY_MS = 100;
+
 export async function sendResendEmail(options: {
   to: string[];
   subject: string;
   html: string;
-}): Promise<void> {
+}): Promise<{ sent: number }> {
   const apiKey = Deno.env.get('RESEND_API_KEY');
   if (!apiKey) throw new Error('RESEND_API_KEY no configurada en Supabase Secrets');
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: 'Pulponi Cup 2026 <noreply@pulponicup.com.mx>',
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-    }),
-  });
+  const recipients = [...new Set(options.to)].filter(Boolean);
+  if (!recipients.length) throw new Error('No hay destinatarios');
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Resend error ${res.status}: ${body}`);
+  const failed: string[] = [];
+  let sent = 0;
+
+  for (let i = 0; i < recipients.length; i++) {
+    const email = recipients[i];
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM,
+        to: [email],
+        subject: options.subject,
+        html: options.html,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.error(`[sendResendEmail] error ${email}: ${res.status} ${body}`);
+      failed.push(email);
+    } else {
+      sent += 1;
+    }
+
+    if (i < recipients.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, SEND_DELAY_MS));
+    }
   }
+
+  if (failed.length) {
+    throw new Error(
+      `Resend: ${failed.length} de ${recipients.length} fallaron (ej. ${failed.slice(0, 3).join(', ')})`
+    );
+  }
+
+  return { sent };
 }

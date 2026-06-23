@@ -87,13 +87,13 @@ serve(async (req) => {
       });
     }
 
-    await sendResendEmail({
+    const { sent } = await sendResendEmail({
       to: emails,
       subject: WELCOME_SUBJECT,
       html: welcomeHtml,
     });
 
-    return new Response(JSON.stringify({ ok: true, emails_count: emails.length }), {
+    return new Response(JSON.stringify({ ok: true, emails_count: emails.length, sent }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
