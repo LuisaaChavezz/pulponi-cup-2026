@@ -9,6 +9,7 @@ import HomeMobileMatchesCarousel from './HomeMobileMatchesCarousel';
 import RankingMovement from './RankingMovement';
 import KrakenCarousel from './KrakenCarousel';
 import KrakenPrivateCard from './KrakenPrivateCard';
+import BadgeIcon from './BadgeIcon';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
   displayTeamName,
