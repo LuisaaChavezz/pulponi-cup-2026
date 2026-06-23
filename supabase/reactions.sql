@@ -17,17 +17,23 @@ create index if not exists reactions_comment_id_idx on public.reactions (comment
 
 alter table public.reactions enable row level security;
 
-create policy "reactions_select_authenticated"
+drop policy if exists "Users can insert reactions" on public.reactions;
+drop policy if exists "Users can delete own reactions" on public.reactions;
+drop policy if exists "Reactions are viewable by everyone" on public.reactions;
+drop policy if exists reactions_select_authenticated on public.reactions;
+drop policy if exists reactions_insert_own on public.reactions;
+drop policy if exists reactions_delete_own on public.reactions;
+
+create policy "Reactions are viewable by everyone"
   on public.reactions for select
-  to authenticated
   using (true);
 
-create policy "reactions_insert_own"
+create policy "Users can insert reactions"
   on public.reactions for insert
   to authenticated
   with check (auth.uid() = profile_id);
 
-create policy "reactions_delete_own"
+create policy "Users can delete own reactions"
   on public.reactions for delete
   to authenticated
   using (auth.uid() = profile_id);

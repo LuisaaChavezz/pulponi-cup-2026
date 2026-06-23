@@ -29,6 +29,12 @@ import {
 /** Máximo de filas cargadas desde activity_log (recientes + historial en UI). */
 const PREDICTION_ACTIVITY_QUERY_LIMIT = 500;
 import { fetchCommunityComments, mapCommentRowToChatMessage } from '../lib/commentsLoad';
+import {
+  fetchReactionsForCommentIds,
+  normalizeReactionRow,
+  reactionCommentIdFromPayload,
+  toggleCommentReaction,
+} from '../lib/reactionsApi';
 import { ensureKrakenPresentationMessage } from '../lib/krakenChatPost';
 import { ACHIEVEMENT_CATALOG } from '../data/achievements';
 import {
@@ -50,32 +56,6 @@ import {
 
 const MATCHES_CHUNK = 20;
 const MATCHES_HARD_LIMIT = 4999;
-
-const REACTION_SELECT = `
-  id,
-  comment_id,
-  profile_id,
-  emoji,
-  created_at,
-  profiles ( username, name, photo_url )
-`;
-
-function normalizeReactionRow(r) {
-  let prof = r.profiles && typeof r.profiles === 'object' ? r.profiles : null;
-  if (Array.isArray(prof)) prof = prof[0] ?? null;
-  const commentId = r.comment_id ?? r.message_id ?? null;
-  const profileId = r.profile_id ?? r.user_id ?? null;
-  return {
-    id: r.id,
-    comment_id: commentId,
-    profile_id: profileId,
-    emoji: r.emoji,
-    username: prof?.username ?? null,
-    displayName: prof?.name ?? null,
-    photoUrl: prof?.photo_url ?? null,
-    avatarUrl: resolveAvatarUrl(prof?.photo_url),
-  };
-}
 
 function mergeMatchesSorted(prev, incoming) {
   const map = new Map((prev ?? []).map((m) => [m.id, m]));
@@ -631,10 +611,7 @@ export function useAppData(session) {
   const reloadReactionsForCommentIds = useCallback(async (commentIds) => {
     const uniq = [...new Set(commentIds)].filter(Boolean);
     if (!uniq.length) return;
-    const { data, error } = await supabase
-      .from('reactions')
-      .select(REACTION_SELECT)
-      .in('comment_id', uniq);
+    const { data, error } = await fetchReactionsForCommentIds(supabase, uniq);
     if (error) {
       console.error('[REACTION ERROR]', error);
       return;
@@ -964,7 +941,7 @@ export function useAppData(session) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'reactions' },
         (payload) => {
-          const cid = payload.new?.comment_id;
+          const cid = reactionCommentIdFromPayload(payload);
           if (cid) void reloadReactionsRef.current([cid]);
         }
       )
@@ -972,7 +949,7 @@ export function useAppData(session) {
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'reactions' },
         (payload) => {
-          const cid = payload.old?.comment_id;
+          const cid = reactionCommentIdFromPayload(payload);
           if (cid) void reloadReactionsRef.current([cid]);
         }
       )
@@ -980,7 +957,7 @@ export function useAppData(session) {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'reactions' },
         (payload) => {
-          const cid = payload.new?.comment_id ?? payload.old?.comment_id;
+          const cid = reactionCommentIdFromPayload(payload);
           if (cid) void reloadReactionsRef.current([cid]);
         }
       )
@@ -1232,73 +1209,25 @@ export function useAppData(session) {
       }
 
       try {
-        const { data: rpcData, error: rpcErr } = await supabase.rpc('toggle_comment_reaction', {
-          p_comment_id: commentId,
-          p_emoji: emoji,
+        const { action, error: toggleErr } = await toggleCommentReaction(supabase, {
+          commentId,
+          profileId: userId,
+          emoji,
         });
 
-        if (!rpcErr) {
-          if (rpcData?.action === 'added') {
-            await logActivityEvent('chat_reaction', { comment_id: commentId, emoji });
-          }
-          await reloadReactionsForCommentIds([commentId]);
-          return;
-        }
-
-        const rpcMissing =
-          rpcErr.code === '42883' ||
-          rpcErr.code === 'PGRST202' ||
-          /toggle_comment_reaction/i.test(rpcErr.message ?? '');
-
-        if (!rpcMissing) {
-          if (rpcErr.code === '23505') {
+        if (toggleErr) {
+          if (toggleErr.code === '23505') {
             console.error(
-              '[REACTION ERROR] UNIQUE incorrecto en reactions — ejecuta supabase/fix_reactions_unique_constraint.sql',
-              rpcErr
+              '[REACTION ERROR] UNIQUE incorrecto en reactions — ejecuta supabase/reactions_rls_restore.sql',
+              toggleErr
             );
           } else {
-            console.error('[REACTION ERROR]', rpcErr);
+            console.error('[REACTION ERROR]', toggleErr);
           }
           return;
         }
 
-        const { data: existing, error: selErr } = await supabase
-          .from('reactions')
-          .select('id')
-          .eq('comment_id', commentId)
-          .eq('profile_id', userId)
-          .eq('emoji', emoji)
-          .maybeSingle();
-
-        if (selErr) {
-          console.error('[REACTION ERROR]', selErr);
-          return;
-        }
-
-        if (existing?.id) {
-          const { error: delErr } = await supabase.from('reactions').delete().eq('id', existing.id);
-          if (delErr) {
-            console.error('[REACTION ERROR]', delErr);
-            return;
-          }
-        } else {
-          const { error: insErr } = await supabase.from('reactions').insert({
-            comment_id: commentId,
-            profile_id: userId,
-            emoji,
-          });
-
-          if (insErr) {
-            if (insErr.code === '23505') {
-              console.error(
-                '[REACTION ERROR] UNIQUE incorrecto en reactions — ejecuta supabase/fix_reactions_unique_constraint.sql',
-                insErr
-              );
-            } else {
-              console.error('[REACTION ERROR]', insErr);
-            }
-            return;
-          }
+        if (action === 'added') {
           await logActivityEvent('chat_reaction', { comment_id: commentId, emoji });
         }
 
