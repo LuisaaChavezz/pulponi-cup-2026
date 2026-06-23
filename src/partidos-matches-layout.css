@@ -201,8 +201,8 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0;
+    align-items: stretch;
+    gap: 3px;
     min-width: 0;
     padding: 0 4px;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
@@ -212,9 +212,21 @@
     border-right: none;
   }
 
-  #partidos .match-card .pulponi-social__bar-label,
+  #partidos .match-card .pulponi-social__bar-label {
+    display: block;
+    font-size: 7px;
+    line-height: 1.15;
+    text-align: center;
+    color: #a1a1aa;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   #partidos .match-card .pulponi-social__bar-track {
-    display: none;
+    display: block;
+    height: 5px;
+    width: 100%;
   }
 
   #partidos .match-card .pulponi-social__bar-pct {

@@ -833,6 +833,9 @@ export function useAppData(session) {
   const loadDeferredDataRef = useRef(loadDeferredData);
   loadDeferredDataRef.current = loadDeferredData;
 
+  const loadCommunityPicksRef = useRef(loadCommunityPicks);
+  loadCommunityPicksRef.current = loadCommunityPicks;
+
   const retryBootstrap = useCallback(() => {
     setBootstrapError(null);
     setBootstrapRetryKey((key) => key + 1);
@@ -889,6 +892,7 @@ export function useAppData(session) {
             timedQuery('ranking', () => loadRankingRef.current()),
             timedQuery('comments', () => loadCommentsRef.current()),
             timedQuery('communityProfiles', () => loadCommunityProfiles()),
+            timedQuery('communityPicks', () => loadCommunityPicksRef.current()),
             timedQuery('matches:initial', () =>
               loadMatchesChunkRef.current({
                 offset: 0,

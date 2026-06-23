@@ -130,6 +130,38 @@ export function getCommunityOutcomeStats(scores, match, { minPicks = MIN_COMMUNI
   };
 }
 
+/** Tendencia 1X2 siempre visible en UI (0% si aún no hay picks). */
+export function getCommunityOutcomeStatsDisplay(scores, match) {
+  const homeLabel = match?.home_team ?? 'Local';
+  const awayLabel = match?.away_team ?? 'Visitante';
+  const total = scores?.length ?? 0;
+
+  if (!total) {
+    return {
+      sufficient: true,
+      total: 0,
+      homeLabel,
+      awayLabel,
+      homePct: 0,
+      drawPct: 0,
+      awayPct: 0,
+    };
+  }
+
+  const stats = getCommunityOutcomeStats(scores, match, { minPicks: 1 });
+  if (stats.sufficient) return stats;
+
+  return {
+    sufficient: true,
+    total,
+    homeLabel,
+    awayLabel,
+    homePct: 0,
+    drawPct: 0,
+    awayPct: 0,
+  };
+}
+
 /**
  * Termómetro Pulponi para un marcador concreto.
  * @param {Array<{ home: number, away: number }>} scores
