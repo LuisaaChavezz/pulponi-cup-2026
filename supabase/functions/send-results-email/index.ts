@@ -49,7 +49,7 @@ serve(async (req) => {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, username, name, picks, points')
-      .eq('pulponi_verified', true)
+      .eq('hidden', false)
       .in('id', profileIds.length > 0 ? profileIds : ['00000000-0000-0000-0000-000000000000']);
 
     const participants = (profiles ?? [])

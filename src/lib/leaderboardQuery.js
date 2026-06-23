@@ -131,7 +131,7 @@ export async function fetchLeaderboardProfiles(
   );
 
   const fallback = await orderLeaderboardByPoints(
-    client.from('profiles').select(columns).eq('pulponi_verified', true)
+    client.from('profiles').select(columns).eq('hidden', false)
   );
   if (fallback.error) return fallback;
   return {

@@ -46,8 +46,11 @@ export function isQuinielaParticipant(username) {
   return QUINIELA_PARTICIPANT_SET.has(normalizeQuinielaUsername(username));
 }
 
-/** Participantes elegibles: solo perfiles con pulponi_verified = true. */
+/** Participantes elegibles: verificados Pulponi o inscritos en la quiniela (no ocultos). */
 export function isEligiblePredictionParticipant(profile) {
   if (!profile?.id) return false;
-  return profile.pulponi_verified === true;
+  if (profile.hidden === true) return false;
+  if (isQuinielaParticipant(profile.username)) return true;
+  if (profile.pulponi_verified === false) return false;
+  return profile.pulponi_verified === true || profile.pulponi_verified == null;
 }

@@ -412,7 +412,7 @@ export function useAppData(session) {
         supabase
           .from('profiles')
           .select('id, username, name, photo_url, picks')
-          .eq('pulponi_verified', true)
+          .eq('hidden', false)
       );
       if (error) {
         console.warn('[communityPicks]', error?.message ?? error);
@@ -439,7 +439,7 @@ export function useAppData(session) {
         supabase
           .from('profiles')
           .select('id, username, name, photo_url, points')
-          .eq('pulponi_verified', true)
+          .eq('hidden', false)
           .order('username', { ascending: true, nullsFirst: false })
       );
       if (error) {

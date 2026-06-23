@@ -1,5 +1,12 @@
--- Leaderboard: solo perfiles pulponi_verified = true (además de auth.users).
+-- Ocultar perfiles de leaderboard, predicciones, tendencia y correos.
 -- Ejecutar en SQL Editor. Seguro para re-ejecutar.
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS hidden boolean NOT NULL DEFAULT false;
+
+UPDATE public.profiles
+SET hidden = true
+WHERE lower(trim(replace(coalesce(username, ''), '@', ''))) = 'pirata12';
 
 CREATE OR REPLACE VIEW public.ranking_leaderboard AS
 SELECT
@@ -20,7 +27,7 @@ WHERE EXISTS (
   FROM auth.users u
   WHERE u.id = p.id
 )
-AND p.pulponi_verified = true;
+AND coalesce(p.hidden, false) = false;
 
 CREATE OR REPLACE FUNCTION public.get_ranking_leaderboard()
 RETURNS TABLE (
@@ -59,6 +66,6 @@ AS $$
     FROM auth.users u
     WHERE u.id = p.id
   )
-  AND p.pulponi_verified = true
+  AND coalesce(p.hidden, false) = false
   ORDER BY p.points DESC, p.exacts DESC, p.streak DESC, p.username ASC NULLS LAST;
 $$;

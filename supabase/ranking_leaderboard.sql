@@ -22,7 +22,7 @@ WHERE EXISTS (
   FROM auth.users u
   WHERE u.id = p.id
 )
-AND p.pulponi_verified = true;
+AND coalesce(p.hidden, false) = false;
 
 COMMENT ON VIEW public.ranking_leaderboard IS
   'Perfiles con fila en auth.users; usar para ranking / leaderboard (no perfiles huérfanos).';
@@ -70,7 +70,7 @@ AS $$
     FROM auth.users u
     WHERE u.id = p.id
   )
-  AND p.pulponi_verified = true
+  AND coalesce(p.hidden, false) = false
   ORDER BY p.points DESC, p.exacts DESC, p.streak DESC, p.username ASC NULLS LAST;
 $$;
 
