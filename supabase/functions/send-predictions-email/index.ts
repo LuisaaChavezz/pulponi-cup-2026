@@ -2,14 +2,17 @@
 // Deploy: supabase functions deploy send-predictions-email
 // Secret: RESEND_API_KEY (Dashboard → Edge Functions → Secrets)
 // Cron:   supabase/pg_cron_send_predictions_email.sql
+// Tabla:  supabase/email_logs.sql (UNIQUE match_id + type)
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import {
+  claimEmailSend,
   corsHeaders,
   createServiceClient,
   formatPick,
   getPickFromProfile,
   listParticipantEmails,
+  releaseEmailSend,
   sendResendEmail,
 } from '../_shared/emailUtils.ts';
 
@@ -39,15 +42,9 @@ serve(async (req) => {
       });
     }
 
-    const { data: alreadySent } = await supabase
-      .from('email_logs')
-      .select('id')
-      .eq('match_id', String(match.id))
-      .eq('type', 'predictions')
-      .limit(1)
-      .maybeSingle();
-
-    if (alreadySent) {
+    const matchId = String(match.id);
+    const claimed = await claimEmailSend(supabase, matchId, 'predictions');
+    if (!claimed) {
       return new Response(JSON.stringify({ ok: true, message: 'Already sent' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -60,7 +57,10 @@ serve(async (req) => {
       .neq('username', 'el-kraken')
       .not('picks', 'is', null);
 
-    if (profilesError) throw profilesError;
+    if (profilesError) {
+      await releaseEmailSend(supabase, matchId, 'predictions');
+      throw profilesError;
+    }
 
     const predictions = (profiles ?? [])
       .map((profile) => {
@@ -122,20 +122,21 @@ serve(async (req) => {
 </html>`;
 
     const emails = await listParticipantEmails(supabase);
-    if (!emails.length) throw new Error('No hay correos de participantes');
+    if (!emails.length) {
+      await releaseEmailSend(supabase, matchId, 'predictions');
+      throw new Error('No hay correos de participantes');
+    }
 
-    await sendResendEmail({
-      to: emails,
-      subject: `🦑 Predicciones: ${match.home_team} vs ${match.away_team} — ¡En 5 minutos!`,
-      html,
-    });
-
-    const { error: logError } = await supabase.from('email_logs').insert({
-      match_id: String(match.id),
-      type: 'predictions',
-      sent_at: now.toISOString(),
-    });
-    if (logError) throw logError;
+    try {
+      await sendResendEmail({
+        to: emails,
+        subject: `🦑 Predicciones: ${match.home_team} vs ${match.away_team} — ¡En 5 minutos!`,
+        html,
+      });
+    } catch (sendErr) {
+      await releaseEmailSend(supabase, matchId, 'predictions');
+      throw sendErr;
+    }
 
     return new Response(JSON.stringify({ ok: true, message: 'Sent', match_id: match.id }), {
       status: 200,

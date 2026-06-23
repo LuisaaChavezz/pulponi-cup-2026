@@ -57,6 +57,40 @@ export async function listParticipantEmails(client: SupabaseClient): Promise<str
   return [...new Set(emails)];
 }
 
+/** Reserva el envío en email_logs (atómico). Devuelve false si ya se mandó. */
+export async function claimEmailSend(
+  client: SupabaseClient,
+  matchId: string,
+  type: string
+): Promise<boolean> {
+  const { error } = await client.from('email_logs').insert({
+    match_id: String(matchId),
+    type,
+    sent_at: new Date().toISOString(),
+  });
+
+  if (!error) return true;
+
+  // Postgres unique violation — otro cron ya reclamó este envío.
+  if (error.code === '23505') return false;
+
+  throw error;
+}
+
+export async function releaseEmailSend(
+  client: SupabaseClient,
+  matchId: string,
+  type: string
+): Promise<void> {
+  const { error } = await client
+    .from('email_logs')
+    .delete()
+    .eq('match_id', String(matchId))
+    .eq('type', type);
+
+  if (error) console.error('[releaseEmailSend]', error.message ?? error);
+}
+
 const RESEND_FROM = 'Pulponi Cup 2026 <noreply@pulponicup.com.mx>';
 const SEND_DELAY_MS = 100;
 
