@@ -46,7 +46,7 @@ export async function listParticipantEmails(client: SupabaseClient): Promise<str
     for (const user of data.users ?? []) {
       const email = user.email;
       if (!email) continue;
-      if (email.includes('cursor-bot') || email.includes('verify-')) continue;
+      if (email.includes('cursor') || email.includes('verify-')) continue;
       emails.push(email);
     }
 
