@@ -21,25 +21,46 @@ serve(async (req) => {
 
   try {
     const supabase = createServiceClient();
-    const now = new Date();
-    const in10 = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
 
-    const { data: match, error: matchError } = await supabase
-      .from('matches')
-      .select('id, home_team, away_team, kickoff, status')
-      .neq('status', 'finished')
-      .gte('kickoff', now.toISOString())
-      .lte('kickoff', in10)
-      .order('kickoff', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    const body = await req.json().catch(() => ({}));
+    const requestedMatchId = body?.match_id;
+
+    let match;
+    let matchError;
+
+    if (requestedMatchId) {
+      const result = await supabase
+        .from('matches')
+        .select('id, home_team, away_team, kickoff, status')
+        .eq('id', requestedMatchId)
+        .maybeSingle();
+      match = result.data;
+      matchError = result.error;
+    } else {
+      const now = new Date();
+      const in10 = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
+      const result = await supabase
+        .from('matches')
+        .select('id, home_team, away_team, kickoff, status')
+        .neq('status', 'finished')
+        .gte('kickoff', now.toISOString())
+        .lte('kickoff', in10)
+        .order('kickoff', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      match = result.data;
+      matchError = result.error;
+    }
 
     if (matchError) throw matchError;
     if (!match) {
-      return new Response(JSON.stringify({ ok: true, message: 'No match in window' }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ ok: true, message: requestedMatchId ? 'Match not found' : 'No match in window' }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     const matchId = String(match.id);
