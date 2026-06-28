@@ -789,6 +789,65 @@ export default function App() {
               ariaLabel={`Goles ${awayLabel}`}
             />
           </div>
+          {m.is_knockout ? (
+            <div className="match-card__penalties">
+              <p className="match-card__penalties-title">⚽ ¿Quién avanza en penales?</p>
+              <div className="match-card__penalties-teams">
+                <button
+                  type="button"
+                  className={`match-card__penalties-team${penaltyWinner === m.home_team ? ' is-active' : ''}`}
+                  disabled={locked}
+                  onClick={() =>
+                    setPickDrafts((d) => ({
+                      ...d,
+                      [m.id]: { ...d[m.id], penaltyWinner: m.home_team },
+                    }))
+                  }
+                >
+                  {m.home_team}
+                </button>
+                <button
+                  type="button"
+                  className={`match-card__penalties-team${penaltyWinner === m.away_team ? ' is-active' : ''}`}
+                  disabled={locked}
+                  onClick={() =>
+                    setPickDrafts((d) => ({
+                      ...d,
+                      [m.id]: { ...d[m.id], penaltyWinner: m.away_team },
+                    }))
+                  }
+                >
+                  {m.away_team}
+                </button>
+              </div>
+              <p className="match-card__penalties-subtitle">Marcador de penales</p>
+              <div className="match-card__penalties-score">
+                <PickScoreInput
+                  disabled={locked}
+                  value={draft.penaltyHome ?? pick?.penalty_home ?? ''}
+                  onChange={(penaltyHome) =>
+                    setPickDrafts((d) => ({
+                      ...d,
+                      [m.id]: { ...d[m.id], penaltyHome },
+                    }))
+                  }
+                  ariaLabel={`Penales ${homeLabel}`}
+                />
+                <span className="match-card__penalties-vs">vs</span>
+                <PickScoreInput
+                  disabled={locked}
+                  value={draft.penaltyAway ?? pick?.penalty_away ?? ''}
+                  onChange={(penaltyAway) =>
+                    setPickDrafts((d) => ({
+                      ...d,
+                      [m.id]: { ...d[m.id], penaltyAway },
+                    }))
+                  }
+                  ariaLabel={`Penales ${awayLabel}`}
+                />
+              </div>
+            </div>
+          ) : null}
           {locked ? (
             <button
               type="button"
@@ -822,65 +881,6 @@ export default function App() {
             </div>
           )}
         </div>
-        {m.is_knockout ? (
-          <div className="match-card__penalties">
-            <p className="match-card__penalties-title">⚽ ¿Quién avanza en penales?</p>
-            <div className="match-card__penalties-teams">
-              <button
-                type="button"
-                className={`match-card__penalties-team${penaltyWinner === m.home_team ? ' is-active' : ''}`}
-                disabled={locked}
-                onClick={() =>
-                  setPickDrafts((d) => ({
-                    ...d,
-                    [m.id]: { ...d[m.id], penaltyWinner: m.home_team },
-                  }))
-                }
-              >
-                {m.home_team}
-              </button>
-              <button
-                type="button"
-                className={`match-card__penalties-team${penaltyWinner === m.away_team ? ' is-active' : ''}`}
-                disabled={locked}
-                onClick={() =>
-                  setPickDrafts((d) => ({
-                    ...d,
-                    [m.id]: { ...d[m.id], penaltyWinner: m.away_team },
-                  }))
-                }
-              >
-                {m.away_team}
-              </button>
-            </div>
-            <p className="match-card__penalties-subtitle">Marcador de penales</p>
-            <div className="match-card__penalties-score">
-              <PickScoreInput
-                disabled={locked}
-                value={draft.penaltyHome ?? pick?.penalty_home ?? ''}
-                onChange={(penaltyHome) =>
-                  setPickDrafts((d) => ({
-                    ...d,
-                    [m.id]: { ...d[m.id], penaltyHome },
-                  }))
-                }
-                ariaLabel={`Penales ${homeLabel}`}
-              />
-              <span className="match-card__penalties-vs">vs</span>
-              <PickScoreInput
-                disabled={locked}
-                value={draft.penaltyAway ?? pick?.penalty_away ?? ''}
-                onChange={(penaltyAway) =>
-                  setPickDrafts((d) => ({
-                    ...d,
-                    [m.id]: { ...d[m.id], penaltyAway },
-                  }))
-                }
-                ariaLabel={`Penales ${awayLabel}`}
-              />
-            </div>
-          </div>
-        ) : null}
         {finalLabel ? <p className="match-final">{finalLabel}</p> : null}
       </article>
     );
