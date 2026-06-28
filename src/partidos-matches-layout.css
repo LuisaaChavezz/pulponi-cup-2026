@@ -237,9 +237,10 @@
     text-align: center;
   }
 
-  /* Predicción + botón en una fila */
+  /* Predicción + penales + botón: inputs arriba, penales y botón a lo ancho */
   #partidos .match-card__pick-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     min-width: 0;
@@ -251,6 +252,11 @@
     gap: 4px;
     margin: 0;
     flex: 0 0 auto;
+  }
+
+  #partidos .match-card__pick-row .match-card__penalties {
+    flex: 1 0 100%;
+    margin-top: 4px;
   }
 
   #partidos .match-card__pick-row .pick-inputs input,
@@ -268,7 +274,7 @@
 
   #partidos .match-card__pick-row .pick-submit-wrap {
     margin: 0;
-    flex: 1;
+    flex: 1 0 100%;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -289,7 +295,7 @@
 
   #partidos .match-card__pick-row .pick-locked {
     margin: 0;
-    flex: 1;
+    flex: 1 0 100%;
     font-size: 9px;
     line-height: 1.25;
     text-align: center;
