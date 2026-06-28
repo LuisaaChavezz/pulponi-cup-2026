@@ -75,9 +75,7 @@ export default function AdminMatchResultPanel({
 
   const scoreValidation = validatePickScores(homeScore, awayScore);
   const isKnockout = Boolean(activeMatch?.is_knockout);
-  const isDraw =
-    scoreValidation.ok && scoreValidation.home === scoreValidation.away;
-  const showPenalties = isKnockout && isDraw;
+  const showPenalties = isKnockout;
   const canSubmit =
     !busy && Boolean(activeMatchId) && Boolean(activeMatch) && scoreValidation.ok;
 
