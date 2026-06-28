@@ -27,6 +27,13 @@ import { useKickoffClock } from './hooks/useKickoffClock';
 import { useMobileViewport } from './hooks/useMobileViewport';
 import MatchSchedule from './components/MatchSchedule';
 import TeamLogo from './components/TeamLogo';
+import { flagEmojiForTeam } from './lib/teamFlags';
+
+function resolveTeamFlag(rawFlag, teamName) {
+  const f = typeof rawFlag === 'string' ? rawFlag.trim() : '';
+  if (f && f !== '⚽') return f;
+  return flagEmojiForTeam(teamName);
+}
 import HomeDashboard from './components/HomeDashboard';
 import { HomeDashboardSkeleton, MatchesGridSkeleton } from './components/PulponiSkeleton';
 import {
@@ -716,6 +723,8 @@ export default function App() {
     const scoreLine = formatScoreLine(m);
     const homeLabel = displayTeamName(m.home_team) ?? '—';
     const awayLabel = displayTeamName(m.away_team) ?? '—';
+    const homeFlag = resolveTeamFlag(m.home_flag, m.home_team);
+    const awayFlag = resolveTeamFlag(m.away_flag, m.away_team);
 
     const penaltyWinner = draft.penaltyWinner ?? pick?.penalty_winner ?? '';
     const penalesCompletos = arePenaltiesComplete(m, draft, pick);
@@ -753,7 +762,7 @@ export default function App() {
           <MatchSchedule match={m} showWeekday={false} />
         </div>
         <div className="match-teams-inline">
-          <TeamLogo logo={m.home_logo} flag={m.home_flag} alt={m.home_team ?? ''} size="sm" />
+          <TeamLogo logo={m.home_logo} flag={homeFlag} alt={m.home_team ?? ''} size="sm" />
           <span className="match-teams-inline__center">
             {scoreLine !== 'VS' ? (
               scoreLine
@@ -765,18 +774,18 @@ export default function App() {
               </>
             )}
           </span>
-          <TeamLogo logo={m.away_logo} flag={m.away_flag} alt={m.away_team ?? ''} size="sm" />
+          <TeamLogo logo={m.away_logo} flag={awayFlag} alt={m.away_team ?? ''} size="sm" />
         </div>
         <div className="match-teams match-teams--card">
           <div className="match-team-cell match-team-cell--home">
-            <TeamLogo logo={m.home_logo} flag={m.home_flag} alt={m.home_team ?? ''} size="sm" />
+            <TeamLogo logo={m.home_logo} flag={homeFlag} alt={m.home_team ?? ''} size="sm" />
             {displayTeamName(m.home_team) ? (
               <span className="match-team-name">{m.home_team}</span>
             ) : null}
           </div>
           <strong className="match-score-center">{scoreLine}</strong>
           <div className="match-team-cell match-team-cell--away">
-            <TeamLogo logo={m.away_logo} flag={m.away_flag} alt={m.away_team ?? ''} size="sm" />
+            <TeamLogo logo={m.away_logo} flag={awayFlag} alt={m.away_team ?? ''} size="sm" />
             {displayTeamName(m.away_team) ? (
               <span className="match-team-name">{m.away_team}</span>
             ) : null}
