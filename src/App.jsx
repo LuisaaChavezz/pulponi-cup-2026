@@ -477,6 +477,17 @@ export default function App() {
     setChatInput('');
   }
 
+  function arePenaltiesComplete(match, draft = {}, savedPick = null) {
+    if (!match?.is_knockout) return true;
+    const winner = draft.penaltyWinner ?? savedPick?.penalty_winner ?? '';
+    const home = draft.penaltyHome ?? savedPick?.penalty_home;
+    const away = draft.penaltyAway ?? savedPick?.penalty_away;
+    const hasWinner = typeof winner === 'string' ? winner.trim() !== '' : winner != null;
+    const hasHome = home !== null && home !== undefined && home !== '';
+    const hasAway = away !== null && away !== undefined && away !== '';
+    return hasWinner && hasHome && hasAway;
+  }
+
   async function submitPick(match) {
     const matchId = match.id;
     const hadPick = data.picks[matchId] != null;
@@ -492,6 +503,13 @@ export default function App() {
         return;
       }
       const savedPick = data.picks[matchId];
+      if (!arePenaltiesComplete(match, draft, savedPick)) {
+        setPickFeedback(matchId, {
+          type: 'error',
+          message: '⚠️ Completa la predicción de penales para enviar',
+        });
+        return;
+      }
       const penalties = match.is_knockout
         ? {
             winner: draft.penaltyWinner ?? savedPick?.penalty_winner ?? null,
@@ -700,6 +718,7 @@ export default function App() {
     const awayLabel = displayTeamName(m.away_team) ?? '—';
 
     const penaltyWinner = draft.penaltyWinner ?? pick?.penalty_winner ?? '';
+    const penalesCompletos = arePenaltiesComplete(m, draft, pick);
 
     return (
       <article
@@ -861,7 +880,7 @@ export default function App() {
               <button
                 type="button"
                 className="primary full pick-submit-btn"
-                disabled={pickSaving}
+                disabled={pickSaving || !penalesCompletos}
                 onClick={() => submitPick(m)}
               >
                 {pickSaving
@@ -870,7 +889,11 @@ export default function App() {
                     ? 'Actualizar predicción'
                     : 'Enviar predicción'}
               </button>
-              {pickFeedback?.message ? (
+              {!penalesCompletos ? (
+                <p className="pick-save-feedback pick-save-feedback--error" role="alert">
+                  ⚠️ Completa la predicción de penales para enviar
+                </p>
+              ) : pickFeedback?.message ? (
                 <p
                   className={`pick-save-feedback pick-save-feedback--${pickFeedback.type}`}
                   role={pickFeedback.type === 'error' ? 'alert' : 'status'}
