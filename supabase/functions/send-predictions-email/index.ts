@@ -38,13 +38,13 @@ serve(async (req) => {
       matchError = result.error;
     } else {
       const now = new Date();
-      const in10 = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
+      const in15 = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
       const result = await supabase
         .from('matches')
         .select('id, home_team, away_team, kickoff, status')
         .neq('status', 'finished')
         .gte('kickoff', now.toISOString())
-        .lte('kickoff', in10)
+        .lte('kickoff', in15)
         .order('kickoff', { ascending: true })
         .limit(1)
         .maybeSingle();
