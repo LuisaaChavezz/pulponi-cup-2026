@@ -492,8 +492,7 @@ export default function App() {
         return;
       }
       const savedPick = data.picks[matchId];
-      const goesToPenalties = match.is_knockout && validated.home === validated.away;
-      const penalties = goesToPenalties
+      const penalties = match.is_knockout
         ? {
             winner: draft.penaltyWinner ?? savedPick?.penalty_winner ?? null,
             home: draft.penaltyHome ?? savedPick?.penalty_home ?? null,
@@ -700,14 +699,6 @@ export default function App() {
     const homeLabel = displayTeamName(m.home_team) ?? '—';
     const awayLabel = displayTeamName(m.away_team) ?? '—';
 
-    const draftHome = draft.home ?? pick?.home_pick;
-    const draftAway = draft.away ?? pick?.away_pick;
-    const predictedDraw =
-      draftHome !== '' &&
-      draftAway !== '' &&
-      draftHome != null &&
-      draftAway != null &&
-      Number(draftHome) === Number(draftAway);
     const penaltyWinner = draft.penaltyWinner ?? pick?.penalty_winner ?? '';
 
     return (
@@ -831,9 +822,9 @@ export default function App() {
             </div>
           )}
         </div>
-        {m.is_knockout && predictedDraw ? (
+        {m.is_knockout ? (
           <div className="match-card__penalties">
-            <p className="match-card__penalties-title">⚽ ¿Quién gana en penales?</p>
+            <p className="match-card__penalties-title">⚽ ¿Quién avanza en penales?</p>
             <div className="match-card__penalties-teams">
               <button
                 type="button"
