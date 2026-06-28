@@ -25,6 +25,24 @@ export function parsePickScore(pick) {
   return { home: h, away: a };
 }
 
+/**
+ * Predicción de penales de un pick (solo válida si trae ganador o marcador).
+ * @param {unknown} pick
+ * @returns {{ winner: string|null, home: number|null, away: number|null } | null}
+ */
+export function parsePenaltyPick(pick) {
+  if (!pick || typeof pick !== 'object') return null;
+  const winner = String(pick.penalty_winner ?? '').trim() || null;
+  const rawHome = pick.penalty_home;
+  const rawAway = pick.penalty_away;
+  const home = rawHome === '' || rawHome == null ? null : Math.round(Number(rawHome));
+  const away = rawAway === '' || rawAway == null ? null : Math.round(Number(rawAway));
+  const validHome = Number.isInteger(home) && home >= 0 ? home : null;
+  const validAway = Number.isInteger(away) && away >= 0 ? away : null;
+  if (!winner && validHome == null && validAway == null) return null;
+  return { winner, home: validHome, away: validAway };
+}
+
 /** Etiqueta legible de un pick (2-1, etc.). */
 export function formatPickPredictionLabel(pick) {
   if (!pick) return null;

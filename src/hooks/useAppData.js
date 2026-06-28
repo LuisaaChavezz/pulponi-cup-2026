@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { resolveAvatarUrl } from '../lib/avatars';
 import { runScoringAndPulpoPipeline, refreshPulpoIndexesAfterPickScores } from '../lib/pulpoSync';
 import { applyMatchFinalResultByTeams, applyMatchRescore } from '../lib/matchScoring';
+import { scoreMatchWithPenalties } from '../lib/scoringEngine';
 import { canAdminExportPredictions } from '../lib/predictionActivity';
 import { isMatchFinished, normalizeMatchId, resolveMatchForScoring } from '../lib/matchUtils';
 import { syncWorldCupFixtures } from '../lib/footballApi';
@@ -1069,7 +1070,7 @@ export function useAppData(session) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [userId]);
 
-  async function savePick(matchId, homePick, awayPick, advancesTeam = null) {
+  async function savePick(matchId, homePick, awayPick, advancesTeam = null, penalties = null) {
     if (!userId) return { ok: false, error: 'Sin sesión' };
 
     const matchKey = String(matchId);
@@ -1089,10 +1090,20 @@ export function useAppData(session) {
     const prevPick = picks[matchKey] ?? picks[matchId];
     const hadPick = prevPick != null;
     const nowIso = new Date().toISOString();
+
+    const penaltyWinner = penalties?.winner != null ? String(penalties.winner).trim() || null : null;
+    const penaltyHome =
+      penalties?.home === '' || penalties?.home == null ? null : Math.round(Number(penalties.home));
+    const penaltyAway =
+      penalties?.away === '' || penalties?.away == null ? null : Math.round(Number(penalties.away));
+
     const entry = {
       home_pick: home,
       away_pick: away,
-      advances_team: advancesTeam,
+      advances_team: penaltyWinner ?? advancesTeam,
+      penalty_winner: penaltyWinner,
+      penalty_home: Number.isInteger(penaltyHome) && penaltyHome >= 0 ? penaltyHome : null,
+      penalty_away: Number.isInteger(penaltyAway) && penaltyAway >= 0 ? penaltyAway : null,
       created_at: prevPick?.created_at ?? nowIso,
       updated_at: nowIso,
     };
@@ -1374,7 +1385,7 @@ export function useAppData(session) {
   }
 
   const applyManualMatchResult = useCallback(
-    async (homeTeam, awayTeam, homeScore, awayScore, matchId, rescore = false) => {
+    async (homeTeam, awayTeam, homeScore, awayScore, matchId, rescore = false, penalties = null) => {
       const allowed =
         profile?.is_admin || canAdminExportPredictions(profile?.username ?? null);
       if (!userId || !allowed) return { error: 'No autorizado' };
@@ -1390,12 +1401,33 @@ export function useAppData(session) {
 
       await loadAllMatchesComplete();
 
+      const usePenaltyPath = Boolean(penalties?.went_to_penalties);
+
       try {
-        const applyResult = rescore
-          ? await applyMatchRescore(supabase, resolvedMatchId, homeScore, awayScore, {
-              matches: matchesRef.current,
-            })
-          : await applyMatchFinalResultByTeams(
+        let applyResult;
+        if (usePenaltyPath) {
+          const penaltyResult = await scoreMatchWithPenalties(
+            supabase,
+            resolvedMatchId,
+            homeScore,
+            awayScore,
+            penalties
+          );
+          if (penaltyResult?.error && penaltyResult.error !== 'rpc_missing') {
+            return penaltyResult;
+          }
+          if (penaltyResult?.error === 'rpc_missing') {
+            // Sin RPC: persistir penales en el partido y dejar que el scoring cliente aplique el bono.
+            await supabase
+              .from('matches')
+              .update({
+                went_to_penalties: true,
+                penalty_winner: penalties.penalty_winner ?? null,
+                penalty_home: penalties.penalty_home ?? null,
+                penalty_away: penalties.penalty_away ?? null,
+              })
+              .eq('id', resolvedMatchId);
+            applyResult = await applyMatchFinalResultByTeams(
               supabase,
               homeName,
               awayName,
@@ -1407,6 +1439,33 @@ export function useAppData(session) {
                 profiles: communityPickProfilesRef.current,
               }
             );
+          } else {
+            applyResult = {
+              match_id: resolvedMatchId,
+              home_score: Math.max(0, Math.round(Number(homeScore))),
+              away_score: Math.max(0, Math.round(Number(awayScore))),
+              went_to_penalties: true,
+              via: 'score_match_penalties',
+            };
+          }
+        } else {
+          applyResult = rescore
+            ? await applyMatchRescore(supabase, resolvedMatchId, homeScore, awayScore, {
+                matches: matchesRef.current,
+              })
+            : await applyMatchFinalResultByTeams(
+                supabase,
+                homeName,
+                awayName,
+                homeScore,
+                awayScore,
+                {
+                  matchId: resolvedMatchId,
+                  matches: matchesRef.current,
+                  profiles: communityPickProfilesRef.current,
+                }
+              );
+        }
 
         if (applyResult?.error) return applyResult;
 

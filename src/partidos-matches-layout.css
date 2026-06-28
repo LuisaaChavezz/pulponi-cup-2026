@@ -385,3 +385,83 @@
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Predicción de penales (eliminación directa + empate) */
+.match-card__penalties,
+.dash-notifications__admin-penalties {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 30, 39, 0.32);
+  background: rgba(255, 30, 39, 0.06);
+}
+
+.match-card__penalties-title,
+.dash-notifications__admin-penalties-toggle {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: var(--text, #f6f6f6);
+}
+
+.dash-notifications__admin-penalties-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.match-card__penalties-subtitle {
+  margin: 12px 0 6px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted, #a1a1aa);
+}
+
+.match-card__penalties-teams,
+.dash-notifications__admin-penalties-winner {
+  display: flex;
+  gap: 8px;
+}
+
+.match-card__penalties-team,
+.dash-notifications__admin-penalties-team {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text, #f6f6f6);
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.match-card__penalties-team.is-active,
+.dash-notifications__admin-penalties-team.is-active {
+  border-color: var(--red, #ff1e27);
+  background: rgba(255, 30, 39, 0.22);
+}
+
+.match-card__penalties-team:disabled,
+.dash-notifications__admin-penalties-team:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.match-card__penalties-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.match-card__penalties-vs {
+  font-weight: 800;
+  color: var(--muted, #a1a1aa);
+}
+
+.dash-notifications__admin-penalties .dash-notifications__admin-score-inputs {
+  margin-top: 10px;
+}

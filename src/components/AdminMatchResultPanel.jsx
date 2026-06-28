@@ -40,6 +40,10 @@ export default function AdminMatchResultPanel({
   const [selectedMatchId, setSelectedMatchId] = useState('');
   const [homeScore, setHomeScore] = useState('');
   const [awayScore, setAwayScore] = useState('');
+  const [wentToPenalties, setWentToPenalties] = useState(false);
+  const [penaltyWinner, setPenaltyWinner] = useState('');
+  const [penaltyHome, setPenaltyHome] = useState('');
+  const [penaltyAway, setPenaltyAway] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
 
@@ -63,7 +67,16 @@ export default function AdminMatchResultPanel({
     if (!activeMatch || !alreadyScored) return;
     setHomeScore(String(activeMatch.home_score ?? ''));
     setAwayScore(String(activeMatch.away_score ?? ''));
+    setWentToPenalties(Boolean(activeMatch.went_to_penalties));
+    setPenaltyWinner(activeMatch.penalty_winner ?? '');
+    setPenaltyHome(activeMatch.penalty_home != null ? String(activeMatch.penalty_home) : '');
+    setPenaltyAway(activeMatch.penalty_away != null ? String(activeMatch.penalty_away) : '');
   }, [activeMatchId, activeMatch?.home_score, activeMatch?.away_score, alreadyScored]);
+
+  const isKnockout = Boolean(activeMatch?.is_knockout);
+  const isDraw =
+    scoreValidation.ok && scoreValidation.home === scoreValidation.away;
+  const showPenalties = isKnockout && isDraw;
 
   const scoreValidation = validatePickScores(homeScore, awayScore);
   const canSubmit =
@@ -90,6 +103,21 @@ export default function AdminMatchResultPanel({
       return;
     }
 
+    const penalties =
+      showPenalties && wentToPenalties
+        ? {
+            went_to_penalties: true,
+            penalty_winner: penaltyWinner || null,
+            penalty_home: penaltyHome === '' ? null : Math.max(0, Math.round(Number(penaltyHome))),
+            penalty_away: penaltyAway === '' ? null : Math.max(0, Math.round(Number(penaltyAway))),
+          }
+        : { went_to_penalties: false, penalty_winner: null, penalty_home: null, penalty_away: null };
+
+    if (penalties.went_to_penalties && !penalties.penalty_winner) {
+      setNotice({ type: 'error', text: 'Selecciona quién ganó la tanda de penales.' });
+      return;
+    }
+
     setBusy(true);
     setNotice(null);
     try {
@@ -99,7 +127,8 @@ export default function AdminMatchResultPanel({
         scoreValidation.home,
         scoreValidation.away,
         activeMatchId,
-        rescore
+        rescore,
+        penalties
       );
       if (res?.error) {
         const errorText =
@@ -195,6 +224,63 @@ export default function AdminMatchResultPanel({
             />
           </label>
         </div>
+
+        {showPenalties ? (
+          <div className="dash-notifications__admin-penalties">
+            <label className="dash-notifications__admin-penalties-toggle">
+              <input
+                type="checkbox"
+                checked={wentToPenalties}
+                disabled={busy}
+                onChange={(e) => setWentToPenalties(e.target.checked)}
+              />
+              ¿Fue a penales?
+            </label>
+            {wentToPenalties ? (
+              <>
+                <div className="dash-notifications__admin-penalties-winner">
+                  <button
+                    type="button"
+                    className={`dash-notifications__admin-penalties-team${penaltyWinner === activeMatch.home_team ? ' is-active' : ''}`}
+                    disabled={busy}
+                    onClick={() => setPenaltyWinner(activeMatch.home_team)}
+                  >
+                    {activeMatch.home_team}
+                  </button>
+                  <button
+                    type="button"
+                    className={`dash-notifications__admin-penalties-team${penaltyWinner === activeMatch.away_team ? ' is-active' : ''}`}
+                    disabled={busy}
+                    onClick={() => setPenaltyWinner(activeMatch.away_team)}
+                  >
+                    {activeMatch.away_team}
+                  </button>
+                </div>
+                <div className="dash-notifications__admin-score-inputs">
+                  <label>
+                    Penales {activeMatch.home_team}
+                    <PickScoreInput
+                      value={penaltyHome}
+                      onChange={setPenaltyHome}
+                      disabled={busy}
+                      ariaLabel="penales local"
+                    />
+                  </label>
+                  <span className="dash-notifications__admin-score-sep">—</span>
+                  <label>
+                    Penales {activeMatch.away_team}
+                    <PickScoreInput
+                      value={penaltyAway}
+                      onChange={setPenaltyAway}
+                      disabled={busy}
+                      ariaLabel="penales visitante"
+                    />
+                  </label>
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
 
         {alreadyScored ? (
           <button

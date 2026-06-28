@@ -1,11 +1,54 @@
-import { parsePickScore } from './communityPicks';
+import { parsePickScore, parsePenaltyPick } from './communityPicks';
 import { isMatchFinished, resolveMatchForScoring } from './matchUtils';
 
-/** Reglas de puntos Pulponi (marcador exacto / ganador). */
+/** Reglas de puntos Pulponi (marcador exacto / ganador / penales). */
 export const SCORING_RULES = {
   exactPoints: 3,
   winnerPoints: 1,
+  penaltyWinnerPoints: 1,
+  penaltyExactPoints: 2,
 };
+
+function normalizeTeam(name) {
+  return String(name ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+/**
+ * Bono de penales: +1 ganador de la tanda, +2 marcador exacto de penales.
+ * Solo aplica si el partido fue a penales (went_to_penalties).
+ * @param {unknown} rawPick — pick crudo del perfil (con penalty_*)
+ * @param {object} match — fila del partido con penalty_* reales
+ */
+export function gradePenaltyBonus(rawPick, match) {
+  if (!match?.went_to_penalties) return 0;
+  const pick = parsePenaltyPick(rawPick);
+  if (!pick) return 0;
+
+  let bonus = 0;
+  const realWinner = normalizeTeam(match.penalty_winner);
+  if (pick.winner && realWinner && normalizeTeam(pick.winner) === realWinner) {
+    bonus += SCORING_RULES.penaltyWinnerPoints;
+  }
+
+  const rh = match.penalty_home == null ? null : Number(match.penalty_home);
+  const ra = match.penalty_away == null ? null : Number(match.penalty_away);
+  if (
+    pick.home != null &&
+    pick.away != null &&
+    Number.isFinite(rh) &&
+    Number.isFinite(ra) &&
+    pick.home === rh &&
+    pick.away === ra
+  ) {
+    bonus += SCORING_RULES.penaltyExactPoints;
+  }
+
+  return bonus;
+}
 
 /**
  * @param {{ home: number, away: number }} pick
@@ -223,11 +266,12 @@ export async function scoreSingleFinishedMatchClient(
     if (!pick || !usedKey) continue;
 
     const grade = gradePick(pick, final);
+    const penaltyBonus = gradePenaltyBonus(prof.picks?.[usedKey], row);
     const { error } = await client.from('pick_scores').upsert(
       {
         profile_id: prof.id,
         match_id: usedKey,
-        points_awarded: grade.points,
+        points_awarded: grade.points + penaltyBonus,
         exact_hit: grade.exactHit,
         winner_hit: grade.winnerHit,
         scored_at: new Date().toISOString(),
@@ -299,10 +343,11 @@ export async function scoreAllFinishedMatchesFallback(client, { matches, profile
       if (!pick) continue;
 
       const grade = gradePick(pick, final);
+      const penaltyBonus = gradePenaltyBonus(prof.picks?.[mid], match);
       const row = {
         profile_id: prof.id,
         match_id: match.id,
-        points_awarded: grade.points,
+        points_awarded: grade.points + penaltyBonus,
         exact_hit: grade.exactHit,
         winner_hit: grade.winnerHit,
         scored_at: new Date().toISOString(),
@@ -387,6 +432,42 @@ export async function scoreMatchByTeams(client, homeTeam, awayTeam, homeScore, a
 
   console.warn('[scoring] score_match_by_teams', error.message);
   return { error: error.message, home_team: pHomeTeam, away_team: pAwayTeam };
+}
+
+/**
+ * Puntúa un partido con marcador + penales (RPC score_match de 7 args).
+ * @param {{ went_to_penalties?: boolean, penalty_winner?: string|null, penalty_home?: number|null, penalty_away?: number|null }} penalties
+ */
+export async function scoreMatchWithPenalties(client, matchId, homeScore, awayScore, penalties = {}) {
+  const resolvedMatchId = String(matchId ?? '').trim();
+  if (!resolvedMatchId) return { error: 'match_id_required' };
+
+  const pHomeScore = Math.max(0, Math.round(Number(homeScore)));
+  const pAwayScore = Math.max(0, Math.round(Number(awayScore)));
+  if (!Number.isFinite(pHomeScore) || !Number.isFinite(pAwayScore)) {
+    return { error: 'invalid_scores' };
+  }
+
+  const { data, error } = await client.rpc('score_match', {
+    p_match_id: resolvedMatchId,
+    p_home_score: pHomeScore,
+    p_away_score: pAwayScore,
+    p_went_to_penalties: Boolean(penalties?.went_to_penalties),
+    p_penalty_winner: penalties?.penalty_winner ?? null,
+    p_penalty_home: penalties?.penalty_home ?? null,
+    p_penalty_away: penalties?.penalty_away ?? null,
+  });
+
+  if (!error) {
+    return { result: data, match_id: resolvedMatchId, fallback: false };
+  }
+
+  if (isRpcMissing(error)) {
+    return { error: 'rpc_missing', match_id: resolvedMatchId };
+  }
+
+  console.warn('[scoring] score_match (penales)', error.message);
+  return { error: error.message, match_id: resolvedMatchId };
 }
 
 /** Re-puntúa un partido ya calificado (RPC apply_rescore_match). */
