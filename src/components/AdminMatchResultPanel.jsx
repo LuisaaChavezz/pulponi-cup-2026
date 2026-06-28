@@ -73,12 +73,11 @@ export default function AdminMatchResultPanel({
     setPenaltyAway(activeMatch.penalty_away != null ? String(activeMatch.penalty_away) : '');
   }, [activeMatchId, activeMatch?.home_score, activeMatch?.away_score, alreadyScored]);
 
+  const scoreValidation = validatePickScores(homeScore, awayScore);
   const isKnockout = Boolean(activeMatch?.is_knockout);
   const isDraw =
     scoreValidation.ok && scoreValidation.home === scoreValidation.away;
   const showPenalties = isKnockout && isDraw;
-
-  const scoreValidation = validatePickScores(homeScore, awayScore);
   const canSubmit =
     !busy && Boolean(activeMatchId) && Boolean(activeMatch) && scoreValidation.ok;
 
