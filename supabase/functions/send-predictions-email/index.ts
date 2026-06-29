@@ -31,7 +31,7 @@ serve(async (req) => {
     if (requestedMatchId) {
       const result = await supabase
         .from('matches')
-        .select('id, home_team, away_team, kickoff, status')
+        .select('id, home_team, away_team, kickoff, status, is_knockout')
         .eq('id', requestedMatchId)
         .maybeSingle();
       match = result.data;
@@ -41,7 +41,7 @@ serve(async (req) => {
       const in15 = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
       const result = await supabase
         .from('matches')
-        .select('id, home_team, away_team, kickoff, status')
+        .select('id, home_team, away_team, kickoff, status, is_knockout')
         .neq('status', 'finished')
         .gte('kickoff', now.toISOString())
         .lte('kickoff', in15)
@@ -84,12 +84,24 @@ serve(async (req) => {
       throw profilesError;
     }
 
+    const isKnockout = Boolean(match.is_knockout);
+
     const predictions = (profiles ?? [])
       .map((profile) => {
         const picks = profile.picks as Record<string, unknown> | null;
         const pick = getPickFromProfile(picks, match.id);
         const pred = pick ? formatPick(pick) : 'Sin predicción';
-        return { name: profile.name || profile.username || 'Anónimo', pred };
+        let penaltyPred = '—';
+        if (isKnockout && pick && typeof pick === 'object' && !Array.isArray(pick)) {
+          const row = pick as Record<string, unknown>;
+          const winner = row.penalty_winner != null ? String(row.penalty_winner).trim() : '';
+          if (winner) {
+            const ph = row.penalty_home ?? '?';
+            const pa = row.penalty_away ?? '?';
+            penaltyPred = `${winner} ${ph}-${pa}`;
+          }
+        }
+        return { name: profile.name || profile.username || 'Anónimo', pred, penaltyPred };
       })
       .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
@@ -98,7 +110,12 @@ serve(async (req) => {
         (p) => `
     <tr>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:500;">${p.name}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;color:${p.pred === 'Sin predicción' ? '#ef4444' : '#6b21a8'};">${p.pred}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;color:${p.pred === 'Sin predicción' ? '#ef4444' : '#6b21a8'};">${p.pred}</td>${
+          isKnockout
+            ? `
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;color:${p.penaltyPred === '—' ? '#9ca3af' : '#b45309'};">${p.penaltyPred}</td>`
+            : ''
+        }
     </tr>`
       )
       .join('');
@@ -129,6 +146,7 @@ serve(async (req) => {
         <tr style="background:#2d0a5c;">
           <th style="padding:10px 12px;color:white;text-align:left;">Participante</th>
           <th style="padding:10px 12px;color:#f9c907;text-align:center;">Predicción</th>
+          ${isKnockout ? '<th style="padding:10px 12px;color:#f9c907;text-align:center;">Penales</th>' : ''}
         </tr>
       </thead>
       <tbody>${rows}</tbody>
