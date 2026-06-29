@@ -21,6 +21,18 @@ function formatPredictionFromPick(pick) {
   return null;
 }
 
+function formatPenaltyPredictionFromPick(pick) {
+  if (!pick || typeof pick !== 'object' || Array.isArray(pick)) return null;
+  const winner = pick.penalty_winner != null ? String(pick.penalty_winner).trim() : '';
+  const home = pick.penalty_home;
+  const away = pick.penalty_away;
+  const hasScore =
+    home != null && home !== '' && away != null && away !== '';
+  if (!winner && !hasScore) return null;
+  const scorePart = hasScore ? `${home}-${away}` : '';
+  return [winner, scorePart].filter(Boolean).join(' ') || null;
+}
+
 /** Misma forma que espera generate_pulponi_final.py / Edge Function. */
 export function buildResultsPdfParticipants(profiles, pickScoreRows, matchId) {
   const matchIdStr = String(matchId);
@@ -36,10 +48,12 @@ export function buildResultsPdfParticipants(profiles, pickScoreRows, matchId) {
         ? picks[matchIdStr] ?? picks[matchId]
         : null;
     const prediction = formatPredictionFromPick(pick);
+    const penaltyPrediction = formatPenaltyPredictionFromPick(pick);
 
     return {
       name: profile.name || profile.username || 'Anónimo',
       prediction,
+      penalty_prediction: penaltyPrediction,
       points: Number(ps?.points_awarded ?? 0),
       total: Number(profile.points ?? 0),
       no_pick: !prediction,
@@ -67,6 +81,11 @@ export function buildResultsPdfRequestBody(match, participants) {
     home_score: Number(match.home_score),
     away_score: Number(match.away_score),
     match_date: formatMatchDateForPdf(match.kickoff),
+    is_knockout: Boolean(match.is_knockout),
+    went_to_penalties: Boolean(match.went_to_penalties),
+    penalty_home: match.penalty_home ?? null,
+    penalty_away: match.penalty_away ?? null,
+    penalty_winner: match.penalty_winner ?? null,
     participants,
   };
 }

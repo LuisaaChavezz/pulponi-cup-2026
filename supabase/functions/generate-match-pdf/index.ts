@@ -24,7 +24,9 @@ serve(async (req) => {
 
     const { data: match, error: mErr } = await supabase
       .from("matches")
-      .select("id, home_team, away_team, home_score, away_score, kickoff")
+      .select(
+        "id, home_team, away_team, home_score, away_score, kickoff, is_knockout, went_to_penalties, penalty_home, penalty_away, penalty_winner"
+      )
       .eq("id", match_id)
       .single();
     if (mErr || !match) throw new Error("Partido no encontrado");
@@ -50,6 +52,7 @@ serve(async (req) => {
       const pick = picks?.[matchIdStr] ?? picks?.[match_id as string];
 
       let prediction: string | null = null;
+      let penaltyPrediction: string | null = null;
       if (pick) {
         if (typeof pick === "string") prediction = pick;
         else if (typeof pick === "object" && !Array.isArray(pick)) {
@@ -57,6 +60,16 @@ serve(async (req) => {
           const hp = row.home_pick ?? row.home ?? row.local;
           const ap = row.away_pick ?? row.away ?? row.visitante;
           if (hp != null && ap != null) prediction = `${hp}-${ap}`;
+
+          const pw = row.penalty_winner != null ? String(row.penalty_winner).trim() : "";
+          const ph = row.penalty_home;
+          const pa = row.penalty_away;
+          const hasPenScore =
+            ph != null && ph !== "" && pa != null && pa !== "";
+          if (pw || hasPenScore) {
+            const scorePart = hasPenScore ? `${ph}-${pa}` : "";
+            penaltyPrediction = [pw, scorePart].filter(Boolean).join(" ") || null;
+          }
         } else if (Array.isArray(pick)) {
           prediction = `${pick[0]}-${pick[1]}`;
         }
@@ -65,6 +78,7 @@ serve(async (req) => {
       return {
         name: (profile.name as string) || (profile.username as string) || "Anónimo",
         prediction,
+        penalty_prediction: penaltyPrediction,
         points: ps?.points_awarded ?? 0,
         total: (profile.points as number) ?? 0,
         no_pick: !prediction,
@@ -106,6 +120,11 @@ serve(async (req) => {
         home_score: match.home_score,
         away_score: match.away_score,
         match_date: matchDate,
+        is_knockout: Boolean(match.is_knockout),
+        went_to_penalties: Boolean(match.went_to_penalties),
+        penalty_home: match.penalty_home ?? null,
+        penalty_away: match.penalty_away ?? null,
+        penalty_winner: match.penalty_winner ?? null,
         participants,
       }),
     });

@@ -29,6 +29,14 @@ class handler(BaseHTTPRequestHandler):
             raw = self.rfile.read(length) if length else b"{}"
             body = json.loads(raw.decode("utf-8"))
 
+            def _opt_int(value):
+                if value is None or value == "":
+                    return None
+                try:
+                    return int(value)
+                except (TypeError, ValueError):
+                    return None
+
             pdf_b64 = generate_results_pdf_bytes(
                 home_team=body["home_team"],
                 away_team=body["away_team"],
@@ -36,6 +44,11 @@ class handler(BaseHTTPRequestHandler):
                 away_score=int(body["away_score"]),
                 match_date=body["match_date"],
                 participants=body["participants"],
+                is_knockout=bool(body.get("is_knockout", False)),
+                went_to_penalties=bool(body.get("went_to_penalties", False)),
+                penalty_home=_opt_int(body.get("penalty_home")),
+                penalty_away=_opt_int(body.get("penalty_away")),
+                penalty_winner=(body.get("penalty_winner") or None),
             )
             pdf_bytes = base64.b64decode(pdf_b64)
 

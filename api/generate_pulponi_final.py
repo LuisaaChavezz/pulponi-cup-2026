@@ -143,7 +143,7 @@ def ss(c, color): c.setStrokeColor(color)
 
 def draw_header_block(c, home_team, away_team, match_date,
                       home_score, away_score, winner_label,
-                      exact_score, team_color, team_accent):
+                      exact_score, team_color, team_accent, penalty_line=None):
     sf(c, team_color)
     c.rect(PAGE_LEFT, PAGE_H-189, PAGE_RIGHT-PAGE_LEFT, 129, fill=1, stroke=0)
     ss(c, team_accent); c.setLineWidth(3.0)
@@ -156,7 +156,10 @@ def draw_header_block(c, home_team, away_team, match_date,
     c.setFont("Helvetica-Bold", 30)
     c.drawCentredString(PAGE_W/2, PAGE_H-143, f"{home_score} — {away_score}")
     sf(c, C_WHITE); c.setFont("Helvetica", 10)
-    c.drawCentredString(PAGE_W/2, PAGE_H-174, winner_label)
+    c.drawCentredString(PAGE_W/2, PAGE_H-172, winner_label)
+    if penalty_line:
+        sf(c, C_YELLOW); c.setFont("Helvetica-Bold", 9.5)
+        c.drawCentredString(PAGE_W/2, PAGE_H-185, penalty_line)
 
     third = (PAGE_RIGHT - PAGE_LEFT) / 3
     sections = [
@@ -176,25 +179,43 @@ def draw_header_block(c, home_team, away_team, match_date,
         c.drawString(x+6+bw+4, ley_ty, reg_t)
 
 
-def draw_table_header(c, team_color, top_y):
+def _pts_tier(pts):
+    """Nivel de color/peso. Con bono de penales los puntos pueden ser 0-5."""
+    if pts <= 0:
+        return 0
+    if pts >= 3:
+        return 3
+    return 1
+
+
+def draw_table_header(c, team_color, top_y, show_penalties=False):
     th_h = 40.0
     sf(c, team_color)
     c.rect(PAGE_LEFT, top_y-th_h, PAGE_RIGHT-PAGE_LEFT, th_h, fill=1, stroke=0)
     sf(c, C_WHITE); c.setFont("Helvetica-Bold", 10)
-    c.drawString(57.0,  top_y-24, "Lugar")
-    c.drawString(145.6, top_y-24, "Participante")
-    c.drawString(263.9, top_y-24, "Predicción")
-    c.drawString(335.5, top_y-24, "Puntos")
-    c.drawString(405.7, top_y-24, "Resultado")
-    c.drawString(488.7, top_y-24, "Total Acum.")
+    if show_penalties:
+        c.drawString(57.0,  top_y-24, "Lugar")
+        c.drawString(96.4,  top_y-24, "Participante")
+        c.drawString(232.0, top_y-24, "Pred. 90'")
+        c.drawString(296.0, top_y-24, "Pred. penales")
+        c.drawString(432.0, top_y-24, "Puntos")
+        c.drawString(492.0, top_y-24, "Total")
+    else:
+        c.drawString(57.0,  top_y-24, "Lugar")
+        c.drawString(145.6, top_y-24, "Participante")
+        c.drawString(263.9, top_y-24, "Predicción")
+        c.drawString(335.5, top_y-24, "Puntos")
+        c.drawString(405.7, top_y-24, "Resultado")
+        c.drawString(488.7, top_y-24, "Total Acum.")
     return top_y - th_h
 
 
-def draw_row(c, y_bottom, participant):
+def draw_row(c, y_bottom, participant, show_penalties=False):
     pts     = participant["points"]
     no_pick = participant.get("no_pick", False)
+    tier    = _pts_tier(pts)
 
-    bg = C_ROW_3 if pts==3 else (C_ROW_1 if pts==1 else C_ROW_0)
+    bg = C_ROW_3 if tier==3 else (C_ROW_1 if tier==1 else C_ROW_0)
     sf(c, bg); c.rect(PAGE_LEFT, y_bottom, PAGE_RIGHT-PAGE_LEFT, ROW_H, fill=1, stroke=0)
 
     ty = y_bottom + 8
@@ -204,13 +225,44 @@ def draw_row(c, y_bottom, participant):
     c.drawString(57.0, ty, participant["place"])
 
     # Nombre — color y peso según puntos
-    if pts == 3:
+    if tier == 3:
         sf(c, C_NAME_3); c.setFont("Helvetica-Bold", 9)
-    elif pts == 1:
+    elif tier == 1:
         sf(c, C_NAME_1); c.setFont("Helvetica-Bold", 9)
     else:
         sf(c, C_NAME_0); c.setFont("Helvetica", 9)
     c.drawString(96.4, ty, participant["name"])
+
+    # Puntos (negrita por nivel)
+    pts_str = str(pts)
+    if tier == 3:
+        sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 10)
+    elif tier == 1:
+        sf(c, C_PTS_1); c.setFont("Helvetica-Bold", 10)
+    else:
+        sf(c, C_PTS_0); c.setFont("Helvetica", 10)
+
+    if show_penalties:
+        # Predicción 90'
+        sf(c, C_DARK); c.setFont("Helvetica", 9)
+        pred = "—" if no_pick else participant.get("prediction", "—")
+        c.drawString(232.0, ty, pred)
+        # Predicción de penales
+        sf(c, C_DARK); c.setFont("Helvetica", 9)
+        pen = participant.get("penalty_prediction") or "—"
+        c.drawString(296.0, ty, pen)
+        # Puntos
+        if tier == 3:   sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 10)
+        elif tier == 1: sf(c, C_PTS_1); c.setFont("Helvetica-Bold", 10)
+        else:           sf(c, C_PTS_0); c.setFont("Helvetica", 10)
+        pw = c.stringWidth(pts_str, c._fontname, 10)
+        c.drawString(446.0+(14-pw)/2, ty+0.3, pts_str)
+        # Total
+        sf(c, C_DARK); c.setFont("Helvetica-Bold", 10)
+        ts = str(participant.get("total",""))
+        tw = c.stringWidth(ts, "Helvetica-Bold", 10)
+        c.drawString(503.0+(14-tw)/2, ty+0.3, ts)
+        return
 
     # Predicción
     sf(c, C_DARK); c.setFont("Helvetica", 9)
@@ -218,22 +270,18 @@ def draw_row(c, y_bottom, participant):
     c.drawString(282.9, ty, pred)
 
     # Puntos
-    pts_str = str(pts)
-    if pts == 3:
-        sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 10)
-    elif pts == 1:
-        sf(c, C_PTS_1); c.setFont("Helvetica-Bold", 10)
-    else:
-        sf(c, C_PTS_0); c.setFont("Helvetica", 10)
+    if tier == 3:   sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 10)
+    elif tier == 1: sf(c, C_PTS_1); c.setFont("Helvetica-Bold", 10)
+    else:           sf(c, C_PTS_0); c.setFont("Helvetica", 10)
     pw = c.stringWidth(pts_str, c._fontname, 10)
     c.drawString(349.7+(14-pw)/2, ty+0.3, pts_str)
 
     # Resultado
     sf(c, C_DARK); c.setFont("Helvetica", 9)
-    if no_pick:  c.drawString(401.6, ty, "Sin predicción")
-    elif pts==3: c.drawString(413.3, ty, "¡Exacto!")
-    elif pts==1: c.drawString(394.8, ty, "Ganador correcto")
-    else:        c.drawString(408.6, ty, "Sin puntos")
+    if no_pick:    c.drawString(401.6, ty, "Sin predicción")
+    elif tier==3:  c.drawString(413.3, ty, "¡Exacto!")
+    elif tier==1:  c.drawString(394.8, ty, "Ganador correcto")
+    else:          c.drawString(408.6, ty, "Sin puntos")
 
     # Total
     sf(c, C_DARK); c.setFont("Helvetica-Bold", 10)
@@ -264,8 +312,19 @@ def draw_totals_footer(c, bottom_y, total_p, exact_c, winner_c, zero_c, match_da
 
 
 def _build_pdf(cv, home_team, away_team, home_score, away_score,
-               match_date, participants):
-    if home_score > away_score:
+               match_date, participants,
+               is_knockout=False, went_to_penalties=False,
+               penalty_home=None, penalty_away=None, penalty_winner=None):
+    show_penalties = bool(is_knockout) and bool(went_to_penalties) and bool(penalty_winner)
+
+    penalty_line = None
+    if show_penalties:
+        ph = penalty_home if penalty_home is not None else "?"
+        pa = penalty_away if penalty_away is not None else "?"
+        penalty_line = f"Penales: {ph}-{pa} ({penalty_winner} avanza)"
+        winner = penalty_winner
+        winner_label = "Empate en los 90' · Definido en penales"
+    elif home_score > away_score:
         winner = home_team
         winner_label = f"{home_team} gana · Resultado final"
     elif away_score > home_score:
@@ -280,10 +339,10 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
 
     draw_header_block(cv, home_team, away_team, match_date,
                       home_score, away_score, winner_label,
-                      exact_score, team_color, team_accent)
+                      exact_score, team_color, team_accent, penalty_line)
 
     table_top = PAGE_H - 228.5
-    row_y     = draw_table_header(cv, team_color, table_top)
+    row_y     = draw_table_header(cv, team_color, table_top, show_penalties)
     rows_top  = table_top
 
     for p in participants:
@@ -291,36 +350,42 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
             draw_table_border(cv, rows_top, row_y)
             cv.showPage()
             table_top = PAGE_H - 60
-            row_y     = draw_table_header(cv, team_color, table_top)
+            row_y     = draw_table_header(cv, team_color, table_top, show_penalties)
             rows_top  = table_top
         row_y -= ROW_H
-        draw_row(cv, row_y, p)
+        draw_row(cv, row_y, p, show_penalties)
 
     draw_table_border(cv, rows_top, row_y)
     total_p  = len(participants)
-    exact_c  = sum(1 for p in participants if p["points"] == 3)
-    winner_c = sum(1 for p in participants if p["points"] == 1)
-    zero_c   = sum(1 for p in participants if p["points"] == 0)
+    exact_c  = sum(1 for p in participants if p["points"] >= 3)
+    winner_c = sum(1 for p in participants if 0 < p["points"] < 3)
+    zero_c   = sum(1 for p in participants if p["points"] <= 0)
     draw_totals_footer(cv, row_y, total_p, exact_c, winner_c, zero_c, match_date)
     cv.save()
 
 
 def generate_results_pdf(home_team, away_team, home_score, away_score,
-                          match_date, participants, output_path=None):
+                          match_date, participants, output_path=None,
+                          is_knockout=False, went_to_penalties=False,
+                          penalty_home=None, penalty_away=None, penalty_winner=None):
     """Guarda el PDF en disco. Para pruebas locales."""
     if not output_path:
         safe = f"{home_team.lower().replace(' ','_')}_vs_{away_team.lower().replace(' ','_')}.pdf"
         output_path = f"./{safe}"
     cv = canvas.Canvas(output_path, pagesize=letter)
-    _build_pdf(cv, home_team, away_team, home_score, away_score, match_date, participants)
+    _build_pdf(cv, home_team, away_team, home_score, away_score, match_date, participants,
+               is_knockout, went_to_penalties, penalty_home, penalty_away, penalty_winner)
     return output_path
 
 
 def generate_results_pdf_bytes(home_team, away_team, home_score, away_score,
-                                match_date, participants):
+                                match_date, participants,
+                                is_knockout=False, went_to_penalties=False,
+                                penalty_home=None, penalty_away=None, penalty_winner=None):
     """Regresa el PDF como base64. Usada por el serverless de Vercel."""
     buf = io.BytesIO()
     cv = canvas.Canvas(buf, pagesize=letter)
-    _build_pdf(cv, home_team, away_team, home_score, away_score, match_date, participants)
+    _build_pdf(cv, home_team, away_team, home_score, away_score, match_date, participants,
+               is_knockout, went_to_penalties, penalty_home, penalty_away, penalty_winner)
     buf.seek(0)
     return base64.b64encode(buf.getvalue()).decode()
