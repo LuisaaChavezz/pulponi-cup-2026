@@ -76,8 +76,15 @@ export default function AdminMatchResultPanel({
   const scoreValidation = validatePickScores(homeScore, awayScore);
   const isKnockout = Boolean(activeMatch?.is_knockout);
   const showPenalties = isKnockout;
+  const penaltiesReady =
+    !wentToPenalties ||
+    (Boolean(penaltyWinner) && penaltyHome !== '' && penaltyAway !== '');
   const canSubmit =
-    !busy && Boolean(activeMatchId) && Boolean(activeMatch) && scoreValidation.ok;
+    !busy &&
+    Boolean(activeMatchId) &&
+    Boolean(activeMatch) &&
+    scoreValidation.ok &&
+    penaltiesReady;
 
   if (!allowed) return null;
 
@@ -110,9 +117,15 @@ export default function AdminMatchResultPanel({
           }
         : { went_to_penalties: false, penalty_winner: null, penalty_home: null, penalty_away: null };
 
-    if (penalties.went_to_penalties && !penalties.penalty_winner) {
-      setNotice({ type: 'error', text: 'Selecciona quién ganó la tanda de penales.' });
-      return;
+    if (penalties.went_to_penalties) {
+      if (!penalties.penalty_winner) {
+        setNotice({ type: 'error', text: 'Selecciona quién ganó la tanda de penales.' });
+        return;
+      }
+      if (penalties.penalty_home == null || penalties.penalty_away == null) {
+        setNotice({ type: 'error', text: 'Ingresa el marcador de penales de ambos equipos.' });
+        return;
+      }
     }
 
     setBusy(true);
