@@ -326,7 +326,7 @@ export default function DashboardNotifications({
             >
               {exportBusy ? 'Generando…' : 'Descargar todas las predicciones'}
             </button>
-            {isAdmin ? (
+            {adminToolsAllowed ? (
               <button
                 type="button"
                 className="dash-notifications__export-toggle dash-notifications__export-toggle--secondary"
@@ -339,7 +339,7 @@ export default function DashboardNotifications({
               </button>
             ) : null}
           </div>
-          {isAdmin && allSummariesError ? (
+          {adminToolsAllowed && allSummariesError ? (
             <p className="dash-notifications__admin-note">{allSummariesError}</p>
           ) : null}
         </div>
