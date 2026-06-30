@@ -29,7 +29,9 @@ serve(async (req) => {
 
     const { data: match, error: matchError } = await supabase
       .from('matches')
-      .select('id, home_team, away_team, home_score, away_score, kickoff')
+      .select(
+        'id, home_team, away_team, home_score, away_score, kickoff, is_knockout, went_to_penalties, penalty_winner, penalty_home, penalty_away'
+      )
       .eq('id', match_id)
       .single();
 
@@ -52,14 +54,49 @@ serve(async (req) => {
       .eq('hidden', false)
       .in('id', profileIds.length > 0 ? profileIds : ['00000000-0000-0000-0000-000000000000']);
 
+    const wentToPenalties = Boolean(match.went_to_penalties);
+    const realPenWinner =
+      match.penalty_winner != null ? String(match.penalty_winner).trim() : '';
+
     const participants = (profiles ?? [])
       .map((profile) => {
         const ps = (pickScores ?? []).find((row) => row.profile_id === profile.id);
         const pick = getPickFromProfile(profile.picks as Record<string, unknown> | null, match_id);
         const prediction = pick ? formatPick(pick) : 'Sin predicción';
+
+        let penaltyPrediction = '—';
+        let penaltyPoints = 0;
+        if (pick && typeof pick === 'object' && !Array.isArray(pick)) {
+          const row = pick as Record<string, unknown>;
+          const pw = row.penalty_winner != null ? String(row.penalty_winner).trim() : '';
+          const ph = row.penalty_home;
+          const pa = row.penalty_away;
+          const hasPenScore = ph != null && ph !== '' && pa != null && pa !== '';
+          if (pw || hasPenScore) {
+            const scorePart = hasPenScore ? `${ph}-${pa}` : '';
+            penaltyPrediction = [pw, scorePart].filter(Boolean).join(' ') || '—';
+          }
+          if (wentToPenalties) {
+            if (pw && realPenWinner && pw.toLowerCase() === realPenWinner.toLowerCase()) {
+              penaltyPoints += 1;
+            }
+            if (
+              hasPenScore &&
+              match.penalty_home != null &&
+              match.penalty_away != null &&
+              Number(ph) === Number(match.penalty_home) &&
+              Number(pa) === Number(match.penalty_away)
+            ) {
+              penaltyPoints += 1;
+            }
+          }
+        }
+
         return {
           name: profile.name || profile.username || 'Anónimo',
           prediction,
+          penaltyPrediction,
+          penaltyPoints,
           points: ps?.points_awarded ?? 0,
           total: profile.points ?? 0,
           exact: ps?.exact_hit ?? false,
@@ -78,17 +115,52 @@ serve(async (req) => {
     const sinPuntos = participants.filter((p) => p.points === 0).length;
 
     const rows = participants
-      .map(
-        (p) => `
+      .map((p) => {
+        if (wentToPenalties) {
+          const marcador = p.points - p.penaltyPoints;
+          return `
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;">${p.name}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;color:${p.prediction === 'Sin predicción' ? '#ef4444' : '#333'};">${p.prediction}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;color:${p.penaltyPrediction === '—' ? '#9ca3af' : '#b45309'};">${p.penaltyPrediction}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;">${marcador}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;color:${p.penaltyPoints > 0 ? '#16a34a' : '#9ca3af'};">${p.penaltyPoints > 0 ? `+${p.penaltyPoints}` : '—'}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;color:#6b21a8;">${p.points}</td>
+    </tr>`;
+        }
+        return `
     <tr>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;">${p.name}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;color:${p.prediction === 'Sin predicción' ? '#ef4444' : '#333'};">${p.prediction}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;color:${p.points === 3 ? '#16a34a' : p.points === 1 ? '#2563eb' : '#9ca3af'};">${p.points}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;">${p.points === 3 ? '⭐ Exacto' : p.points === 1 ? '✅ Ganador' : '❌'}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;">${p.total}</td>
-    </tr>`
-      )
+    </tr>`;
+      })
       .join('');
+
+    const penaltyResultLine = wentToPenalties
+      ? `<p style="color:#b45309;margin:4px 0 0;font-weight:bold;">Penales: ${Number(match.penalty_home ?? 0)}-${Number(match.penalty_away ?? 0)}${realPenWinner ? ` (${realPenWinner} avanza)` : ''}</p>`
+      : '';
+
+    const tableHead = wentToPenalties
+      ? `
+        <tr style="background:#2d0a5c;">
+          <th style="padding:10px 12px;color:white;text-align:left;">Participante</th>
+          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Predicción</th>
+          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Pred. Penales</th>
+          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Pts Marcador</th>
+          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Pts Penales</th>
+          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Total Partido</th>
+        </tr>`
+      : `
+        <tr style="background:#2d0a5c;">
+          <th style="padding:10px 12px;color:white;text-align:left;">Participante</th>
+          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Predicción</th>
+          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Pts</th>
+          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Resultado</th>
+          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Total</th>
+        </tr>`;
 
     const html = `
 <!DOCTYPE html>
@@ -104,6 +176,7 @@ serve(async (req) => {
     <div style="text-align:center;margin:16px 0;">
       <span style="font-size:48px;font-weight:bold;color:#6b21a8;">${homeScore} — ${awayScore}</span>
       <p style="color:#666;margin:4px 0;">${ganador === 'Empate' ? 'Empate' : `${ganador} gana`}</p>
+      ${penaltyResultLine}
     </div>
     <div style="display:flex;justify-content:center;gap:24px;margin:16px 0;text-align:center;">
       <div><span style="font-size:24px;font-weight:bold;color:#16a34a;">${exactos}</span><br><small style="color:#666;">Exactos</small></div>
@@ -111,15 +184,7 @@ serve(async (req) => {
       <div><span style="font-size:24px;font-weight:bold;color:#9ca3af;">${sinPuntos}</span><br><small style="color:#666;">Sin puntos</small></div>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-top:16px;">
-      <thead>
-        <tr style="background:#2d0a5c;">
-          <th style="padding:10px 12px;color:white;text-align:left;">Participante</th>
-          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Predicción</th>
-          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Pts</th>
-          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Resultado</th>
-          <th style="padding:10px 12px;color:#f9c907;text-align:center;">Total</th>
-        </tr>
-      </thead>
+      <thead>${tableHead}</thead>
       <tbody>${rows}</tbody>
     </table>
     <p style="text-align:center;color:#999;font-size:12px;margin-top:24px;">El Kraken registró todo. 🦑</p>

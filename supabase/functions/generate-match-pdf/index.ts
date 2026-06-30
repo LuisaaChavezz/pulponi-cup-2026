@@ -53,6 +53,7 @@ serve(async (req) => {
 
       let prediction: string | null = null;
       let penaltyPrediction: string | null = null;
+      let penaltyPoints = 0;
       if (pick) {
         if (typeof pick === "string") prediction = pick;
         else if (typeof pick === "object" && !Array.isArray(pick)) {
@@ -70,6 +71,23 @@ serve(async (req) => {
             const scorePart = hasPenScore ? `${ph}-${pa}` : "";
             penaltyPrediction = [pw, scorePart].filter(Boolean).join(" ") || null;
           }
+
+          // Desglose del bono de penales (+1 ganador, +1 marcador exacto).
+          if (match.went_to_penalties) {
+            const pickWinner = pw.toLowerCase();
+            const realWinner =
+              match.penalty_winner != null ? String(match.penalty_winner).trim().toLowerCase() : "";
+            if (pickWinner && realWinner && pickWinner === realWinner) penaltyPoints += 1;
+            if (
+              hasPenScore &&
+              match.penalty_home != null &&
+              match.penalty_away != null &&
+              Number(ph) === Number(match.penalty_home) &&
+              Number(pa) === Number(match.penalty_away)
+            ) {
+              penaltyPoints += 1;
+            }
+          }
         } else if (Array.isArray(pick)) {
           prediction = `${pick[0]}-${pick[1]}`;
         }
@@ -79,6 +97,7 @@ serve(async (req) => {
         name: (profile.name as string) || (profile.username as string) || "Anónimo",
         prediction,
         penalty_prediction: penaltyPrediction,
+        penalty_points: penaltyPoints,
         points: ps?.points_awarded ?? 0,
         total: (profile.points as number) ?? 0,
         no_pick: !prediction,

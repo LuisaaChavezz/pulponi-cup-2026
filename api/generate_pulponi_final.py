@@ -188,12 +188,21 @@ def _pts_tier(pts):
     return 1
 
 
-def draw_table_header(c, team_color, top_y, show_penalties=False):
+def draw_table_header(c, team_color, top_y, show_penalty_column=False, show_breakdown=False):
     th_h = 40.0
     sf(c, team_color)
     c.rect(PAGE_LEFT, top_y-th_h, PAGE_RIGHT-PAGE_LEFT, th_h, fill=1, stroke=0)
     sf(c, C_WHITE); c.setFont("Helvetica-Bold", 10)
-    if show_penalties:
+    if show_breakdown:
+        # Desglose de puntos (partido que fue a penales).
+        c.drawString(57.0,  top_y-24, "Lugar")
+        c.drawString(92.0,  top_y-24, "Participante")
+        c.drawString(205.0, top_y-24, "Pred. 90'")
+        c.drawString(252.0, top_y-24, "Pred. pen.")
+        c.drawString(360.0, top_y-24, "Pts Marc.")
+        c.drawString(415.0, top_y-24, "Pts Pen.")
+        c.drawString(470.0, top_y-24, "Total")
+    elif show_penalty_column:
         c.drawString(57.0,  top_y-24, "Lugar")
         c.drawString(96.4,  top_y-24, "Participante")
         c.drawString(232.0, top_y-24, "Pred. 90'")
@@ -210,7 +219,7 @@ def draw_table_header(c, team_color, top_y, show_penalties=False):
     return top_y - th_h
 
 
-def draw_row(c, y_bottom, participant, show_penalties=False):
+def draw_row(c, y_bottom, participant, show_penalty_column=False, show_breakdown=False):
     pts     = participant["points"]
     no_pick = participant.get("no_pick", False)
     tier    = _pts_tier(pts)
@@ -231,7 +240,8 @@ def draw_row(c, y_bottom, participant, show_penalties=False):
         sf(c, C_NAME_1); c.setFont("Helvetica-Bold", 9)
     else:
         sf(c, C_NAME_0); c.setFont("Helvetica", 9)
-    c.drawString(96.4, ty, participant["name"])
+    name_x = 92.0 if show_breakdown else 96.4
+    c.drawString(name_x, ty, participant["name"])
 
     # Puntos (negrita por nivel)
     pts_str = str(pts)
@@ -242,7 +252,34 @@ def draw_row(c, y_bottom, participant, show_penalties=False):
     else:
         sf(c, C_PTS_0); c.setFont("Helvetica", 10)
 
-    if show_penalties:
+    if show_breakdown:
+        penalty_points = int(participant.get("penalty_points", 0) or 0)
+        marcador = pts - penalty_points
+        # Predicción 90'
+        sf(c, C_DARK); c.setFont("Helvetica", 9)
+        c.drawString(205.0, ty, "—" if no_pick else participant.get("prediction", "—"))
+        # Predicción de penales
+        c.drawString(252.0, ty, participant.get("penalty_prediction") or "—")
+        # Pts Marcador
+        sf(c, C_DARK); c.setFont("Helvetica-Bold", 10)
+        ms = str(marcador)
+        mw = c.stringWidth(ms, "Helvetica-Bold", 10)
+        c.drawString(370.0+(14-mw)/2, ty+0.3, ms)
+        # Pts Penales (+N)
+        if penalty_points > 0:
+            sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 10)
+            pen_str = f"+{penalty_points}"
+        else:
+            sf(c, C_PTS_0); c.setFont("Helvetica", 10)
+            pen_str = "—"
+        c.drawString(424.0, ty+0.3, pen_str)
+        # Total del partido
+        sf(c, C_DARK); c.setFont("Helvetica-Bold", 10)
+        tw = c.stringWidth(pts_str, "Helvetica-Bold", 10)
+        c.drawString(476.0+(14-tw)/2, ty+0.3, pts_str)
+        return
+
+    if show_penalty_column:
         # Predicción 90'
         sf(c, C_DARK); c.setFont("Helvetica", 9)
         pred = "—" if no_pick else participant.get("prediction", "—")
@@ -319,6 +356,8 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
     show_penalty_column = bool(is_knockout)
     # La línea de penales en el header solo si el partido SÍ fue a penales.
     went = bool(is_knockout) and bool(went_to_penalties) and bool(penalty_winner)
+    # El desglose de puntos (Pts Marcador / Pts Penales / Total) solo si fue a penales.
+    show_breakdown = went
 
     penalty_line = None
     if went:
@@ -345,7 +384,7 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
                       exact_score, team_color, team_accent, penalty_line)
 
     table_top = PAGE_H - 228.5
-    row_y     = draw_table_header(cv, team_color, table_top, show_penalty_column)
+    row_y     = draw_table_header(cv, team_color, table_top, show_penalty_column, show_breakdown)
     rows_top  = table_top
 
     for p in participants:
@@ -353,10 +392,10 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
             draw_table_border(cv, rows_top, row_y)
             cv.showPage()
             table_top = PAGE_H - 60
-            row_y     = draw_table_header(cv, team_color, table_top, show_penalty_column)
+            row_y     = draw_table_header(cv, team_color, table_top, show_penalty_column, show_breakdown)
             rows_top  = table_top
         row_y -= ROW_H
-        draw_row(cv, row_y, p, show_penalty_column)
+        draw_row(cv, row_y, p, show_penalty_column, show_breakdown)
 
     draw_table_border(cv, rows_top, row_y)
     total_p  = len(participants)
