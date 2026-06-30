@@ -43,6 +43,31 @@ serve(async (req) => {
       .select("id, username, name, picks, points")
       .in("id", profileIds.length > 0 ? profileIds : ["00000000-0000-0000-0000-000000000000"]);
 
+    // Total histórico: suma de points_awarded del usuario en todos los partidos
+    // con kickoff <= al de ESTE partido (inclusive), ordenado cronológicamente.
+    // Así un PDF de un partido viejo muestra el total que el usuario tenía
+    // justo después de ese partido, no el profiles.points actual.
+    const cumulativeTotals = new Map<string, number>();
+    if (match.kickoff && profileIds.length > 0) {
+      const { data: priorMatches } = await supabase
+        .from("matches")
+        .select("id")
+        .lte("kickoff", match.kickoff);
+      const priorIds = (priorMatches ?? []).map((m: { id: string }) => String(m.id));
+      if (priorIds.length > 0) {
+        const { data: histScores } = await supabase
+          .from("pick_scores")
+          .select("profile_id, points_awarded, match_id")
+          .in("profile_id", profileIds)
+          .in("match_id", priorIds);
+        for (const r of histScores ?? []) {
+          const key = String((r as { profile_id: string }).profile_id);
+          const pts = (r as { points_awarded?: number }).points_awarded ?? 0;
+          cumulativeTotals.set(key, (cumulativeTotals.get(key) ?? 0) + pts);
+        }
+      }
+    }
+
     const matchIdStr = String(match_id);
     const raw = (profiles ?? []).map((profile: Record<string, unknown>) => {
       const ps = (pickScores ?? []).find(
@@ -93,13 +118,17 @@ serve(async (req) => {
         }
       }
 
+      const historicalTotal = match.kickoff
+        ? (cumulativeTotals.get(String(profile.id)) ?? 0)
+        : ((profile.points as number) ?? 0);
+
       return {
         name: (profile.name as string) || (profile.username as string) || "Anónimo",
         prediction,
         penalty_prediction: penaltyPrediction,
         penalty_points: penaltyPoints,
         points: ps?.points_awarded ?? 0,
-        total: (profile.points as number) ?? 0,
+        total: historicalTotal,
         no_pick: !prediction,
       };
     });
@@ -147,9 +176,19 @@ serve(async (req) => {
         participants,
       }),
     });
-    if (!pdfRes.ok) throw new Error(`PDF service error ${pdfRes.status}`);
+    if (!pdfRes.ok) {
+      const text = await pdfRes.text().catch(() => "");
+      throw new Error(`PDF service error ${pdfRes.status}${text ? `: ${text.slice(0, 200)}` : ""}`);
+    }
 
     const pdfBuffer = await pdfRes.arrayBuffer();
+    const head = new Uint8Array(pdfBuffer.slice(0, 5));
+    const isPdf = head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46; // %PDF
+    if (!isPdf) {
+      throw new Error(
+        "El servicio PDF no devolvió un PDF válido. Revisa PDF_SERVICE_URL (debe apuntar al dominio de producción sin protección de despliegue de Vercel)."
+      );
+    }
     const safe = `${match.home_team}_vs_${match.away_team}`.replace(/\s+/g, "_").toLowerCase();
 
     return new Response(pdfBuffer, {

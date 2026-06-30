@@ -139,9 +139,19 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ users }),
     });
-    if (!pdfRes.ok) throw new Error(`PDF service error ${pdfRes.status}`);
+    if (!pdfRes.ok) {
+      const text = await pdfRes.text().catch(() => "");
+      throw new Error(`PDF service error ${pdfRes.status}${text ? `: ${text.slice(0, 200)}` : ""}`);
+    }
 
     const pdfBuffer = await pdfRes.arrayBuffer();
+    const head = new Uint8Array(pdfBuffer.slice(0, 5));
+    const isPdf = head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46; // %PDF
+    if (!isPdf) {
+      throw new Error(
+        "El servicio PDF no devolvió un PDF válido. Revisa PDF_SERVICE_URL (debe apuntar al dominio de producción sin protección de despliegue de Vercel)."
+      );
+    }
     return new Response(pdfBuffer, {
       headers: {
         ...CORS,
