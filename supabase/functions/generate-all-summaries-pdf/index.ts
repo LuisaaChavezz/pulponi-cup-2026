@@ -86,7 +86,7 @@ serve(async (req) => {
       .select("id, username, name, points, picks")
       .eq("hidden", false)
       .neq("username", "el-kraken")
-      .order("username", { ascending: true });
+      .order("points", { ascending: false });
 
     const profileList = profiles ?? [];
     const profileIds = profileList.map((p: { id: string }) => p.id);
@@ -247,6 +247,14 @@ serve(async (req) => {
         summary: { exactos, ganadores, fallos, total: totalPoints },
       };
     });
+
+    // Orden final = leaderboard: mayor número de puntos primero. Se reordena por
+    // el total ya calculado para garantizar consistencia aunque profiles.points
+    // esté desfasado respecto a los pick_scores.
+    users.sort(
+      (a: { total_points: number }, b: { total_points: number }) =>
+        (b.total_points ?? 0) - (a.total_points ?? 0)
+    );
 
     const pdfRes = await fetch(resolvePdfUrl(), {
       method: "POST",
