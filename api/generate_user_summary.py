@@ -66,6 +66,13 @@ def _rows_per_col():
     return max(1, int((ROWS_TOP - BOTTOM_LIMIT) // ROW_H))
 
 
+def _draw_page_background(c):
+    """Fondo blanco explícito. Sin esto el PDF queda 'transparente' y algunos
+    visores (modo oscuro / móvil) lo pintan negro, dejándolo ilegible."""
+    c.setFillColor(C_WHITE)
+    c.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
+
+
 def _draw_page_header(c, user_name, total_points):
     c.setFillColor(C_PURPLE)
     c.rect(0, PAGE_H - 70, PAGE_W, 70, fill=1, stroke=0)
@@ -158,6 +165,7 @@ def _build(c, user_name, total_points, rows, summary):
     pages = max(1, math.ceil(total / per_page)) if total else 1
 
     for page in range(pages):
+        _draw_page_background(c)
         _draw_page_header(c, user_name, total_points)
         page_rows = rows[page * per_page:(page + 1) * per_page]
         for col in range(2):
