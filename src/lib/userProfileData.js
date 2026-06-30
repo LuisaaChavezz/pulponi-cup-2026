@@ -54,7 +54,13 @@ function lookupPickScore(matchId, match, scoreByMatch) {
 const MATCH_HISTORY_COLUMNS =
   'id, official_id, home_team, away_team, kickoff, status, api_status, home_score, away_score';
 
-/** Carga partidos desde Supabase para historial (no depende del catálogo en memoria). */
+/**
+ * Carga partidos para el historial SIEMPRE frescos desde Supabase.
+ * La DB es la fuente autoritativa: el catálogo en memoria (cachedMatches) puede
+ * estar desactualizado (p. ej. un partido recién puntuado que en cache sigue
+ * como 'scheduled' sin marcador), así que solo se usa como fallback para ids
+ * que la DB no devolvió. Así los marcadores/puntos recién registrados sí salen.
+ */
 async function loadMatchesForProfileHistory(client, profile, pickScoreRows, cachedMatches = []) {
   const wanted = new Set();
   for (const key of Object.keys(pickMap(profile))) {
@@ -65,16 +71,12 @@ async function loadMatchesForProfileHistory(client, profile, pickScoreRows, cach
   }
 
   const byKey = new Map();
-  for (const m of cachedMatches ?? []) {
-    if (m?.id != null) byKey.set(String(m.id), m);
-    if (m?.official_id) byKey.set(String(m.official_id), m);
-  }
-
-  const missing = [...wanted].filter((id) => !byKey.has(id));
+  const allWanted = [...wanted];
   const CHUNK = 80;
 
-  for (let i = 0; i < missing.length; i += CHUNK) {
-    const chunk = missing.slice(i, i + CHUNK);
+  // 1) Consultar Supabase para TODOS los ids (datos frescos: status/score reales).
+  for (let i = 0; i < allWanted.length; i += CHUNK) {
+    const chunk = allWanted.slice(i, i + CHUNK);
     const byId = await safeQuery(
       client.from('matches').select(MATCH_HISTORY_COLUMNS).in('id', chunk),
       'matches.id for history',
@@ -101,6 +103,12 @@ async function loadMatchesForProfileHistory(client, profile, pickScoreRows, cach
         if (m.official_id) byKey.set(String(m.official_id), m);
       }
     }
+  }
+
+  // 2) Fallback: solo para ids que la DB no devolvió, usar el catálogo en memoria.
+  for (const m of cachedMatches ?? []) {
+    if (m?.id != null && !byKey.has(String(m.id))) byKey.set(String(m.id), m);
+    if (m?.official_id && !byKey.has(String(m.official_id))) byKey.set(String(m.official_id), m);
   }
 
   const unique = new Map();
