@@ -260,24 +260,6 @@ export default function DashboardNotifications({
         onApplyFinalResult={onApplyFinalResult}
       />
 
-      {isAdmin ? (
-        <div className="dash-notifications__section dash-notifications__admin-summaries">
-          <button
-            type="button"
-            className="dash-notifications__export-toggle"
-            onClick={downloadAllSummariesPdf}
-            disabled={allSummariesLoading}
-          >
-            {allSummariesLoading
-              ? 'Generando…'
-              : '📄 Descargar resúmenes de todos los participantes'}
-          </button>
-          {allSummariesError ? (
-            <p className="dash-notifications__admin-note">{allSummariesError}</p>
-          ) : null}
-        </div>
-      ) : null}
-
       <div className="dash-notifications__section dash-notifications__section--predictions">
         <div className="dash-notifications__head">
           <h3 className="dash-notifications__subtitle dash-notifications-community-mobile-hide">
@@ -344,7 +326,22 @@ export default function DashboardNotifications({
             >
               {exportBusy ? 'Generando…' : 'Descargar todas las predicciones'}
             </button>
+            {isAdmin ? (
+              <button
+                type="button"
+                className="dash-notifications__export-toggle dash-notifications__export-toggle--secondary"
+                onClick={downloadAllSummariesPdf}
+                disabled={allSummariesLoading}
+              >
+                {allSummariesLoading
+                  ? 'Generando…'
+                  : '📄 Descargar resúmenes de todos los participantes'}
+              </button>
+            ) : null}
           </div>
+          {isAdmin && allSummariesError ? (
+            <p className="dash-notifications__admin-note">{allSummariesError}</p>
+          ) : null}
         </div>
 
         {adminToolsAllowed ? (
