@@ -6,6 +6,7 @@ const RESULT_META = {
   exact: { icon: '⭐', label: 'Exacto', className: 'exact' },
   winner: { icon: '✅', label: 'Ganador', className: 'winner' },
   miss: { icon: '❌', label: 'Fallo', className: 'miss' },
+  nopick: { icon: '∅', label: 'Sin predicción', className: 'nopick' },
 };
 
 function resultMetaForRow(row) {

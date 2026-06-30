@@ -128,17 +128,46 @@ export async function fetchPickScoreAggregates(client) {
   return { map: aggregatePickScoresByProfile(data ?? []), error: null };
 }
 
+/**
+ * Conjunto GLOBAL de partidos ya puntuados = DISTINCT match_id en pick_scores.
+ * Esta es la fuente autoritativa de "partidos jugados" (igual para todos), más
+ * confiable que matches.status: hay partidos puntuados que siguen como
+ * 'scheduled'. Paginamos con .range() porque PostgREST limita a ~1000 filas y
+ * pick_scores puede tener varios miles (muchos usuarios x partidos).
+ */
+export async function fetchScoredMatchIds(client) {
+  const ids = new Set();
+  if (!client) return ids;
+
+  const PAGE = 1000;
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await client
+      .from('pick_scores')
+      .select('match_id')
+      .order('match_id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.warn('[pickScoreStats] fetchScoredMatchIds', error.message);
+      break;
+    }
+    const rows = data ?? [];
+    for (const row of rows) {
+      const id = String(row.match_id ?? '').trim();
+      if (id) ids.add(id);
+    }
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return ids;
+}
+
 /** Partidos del Mundial ya puntuados (global): COUNT(DISTINCT match_id) en pick_scores. */
 export async function fetchDistinctPlayedMatchCount(client) {
   if (!client) return { count: 0, error: null };
-
-  const { data, error } = await client.from('pick_scores').select('match_id');
-  if (error) return { count: 0, error };
-
-  const distinct = new Set(
-    (data ?? []).map((row) => String(row.match_id ?? '').trim()).filter(Boolean)
-  );
-  return { count: distinct.size, error: null };
+  const ids = await fetchScoredMatchIds(client);
+  return { count: ids.size, error: null };
 }
 
 export async function enrichProfilesWithPickScores(client, profiles, { overwriteTotals = false } = {}) {

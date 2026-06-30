@@ -11,7 +11,7 @@ import {
 import { formatActivityLogMessage } from './activityMessages';
 import { filterUserBadgeRowsForProfile, resolveBadgePresentation } from '../data/achievements';
 import { computePulpoDerivedStats } from './pulpoIndex';
-import { aggregatePickScoreRowsForProfile, fetchDistinctPlayedMatchCount, getPerformanceStatsForProfile } from './pickScoreStats';
+import { aggregatePickScoreRowsForProfile, fetchScoredMatchIds, getPerformanceStatsForProfile } from './pickScoreStats';
 import { computeWinnerStreakFromPickScores } from './scoringEngine';
 
 function pickMap(profile) {
@@ -61,13 +61,24 @@ const MATCH_HISTORY_COLUMNS =
  * como 'scheduled' sin marcador), así que solo se usa como fallback para ids
  * que la DB no devolvió. Así los marcadores/puntos recién registrados sí salen.
  */
-async function loadMatchesForProfileHistory(client, profile, pickScoreRows, cachedMatches = []) {
+async function loadMatchesForProfileHistory(
+  client,
+  profile,
+  pickScoreRows,
+  cachedMatches = [],
+  extraIds = null
+) {
   const wanted = new Set();
   for (const key of Object.keys(pickMap(profile))) {
     if (key) wanted.add(String(key));
   }
   for (const row of pickScoreRows ?? []) {
     if (row?.match_id != null) wanted.add(String(row.match_id));
+  }
+  // Conjunto global de partidos puntuados: se cargan SIEMPRE, aunque el usuario
+  // no los haya predicho, para que el historial sea igual para todos.
+  if (extraIds) {
+    for (const id of extraIds) if (id) wanted.add(String(id));
   }
 
   const byKey = new Map();
@@ -205,23 +216,69 @@ export function countRiskyExactHits(profileId, pickScoreRows, communityProfiles,
   return count;
 }
 
-export function buildPickHistoryRows(profile, pickScoreRows, matches, communityProfiles) {
+export function buildPickHistoryRows(
+  profile,
+  pickScoreRows,
+  matches,
+  communityProfiles,
+  baseMatchIds = null
+) {
   try {
     const picks = pickMap(profile);
     const scoreByMatch = new Map((pickScoreRows ?? []).map((r) => [String(r.match_id), r]));
     const matchIndex = matchesById(matches);
+
+    // Conjunto de partidos a mostrar: TODOS los partidos puntuados (jugados) +
+    // cualquier partido que el usuario haya predicho o tenga score. Así el
+    // historial es idéntico para todos: los partidos que el usuario NO predijo
+    // aparecen como "Sin predicción" en lugar de omitirse.
+    // baseMatchIds = set global de partidos puntuados (DISTINCT match_id en
+    // pick_scores). Si no se provee, se cae a "partidos con resultado final".
+    const ids = new Set();
+    if (baseMatchIds && baseMatchIds.size) {
+      for (const id of baseMatchIds) if (id) ids.add(String(id));
+    } else {
+      for (const m of matches ?? []) {
+        if (m?.id != null && matchHasFinalScore(m)) ids.add(String(m.id));
+      }
+    }
+    for (const key of Object.keys(picks)) {
+      if (key) ids.add(String(key));
+    }
+    for (const r of pickScoreRows ?? []) {
+      if (r?.match_id != null) ids.add(String(r.match_id));
+    }
+
     const rows = [];
+    const seen = new Set();
 
-    for (const [matchId, rawPick] of Object.entries(picks)) {
-      const pick = parsePickScore(rawPick);
-      if (!pick) continue;
-
-      const match = matchIndex.get(String(matchId));
+    for (const candidateId of ids) {
+      const match = matchIndex.get(String(candidateId));
       if (!match) continue;
 
-      const ps = lookupPickScore(matchId, match, scoreByMatch);
+      const canonicalId = String(match.id);
+      if (seen.has(canonicalId)) continue;
+      seen.add(canonicalId);
+
+      const rawPick =
+        picks[canonicalId] ??
+        (match.official_id ? picks[String(match.official_id)] : undefined) ??
+        picks[String(candidateId)];
+      const pick = parsePickScore(rawPick);
+
+      const ps = lookupPickScore(canonicalId, match, scoreByMatch);
       const hasScoring = Boolean(ps);
-      const hasResult = matchHasFinalScore(match) || hasScoring;
+      // "Jugado" = pertenece al set global de partidos puntuados (autoritativo,
+      // igual para todos) o el usuario tiene un pick_score. No usamos
+      // matchHasFinalScore directamente porque hay partidos 'scheduled' con
+      // marcador de relleno que NO están puntuados y no deben contar.
+      const inScoredSet =
+        baseMatchIds && baseMatchIds.size
+          ? baseMatchIds.has(canonicalId) ||
+            (match.official_id ? baseMatchIds.has(String(match.official_id)) : false) ||
+            baseMatchIds.has(String(candidateId))
+          : matchHasFinalScore(match);
+      const hasResult = inScoredSet || hasScoring;
       const revealed = isProfilePickRevealed(match);
       const matchStatus = uiStatus(match.status, match.api_status);
       const scored = pickHistoryStatusFromScore(ps);
@@ -230,7 +287,12 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
       let statusClass = 'pending';
       let points = null;
 
-      if (hasScoring && scored) {
+      if (!pick && hasResult) {
+        // Partido jugado que el usuario no predijo: 0 puntos implícitos.
+        status = 'Sin predicción';
+        statusClass = 'nopick';
+        points = Number(ps?.points_awarded ?? 0);
+      } else if (hasScoring && scored) {
         status = scored.status;
         statusClass = scored.statusClass;
         points = Number(ps.points_awarded ?? 0);
@@ -245,6 +307,7 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
         statusClass = 'locked';
       }
 
+      const matchId = canonicalId;
       const isKnockout = Boolean(match.is_knockout);
       const wentToPenalties = Boolean(match.went_to_penalties);
       const penaltyPick = isKnockout ? parsePenaltyPick(rawPick) : null;
@@ -283,7 +346,7 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
         pickRevealed: revealed,
         hasResult,
         hasScoring,
-        prediction: `${pick.home}–${pick.away}`,
+        prediction: pick ? `${pick.home}–${pick.away}` : 'Sin predicción',
         finalResult: formatFinalScoreLabel(match),
         points,
         status,
@@ -429,14 +492,22 @@ export async function loadPublicProfile(
       'pick_scores'
     );
 
-    const matchesForHistory = await loadMatchesForProfileHistory(
+    // Conjunto GLOBAL de partidos puntuados (DISTINCT match_id en pick_scores).
+    // Es la base autoritativa de "partidos jugados" e idéntica para todos los
+    // participantes; los partidos que un usuario no predijo igual aparecen.
+    const scoredMatchIds = await fetchScoredMatchIds(client);
+
+    const combinedMatches = await loadMatchesForProfileHistory(
       client,
       profile,
       pickScoreRows,
-      matches
+      matches,
+      scoredMatchIds
     );
 
-    const [allProfilesRows, userBadgeRows, historyRows, activityRows, playedMatchCount] =
+    const playedMatchCount = scoredMatchIds.size;
+
+    const [allProfilesRows, userBadgeRows, historyRows, activityRows] =
       await Promise.all([
       safeQuery(
         client
@@ -462,13 +533,6 @@ export async function loadPublicProfile(
           .limit(20),
         'activity_log'
       ),
-      fetchDistinctPlayedMatchCount(client).then((res) => {
-        if (res.error) {
-          console.warn('[loadPublicProfile] playedMatches', res.error.message);
-          return 0;
-        }
-        return res.count ?? 0;
-      }),
     ]);
 
     let ranked = [];
@@ -486,11 +550,11 @@ export async function loadPublicProfile(
       points: Number(profile?.points ?? scoredProfile.points ?? 0),
       exacts: Number(profile?.exacts ?? scoredProfile.exacts ?? 0),
     };
-    const matchIndex = matchesById(matchesForHistory);
+    const matchIndex = matchesById(combinedMatches);
     const stats = buildUserStats(
       profileWithScores,
       pickScoreRows ?? [],
-      matchesForHistory,
+      combinedMatches,
       communityProfiles,
       rankingSummary,
       playedMatchCount
@@ -498,8 +562,9 @@ export async function loadPublicProfile(
     const pickHistory = buildPickHistoryRows(
       profileWithScores,
       pickScoreRows ?? [],
-      matchesForHistory,
-      communityProfiles
+      combinedMatches,
+      communityProfiles,
+      scoredMatchIds
     );
     const badges = mapUserBadges(userBadgeRows ?? [], achievementCatalog, profileId);
     const activity = mapUserActivityRows(activityRows ?? [], profile, matchIndex);
@@ -509,7 +574,7 @@ export async function loadPublicProfile(
       const performanceStats = getPerformanceStatsForProfile(
         profileId,
         pickScoreRows ?? [],
-        matchesForHistory
+        combinedMatches
       );
       pulpoStats = computePulpoDerivedStats({
         profile: profileWithScores,

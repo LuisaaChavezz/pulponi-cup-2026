@@ -64,18 +64,80 @@ serve(async (req) => {
       .select("match_id, points_awarded, exact_hit, winner_hit")
       .eq("profile_id", profile_id);
 
-    const scoreList = scores ?? [];
-    const matchIds = [...new Set(scoreList.map((s: { match_id: string }) => String(s.match_id)))];
+    const scoreByMatch = new Map<
+      string,
+      { points_awarded?: number; exact_hit?: boolean; winner_hit?: boolean }
+    >();
+    for (const s of scores ?? []) {
+      const row = s as {
+        match_id: string;
+        points_awarded?: number;
+        exact_hit?: boolean;
+        winner_hit?: boolean;
+      };
+      scoreByMatch.set(String(row.match_id), row);
+    }
 
-    const { data: matches } = await supabase
-      .from("matches")
-      .select(
-        "id, home_team, away_team, home_score, away_score, kickoff, is_knockout, round_name, went_to_penalties, penalty_winner, penalty_home, penalty_away"
-      )
-      .in("id", matchIds.length > 0 ? matchIds : ["__none__"]);
+    // Conjunto GLOBAL de partidos puntuados (DISTINCT match_id en pick_scores de
+    // TODOS los usuarios). Es la base autoritativa de "partidos jugados" e igual
+    // para todos. NO usamos matches.status='finished' porque hay partidos
+    // puntuados que siguen como 'scheduled' (se perderían) y partidos
+    // 'scheduled' con marcador de relleno sin puntuar (no deben contar).
+    // Paginamos porque PostgREST limita a ~1000 filas.
+    const scoredIdSet = new Set<string>();
+    {
+      const PAGE = 1000;
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data: page, error: sErr } = await supabase
+          .from("pick_scores")
+          .select("match_id")
+          .order("match_id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (sErr) throw new Error(`pick_scores ids: ${sErr.message}`);
+        const pageRows = (page ?? []) as Array<{ match_id?: unknown }>;
+        for (const r of pageRows) if (r.match_id != null) scoredIdSet.add(String(r.match_id));
+        if (pageRows.length < PAGE) break;
+        from += PAGE;
+      }
+    }
 
-    const matchById = new Map<string, Record<string, unknown>>();
-    for (const m of matches ?? []) matchById.set(String((m as { id: string }).id), m);
+    // Cargar esos partidos (en lotes; resolviendo por id y por official_id).
+    const finishedList: Array<Record<string, unknown>> = [];
+    {
+      const ids = [...scoredIdSet];
+      const matchByKey = new Map<string, Record<string, unknown>>();
+      const CHUNK = 150;
+      const COLS =
+        "id, official_id, home_team, away_team, home_score, away_score, kickoff, is_knockout, round_name, went_to_penalties, penalty_winner, penalty_home, penalty_away";
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const { data: byId } = await supabase.from("matches").select(COLS).in("id", chunk);
+        for (const m of byId ?? []) {
+          const row = m as Record<string, unknown>;
+          matchByKey.set(String(row.id), row);
+          if (row.official_id != null) matchByKey.set(String(row.official_id), row);
+        }
+        const missing = chunk.filter((id) => !matchByKey.has(id));
+        if (missing.length > 0) {
+          const { data: byOff } = await supabase.from("matches").select(COLS).in("official_id", missing);
+          for (const m of byOff ?? []) {
+            const row = m as Record<string, unknown>;
+            matchByKey.set(String(row.id), row);
+            if (row.official_id != null) matchByKey.set(String(row.official_id), row);
+          }
+        }
+      }
+      const uniq = new Map<string, Record<string, unknown>>();
+      for (const m of matchByKey.values()) uniq.set(String(m.id), m);
+      finishedList.push(...uniq.values());
+      finishedList.sort((a, b) => {
+        const ta = a.kickoff ? new Date(a.kickoff as string).getTime() : 0;
+        const tb = b.kickoff ? new Date(b.kickoff as string).getTime() : 0;
+        return ta - tb;
+      });
+    }
 
     const picks = (profile.picks as Record<string, unknown> | null) ?? {};
 
@@ -95,18 +157,12 @@ serve(async (req) => {
 
     let exactos = 0;
     let ganadores = 0;
-    let fallos = 0;
 
     const rows: Row[] = [];
-    for (const s of scoreList) {
-      const score = s as {
-        match_id: string;
-        points_awarded?: number;
-        exact_hit?: boolean;
-        winner_hit?: boolean;
-      };
-      const m = matchById.get(String(score.match_id));
-      if (!m) continue;
+    for (const m of finishedList) {
+      const mid = String(m.id);
+      const moff = m.official_id != null ? String(m.official_id) : null;
+      const score = scoreByMatch.get(mid) ?? (moff ? scoreByMatch.get(moff) : undefined);
 
       const home = (m.home_team as string) ?? "?";
       const away = (m.away_team as string) ?? "?";
@@ -115,7 +171,7 @@ serve(async (req) => {
       const final = hs != null && as != null ? `${hs}-${as}` : "—";
 
       let prediction = "—";
-      const pick = picks[String(score.match_id)];
+      const pick = picks[mid] ?? (moff ? picks[moff] : undefined);
       if (pick && typeof pick === "object" && !Array.isArray(pick)) {
         const row = pick as Record<string, unknown>;
         const hp = row.home_pick ?? row.home ?? row.local;
@@ -127,10 +183,9 @@ serve(async (req) => {
         prediction = pick;
       }
 
-      const points = score.points_awarded ?? 0;
-      if (score.exact_hit) exactos += 1;
-      else if (score.winner_hit) ganadores += 1;
-      else fallos += 1;
+      const points = score?.points_awarded ?? 0;
+      if (score?.exact_hit) exactos += 1;
+      else if (score?.winner_hit) ganadores += 1;
 
       const isKnockout = Boolean(m.is_knockout);
       const wentToPenalties = Boolean(m.went_to_penalties);
@@ -189,6 +244,10 @@ serve(async (req) => {
     }
 
     rows.sort((a, b) => a.kickoff - b.kickoff);
+
+    // Fallos = partidos jugados que no fueron exactos ni ganadores (incluye los
+    // que el usuario no predijo, que cuentan como 0 puntos).
+    const fallos = Math.max(0, rows.length - exactos - ganadores);
 
     const totalPoints =
       (profile.points as number) ??

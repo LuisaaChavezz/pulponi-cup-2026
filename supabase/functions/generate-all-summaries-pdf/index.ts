@@ -96,7 +96,6 @@ serve(async (req) => {
     // sola consulta truncaría datos y a varios usuarios les faltarían partidos.
     // Por eso paginamos con .range() hasta traer absolutamente todas las filas.
     const scoresByProfile = new Map<string, Array<Record<string, unknown>>>();
-    const matchIdSet = new Set<string>();
     if (profileIds.length > 0) {
       const PAGE = 1000;
       let from = 0;
@@ -116,35 +115,80 @@ serve(async (req) => {
           const key = String(row.profile_id);
           if (!scoresByProfile.has(key)) scoresByProfile.set(key, []);
           scoresByProfile.get(key)!.push(s as Record<string, unknown>);
-          matchIdSet.add(String(row.match_id));
         }
         if (rows.length < PAGE) break;
         from += PAGE;
       }
     }
 
-    // matches involucrados (en lotes para evitar IN demasiado grande).
-    const matchById = new Map<string, Record<string, unknown>>();
-    const matchIds = [...matchIdSet];
-    const CHUNK = 200;
-    for (let i = 0; i < matchIds.length; i += CHUNK) {
-      const chunk = matchIds.slice(i, i + CHUNK);
-      const { data: matches } = await supabase
-        .from("matches")
-        .select(
-          "id, home_team, away_team, home_score, away_score, kickoff, is_knockout, round_name, went_to_penalties, penalty_winner, penalty_home, penalty_away"
-        )
-        .in("id", chunk);
-      for (const m of matches ?? []) matchById.set(String((m as { id: string }).id), m);
+    // Conjunto GLOBAL de partidos puntuados (DISTINCT match_id en pick_scores).
+    // Es la base autoritativa de "partidos jugados" e igual para todos. NO se usa
+    // matches.status='finished' porque hay partidos puntuados que siguen como
+    // 'scheduled' (se perderían) y partidos 'scheduled' con marcador de relleno
+    // que NO están puntuados (no deben contar).
+    const scoredIdSet = new Set<string>();
+    for (const arr of scoresByProfile.values()) {
+      for (const s of arr) {
+        const mid = (s as { match_id?: unknown }).match_id;
+        if (mid != null) scoredIdSet.add(String(mid));
+      }
+    }
+
+    // Cargar esos partidos (en lotes; resolviendo por id y por official_id).
+    const finishedMatches: Array<Record<string, unknown>> = [];
+    {
+      const ids = [...scoredIdSet];
+      const matchByKey = new Map<string, Record<string, unknown>>();
+      const CHUNK = 150;
+      const COLS =
+        "id, official_id, home_team, away_team, home_score, away_score, kickoff, is_knockout, round_name, went_to_penalties, penalty_winner, penalty_home, penalty_away";
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const { data: byId } = await supabase.from("matches").select(COLS).in("id", chunk);
+        for (const m of byId ?? []) {
+          const row = m as Record<string, unknown>;
+          matchByKey.set(String(row.id), row);
+          if (row.official_id != null) matchByKey.set(String(row.official_id), row);
+        }
+        const missing = chunk.filter((id) => !matchByKey.has(id));
+        if (missing.length > 0) {
+          const { data: byOff } = await supabase.from("matches").select(COLS).in("official_id", missing);
+          for (const m of byOff ?? []) {
+            const row = m as Record<string, unknown>;
+            matchByKey.set(String(row.id), row);
+            if (row.official_id != null) matchByKey.set(String(row.official_id), row);
+          }
+        }
+      }
+      const uniq = new Map<string, Record<string, unknown>>();
+      for (const m of matchByKey.values()) uniq.set(String(m.id), m);
+      finishedMatches.push(...uniq.values());
+      finishedMatches.sort((a, b) => {
+        const ta = a.kickoff ? new Date(a.kickoff as string).getTime() : 0;
+        const tb = b.kickoff ? new Date(b.kickoff as string).getTime() : 0;
+        return ta - tb;
+      });
     }
 
     const users = profileList.map((profile: Record<string, unknown>) => {
       const picks = (profile.picks as Record<string, unknown> | null) ?? {};
       const myScores = scoresByProfile.get(String(profile.id)) ?? [];
+      const scoreByMatch = new Map<
+        string,
+        { points_awarded?: number; exact_hit?: boolean; winner_hit?: boolean }
+      >();
+      for (const s of myScores) {
+        const r = s as {
+          match_id: string;
+          points_awarded?: number;
+          exact_hit?: boolean;
+          winner_hit?: boolean;
+        };
+        scoreByMatch.set(String(r.match_id), r);
+      }
 
       let exactos = 0;
       let ganadores = 0;
-      let fallos = 0;
       const rows: Array<{
         match: string;
         final: string;
@@ -159,25 +203,19 @@ serve(async (req) => {
         penalty_points: number;
       }> = [];
 
-      for (const s of myScores) {
-        const score = s as {
-          match_id: string;
-          points_awarded?: number;
-          exact_hit?: boolean;
-          winner_hit?: boolean;
-        };
-        const m = matchById.get(String(score.match_id));
-        if (!m) continue;
+      for (const m of finishedMatches) {
+        const mid = String(m.id);
+        const moff = m.official_id != null ? String(m.official_id) : null;
+        const score = scoreByMatch.get(mid) ?? (moff ? scoreByMatch.get(moff) : undefined);
 
         const hs = m.home_score as number | null;
         const as = m.away_score as number | null;
         const final = hs != null && as != null ? `${hs}-${as}` : "—";
-        const pick = picks[String(score.match_id)];
+        const pick = picks[mid] ?? (moff ? picks[moff] : undefined);
         const prediction = buildPrediction(pick);
 
-        if (score.exact_hit) exactos += 1;
-        else if (score.winner_hit) ganadores += 1;
-        else fallos += 1;
+        if (score?.exact_hit) exactos += 1;
+        else if (score?.winner_hit) ganadores += 1;
 
         const isKnockout = Boolean(m.is_knockout);
         const pen = isKnockout ? buildPenalty(pick, m) : { pred: null, points: 0 };
@@ -186,7 +224,7 @@ serve(async (req) => {
           match: `${(m.home_team as string) ?? "?"} vs ${(m.away_team as string) ?? "?"}`,
           final,
           prediction,
-          points: score.points_awarded ?? 0,
+          points: score?.points_awarded ?? 0,
           kickoff: m.kickoff ? new Date(m.kickoff as string).getTime() : 0,
           round_name: (m.round_name as string) || (isKnockout ? "Eliminatoria" : "Fase de Grupos"),
           is_knockout: isKnockout,
@@ -198,6 +236,7 @@ serve(async (req) => {
       }
 
       rows.sort((a, b) => a.kickoff - b.kickoff);
+      const fallos = Math.max(0, rows.length - exactos - ganadores);
       const totalPoints =
         (profile.points as number) ?? rows.reduce((acc, r) => acc + (r.points || 0), 0);
 

@@ -4876,6 +4876,11 @@
   color: #ff9b9b;
 }
 
+.profile-stats-result--nopick {
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+}
+
 .profile-stats-row--penalty td {
   background: rgba(26, 5, 53, 0.45);
 }
