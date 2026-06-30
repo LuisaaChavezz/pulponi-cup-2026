@@ -68,6 +68,8 @@ serve(async (req) => {
       kickoff: number;
       round_name: string;
       is_knockout: boolean;
+      went_to_penalties: boolean;
+      penalty_real: string | null;
       penalty_pred: string | null;
       penalty_points: number;
     };
@@ -112,6 +114,17 @@ serve(async (req) => {
       else fallos += 1;
 
       const isKnockout = Boolean(m.is_knockout);
+      const wentToPenalties = Boolean(m.went_to_penalties);
+      let penaltyReal: string | null = null;
+      if (wentToPenalties && m.penalty_winner != null) {
+        const winner = String(m.penalty_winner).trim();
+        const ph = m.penalty_home;
+        const pa = m.penalty_away;
+        penaltyReal =
+          ph != null && pa != null
+            ? `${ph}-${pa} (${winner} avanza)`
+            : `${winner} avanza`;
+      }
       let penaltyPred: string | null = null;
       let penaltyPoints = 0;
       if (isKnockout && pick && typeof pick === "object" && !Array.isArray(pick)) {
@@ -149,6 +162,8 @@ serve(async (req) => {
         kickoff: kickoffMs,
         round_name: (m.round_name as string) || (isKnockout ? "Eliminatoria" : "Fase de Grupos"),
         is_knockout: isKnockout,
+        went_to_penalties: wentToPenalties,
+        penalty_real: penaltyReal,
         penalty_pred: penaltyPred,
         penalty_points: penaltyPoints,
       });

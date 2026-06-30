@@ -154,25 +154,52 @@ def _draw_row(c, y, row, alt):
     return y - ROW_H
 
 
-def _draw_penalty_line(c, y, row):
-    """Línea extra con la predicción de penales del usuario. Devuelve la nueva y."""
-    base = y - PEN_H + 2.5
-    c.setFillColor(C_GRAY)
-    c.setFont("Helvetica-Oblique", 6.9)
-    prefix = "Penales: "
-    c.drawString(MATCH_X + 10, base, prefix)
-    px = MATCH_X + 10 + c.stringWidth(prefix, "Helvetica-Oblique", 6.9)
-    pick = str(row.get("penalty_pred") or "—")
-    c.setFillColor(C_DARK)
-    c.setFont("Helvetica-BoldOblique", 6.9)
-    c.drawString(px, base, pick)
-    pen_pts = int(row.get("penalty_points", 0) or 0)
-    if pen_pts > 0:
-        px2 = px + c.stringWidth(pick, "Helvetica-BoldOblique", 6.9) + 6
-        c.setFillColor(C_PTS_3)
-        c.setFont("Helvetica-Bold", 6.9)
-        c.drawString(px2, base, f"(+{pen_pts} pen.)")
-    return y - PEN_H
+def _penalty_text_lines(row):
+    """Construye las líneas extra de penales para una fila.
+    Cada línea: (label, value, value_color, extra, extra_color).
+    - Si el partido fue a penales: muestra el RESULTADO REAL y, debajo, la
+      PREDICCIÓN del usuario (o 'Sin predicción de penales').
+    - Si es eliminatoria sin penales pero el usuario predijo penales, muestra
+      solo su predicción."""
+    pts = int(row.get("penalty_points", 0) or 0)
+    went = bool(row.get("went_to_penalties"))
+    real = row.get("penalty_real")
+    pred = row.get("penalty_pred")
+    is_ko = bool(row.get("is_knockout"))
+    lines = []
+    if went and real:
+        lines.append(("Penales: ", str(real), C_DARK, None, None))
+        if pred:
+            extra = f"(+{pts} pen.)" if pts > 0 else None
+            lines.append(("Tu pick: ", str(pred), C_PTS_1, extra, C_PTS_3))
+        else:
+            lines.append(("Tu pick: ", "Sin predicción de penales", C_GRAY, None, None))
+    elif is_ko and pred:
+        extra = f"(+{pts} pen.)" if pts > 0 else None
+        lines.append(("Tu pick: ", str(pred), C_PTS_1, extra, C_PTS_3))
+    return lines
+
+
+def _draw_penalty_lines(c, y, lines):
+    """Dibuja las líneas extra de penales (resultado real y/o pick). Devuelve la nueva y."""
+    for (label, value, vcolor, extra, ecolor) in lines:
+        base = y - PEN_H + 2.5
+        c.setFillColor(C_GRAY)
+        c.setFont("Helvetica-Oblique", 6.9)
+        c.drawString(MATCH_X + 10, base, label)
+        px = MATCH_X + 10 + c.stringWidth(label, "Helvetica-Oblique", 6.9)
+        max_w = (PAGE_RIGHT - 6) - px - (40 if extra else 0)
+        val = _truncate(c, value, max_w, "Helvetica-BoldOblique", 6.9)
+        c.setFillColor(vcolor)
+        c.setFont("Helvetica-BoldOblique", 6.9)
+        c.drawString(px, base, val)
+        if extra:
+            px2 = px + c.stringWidth(val, "Helvetica-BoldOblique", 6.9) + 6
+            c.setFillColor(ecolor)
+            c.setFont("Helvetica-Bold", 6.9)
+            c.drawString(px2, base, extra)
+        y -= PEN_H
+    return y
 
 
 def _draw_summary(c, summary):
@@ -240,15 +267,15 @@ def render_user_summary(c, user_name, total_points, rows, summary):
         y = _draw_stage_banner(c, y, stage_name, count=len(items))
 
         for idx, row in enumerate(items):
-            has_pen = bool(row.get("is_knockout")) and bool(row.get("penalty_pred"))
-            need = ROW_H + (PEN_H if has_pen else 0)
+            pen_lines = _penalty_text_lines(row)
+            need = ROW_H + len(pen_lines) * PEN_H
             if y - need < BOTTOM_LIMIT:
                 c.showPage()
                 y = _start_page(c, user_name, total_points)
                 y = _draw_stage_banner(c, y, f"{stage_name} (cont.)")
             y = _draw_row(c, y, row, alt=(idx % 2 == 1))
-            if has_pen:
-                y = _draw_penalty_line(c, y, row)
+            if pen_lines:
+                y = _draw_penalty_lines(c, y, pen_lines)
 
     _draw_summary(c, summary or {})
     c.showPage()

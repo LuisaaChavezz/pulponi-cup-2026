@@ -36,6 +36,14 @@ function buildPrediction(pick: unknown): string {
   return "—";
 }
 
+function buildPenaltyReal(m: Record<string, unknown>): string | null {
+  if (!m.went_to_penalties || m.penalty_winner == null) return null;
+  const winner = String(m.penalty_winner).trim();
+  const ph = m.penalty_home;
+  const pa = m.penalty_away;
+  return ph != null && pa != null ? `${ph}-${pa} (${winner} avanza)` : `${winner} avanza`;
+}
+
 function buildPenalty(
   pick: unknown,
   m: Record<string, unknown>
@@ -130,6 +138,8 @@ serve(async (req) => {
         kickoff: number;
         round_name: string;
         is_knockout: boolean;
+        went_to_penalties: boolean;
+        penalty_real: string | null;
         penalty_pred: string | null;
         penalty_points: number;
       }> = [];
@@ -165,6 +175,8 @@ serve(async (req) => {
           kickoff: m.kickoff ? new Date(m.kickoff as string).getTime() : 0,
           round_name: (m.round_name as string) || (isKnockout ? "Eliminatoria" : "Fase de Grupos"),
           is_knockout: isKnockout,
+          went_to_penalties: Boolean(m.went_to_penalties),
+          penalty_real: isKnockout ? buildPenaltyReal(m) : null,
           penalty_pred: pen.pred,
           penalty_points: pen.points,
         });
