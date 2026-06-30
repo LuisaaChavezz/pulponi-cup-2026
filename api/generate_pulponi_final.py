@@ -315,10 +315,13 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
                match_date, participants,
                is_knockout=False, went_to_penalties=False,
                penalty_home=None, penalty_away=None, penalty_winner=None):
-    show_penalties = bool(is_knockout) and bool(went_to_penalties) and bool(penalty_winner)
+    # La columna "Penales" se muestra en cualquier partido de eliminatoria.
+    show_penalty_column = bool(is_knockout)
+    # La línea de penales en el header solo si el partido SÍ fue a penales.
+    went = bool(is_knockout) and bool(went_to_penalties) and bool(penalty_winner)
 
     penalty_line = None
-    if show_penalties:
+    if went:
         ph = penalty_home if penalty_home is not None else "?"
         pa = penalty_away if penalty_away is not None else "?"
         penalty_line = f"Penales: {ph}-{pa} ({penalty_winner} avanza)"
@@ -342,7 +345,7 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
                       exact_score, team_color, team_accent, penalty_line)
 
     table_top = PAGE_H - 228.5
-    row_y     = draw_table_header(cv, team_color, table_top, show_penalties)
+    row_y     = draw_table_header(cv, team_color, table_top, show_penalty_column)
     rows_top  = table_top
 
     for p in participants:
@@ -350,10 +353,10 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
             draw_table_border(cv, rows_top, row_y)
             cv.showPage()
             table_top = PAGE_H - 60
-            row_y     = draw_table_header(cv, team_color, table_top, show_penalties)
+            row_y     = draw_table_header(cv, team_color, table_top, show_penalty_column)
             rows_top  = table_top
         row_y -= ROW_H
-        draw_row(cv, row_y, p, show_penalties)
+        draw_row(cv, row_y, p, show_penalty_column)
 
     draw_table_border(cv, rows_top, row_y)
     total_p  = len(participants)

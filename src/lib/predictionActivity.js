@@ -258,11 +258,25 @@ export function buildMatchDownloadRows(
 ) {
   const mid = String(matchId);
   const revealScores = match ? isMatchPredictionsExportable(match, now, username) : false;
+  const isKnockout = Boolean(match?.is_knockout);
   const rows = [];
   for (const prof of profileRows ?? []) {
     const pick = getProfilePickForMatch(prof.picks, mid);
     const parsed = parsePickScore(pick);
     if (!parsed) continue;
+
+    let penaltyLabel = null;
+    if (isKnockout && revealScores) {
+      penaltyLabel = '—';
+      if (pick && typeof pick === 'object' && !Array.isArray(pick)) {
+        const winner = trimStr(pick.penalty_winner);
+        if (winner) {
+          const ph = pick.penalty_home ?? '?';
+          const pa = pick.penalty_away ?? '?';
+          penaltyLabel = `${winner} ${ph}-${pa}`;
+        }
+      }
+    }
 
     const times = profileMatchActivityTimes(activityRows, mid, prof.id);
     const pickCreated = pick?.created_at ? new Date(pick.created_at) : null;
@@ -286,6 +300,7 @@ export function buildMatchDownloadRows(
       name: prof.name ?? null,
       displayName: formatActivityDisplayName(prof),
       scoreLabel: revealScores ? `${parsed.home}-${parsed.away}` : 'Oculto hasta cierre',
+      penaltyLabel,
       actionLabel,
       sentAt: sentAt && !Number.isNaN(sentAt.getTime()) ? sentAt : null,
       updatedAt: updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt : null,
@@ -375,7 +390,8 @@ export function formatExportLine(row) {
   const time = formatExportTimeShort(row.at);
   const score = row.scoreLabel ?? '—';
   const action = row.actionLabel ?? 'enviado';
-  return `${who} — ${score} — ${action} ${time}`;
+  const penalty = row.penaltyLabel ? ` — Penales: ${row.penaltyLabel}` : '';
+  return `${who} — ${score}${penalty} — ${action} ${time}`;
 }
 
 export function formatMatchSectionHeading(match) {
