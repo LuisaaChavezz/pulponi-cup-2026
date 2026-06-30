@@ -2,14 +2,11 @@ import { Settings } from 'lucide-react';
 import Profile from '../components/Profile';
 import ProfileStatsPanel from '../components/ProfileStatsPanel';
 import AvatarSelector from '../components/AvatarSelector';
-import ProfileRankingSummary from '../components/ProfileRankingSummary';
 import ProfileAchievementsStrip from '../components/ProfileAchievementsStrip';
 import {
   ProfilePageCard,
-  ProfileStatsGrid,
   ProfileBadgesList,
   ProfileActivityList,
-  ProfilePickHistory,
   SHOW_PROFILE_ACTIVITY,
 } from '../components/ProfilePageSections';
 
@@ -89,18 +86,6 @@ export default function ProfilePage({
               badgesCount={unlockedCount}
               userId={sessionUserId}
             />
-          </ProfilePageCard>
-
-          <ProfilePageCard title="Tu ranking">
-            <ProfileRankingSummary userId={sessionUserId} />
-          </ProfilePageCard>
-
-          <ProfilePageCard title="Estadísticas">
-            <ProfileStatsGrid stats={myProfileExtras.stats} />
-          </ProfilePageCard>
-
-          <ProfilePageCard title="Historial de predicciones" className="profile-page-card--predictions-history">
-            <ProfilePickHistory rows={myProfileExtras.pickHistory} />
           </ProfilePageCard>
 
           <ProfilePageCard title="Badges" meta={`${unlockedCount} / ${achievementsTotal}`}>
