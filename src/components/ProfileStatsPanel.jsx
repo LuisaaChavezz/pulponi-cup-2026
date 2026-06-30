@@ -131,26 +131,41 @@ export default function ProfileStatsPanel({
                       {showPenalty ? (
                         <tr className="profile-stats-row profile-stats-row--penalty">
                           <td colSpan={5} className="profile-stats-table__penalty">
-                            <span className="profile-stats-table__penalty-tag">⚽ Penales</span>
-                            <span>
-                              Tu predicción: <b>{row.penaltyPrediction ?? '—'}</b>
-                            </span>
+                            <span className="profile-stats-table__penalty-tag">🥅 Penales</span>
                             {row.wentToPenalties ? (
                               <>
                                 <span>
-                                  Resultado: <b>{row.penaltyResultLabel ?? '—'}</b>
+                                  <b>{row.penaltyResultLabel ?? '—'}</b>
+                                  {row.penaltyWinner ? (
+                                    <span className="profile-stats-table__penalty-advance">
+                                      {' '}
+                                      ({row.penaltyWinner} avanza)
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <span>
+                                  Tu pick: <b>{row.penaltyPrediction ?? '—'}</b>
                                 </span>
                                 <span
                                   className={`profile-stats-result profile-stats-result--${
                                     row.penaltyWinnerHit ? 'winner' : 'miss'
                                   }`}
                                 >
-                                  {row.penaltyWinnerHit ? '✅ Acertó ganador' : '❌ Falló ganador'}
-                                  {row.penaltyExactHit ? ' · 🎯 marcador exacto' : ''}
+                                  {row.penaltyWinnerHit
+                                    ? `✅ Ganador +1pt${row.penaltyExactHit ? ' · 🎯 marcador +1pt' : ''}`
+                                    : '❌ Falló ganador'}
+                                </span>
+                                <span className="profile-stats-table__penalty-total">
+                                  Total: <b>{row.points ?? 0} pts</b>
                                 </span>
                               </>
                             ) : (
-                              <span className="profile-page__muted">No fue a penales</span>
+                              <>
+                                <span>
+                                  Tu pick: <b>{row.penaltyPrediction ?? '—'}</b>
+                                </span>
+                                <span className="profile-page__muted">No fue a penales</span>
+                              </>
                             )}
                           </td>
                         </tr>

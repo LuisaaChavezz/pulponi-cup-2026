@@ -4793,6 +4793,16 @@
   color: #f9c907;
 }
 
+.profile-stats-table__penalty-advance {
+  color: #f9c907;
+  font-weight: 700;
+}
+
+.profile-stats-table__penalty-total {
+  margin-left: auto;
+  color: #fff;
+}
+
 .profile-stats-download {
   display: flex;
   flex-direction: column;

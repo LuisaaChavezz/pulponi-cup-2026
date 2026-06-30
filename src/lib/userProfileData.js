@@ -291,12 +291,19 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
         isKnockout,
         wentToPenalties,
         penaltyPrediction,
+        penaltyWinner: wentToPenalties && match.penalty_winner != null ? match.penalty_winner : null,
+        penaltyScoreLabel:
+          wentToPenalties && match.penalty_home != null && match.penalty_away != null
+            ? `${match.penalty_home}-${match.penalty_away}`
+            : null,
         penaltyResultLabel:
           wentToPenalties && match.penalty_winner != null
             ? `${match.penalty_winner} ${match.penalty_home ?? '?'}-${match.penalty_away ?? '?'}`
             : null,
         penaltyWinnerHit,
         penaltyExactHit,
+        penaltyPoints:
+          (penaltyWinnerHit ? 1 : 0) + (penaltyExactHit ? 1 : 0),
       });
     }
 
