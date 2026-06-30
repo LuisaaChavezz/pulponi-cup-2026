@@ -1,4 +1,4 @@
-import { parsePickScore, collectMatchPickScores } from './communityPicks';
+import { parsePickScore, parsePenaltyPick, collectMatchPickScores } from './communityPicks';
 import { buildRankedLeaderboard, getProfileRankingSummary } from './rankingHistory';
 import { fetchProfileById, LEADERBOARD_SOURCE } from './leaderboardQuery';
 import {
@@ -52,7 +52,7 @@ function lookupPickScore(matchId, match, scoreByMatch) {
 }
 
 const MATCH_HISTORY_COLUMNS =
-  'id, official_id, home_team, away_team, kickoff, status, api_status, home_score, away_score';
+  'id, official_id, home_team, away_team, kickoff, status, api_status, home_score, away_score, is_knockout, went_to_penalties, penalty_winner, penalty_home, penalty_away';
 
 /**
  * Carga partidos para el historial SIEMPRE frescos desde Supabase.
@@ -245,6 +245,33 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
         statusClass = 'locked';
       }
 
+      const isKnockout = Boolean(match.is_knockout);
+      const wentToPenalties = Boolean(match.went_to_penalties);
+      const penaltyPick = isKnockout ? parsePenaltyPick(rawPick) : null;
+      let penaltyPrediction = null;
+      if (penaltyPick) {
+        const scorePart =
+          penaltyPick.home != null && penaltyPick.away != null
+            ? `${penaltyPick.home}-${penaltyPick.away}`
+            : '';
+        penaltyPrediction = [penaltyPick.winner, scorePart].filter(Boolean).join(' ') || null;
+      }
+
+      let penaltyWinnerHit = null;
+      let penaltyExactHit = null;
+      if (wentToPenalties && penaltyPick && match.penalty_winner != null) {
+        const pickWinner = String(penaltyPick.winner ?? '').trim().toLowerCase();
+        const realWinner = String(match.penalty_winner ?? '').trim().toLowerCase();
+        penaltyWinnerHit = Boolean(pickWinner) && pickWinner === realWinner;
+        if (match.penalty_home != null && match.penalty_away != null) {
+          penaltyExactHit =
+            penaltyPick.home != null &&
+            penaltyPick.away != null &&
+            Number(penaltyPick.home) === Number(match.penalty_home) &&
+            Number(penaltyPick.away) === Number(match.penalty_away);
+        }
+      }
+
       rows.push({
         matchId,
         matchLabel: `${match.home_team ?? 'Local'} vs ${match.away_team ?? 'Visitante'}`,
@@ -261,6 +288,15 @@ export function buildPickHistoryRows(profile, pickScoreRows, matches, communityP
         points,
         status,
         statusClass,
+        isKnockout,
+        wentToPenalties,
+        penaltyPrediction,
+        penaltyResultLabel:
+          wentToPenalties && match.penalty_winner != null
+            ? `${match.penalty_winner} ${match.penalty_home ?? '?'}-${match.penalty_away ?? '?'}`
+            : null,
+        penaltyWinnerHit,
+        penaltyExactHit,
       });
     }
 

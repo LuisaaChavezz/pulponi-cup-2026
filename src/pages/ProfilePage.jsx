@@ -1,6 +1,6 @@
-import { Settings, FileDown } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import Profile from '../components/Profile';
-import { useUserSummaryPdf } from '../hooks/useUserSummaryPdf';
+import ProfileStatsPanel from '../components/ProfileStatsPanel';
 import AvatarSelector from '../components/AvatarSelector';
 import ProfileRankingSummary from '../components/ProfileRankingSummary';
 import ProfileAchievementsStrip from '../components/ProfileAchievementsStrip';
@@ -39,8 +39,6 @@ export default function ProfilePage({
   onViewAllAchievements,
   onSelectPreset,
 }) {
-  const { downloadUserSummaryPdf, loading: summaryLoading, error: summaryError } = useUserSummaryPdf();
-
   return (
     <article className="phone dash-perfil dash-profile pulponi-card profile-page">
       <div className="phone-header">
@@ -83,6 +81,16 @@ export default function ProfilePage({
         ) : null}
 
         <div className="profile-page__cards profile-page__cards--own">
+          <ProfilePageCard title="Mis Estadísticas" className="profile-page-card--my-stats">
+            <ProfileStatsPanel
+              stats={myProfileExtras.stats}
+              pickHistory={myProfileExtras.pickHistory}
+              currentStreak={myProfileExtras.profile?.streak ?? profile?.streak ?? 0}
+              badgesCount={unlockedCount}
+              userId={sessionUserId}
+            />
+          </ProfilePageCard>
+
           <ProfilePageCard title="Tu ranking">
             <ProfileRankingSummary userId={sessionUserId} />
           </ProfilePageCard>
@@ -92,20 +100,6 @@ export default function ProfilePage({
           </ProfilePageCard>
 
           <ProfilePageCard title="Historial de predicciones" className="profile-page-card--predictions-history">
-            <div className="profile-page__summary-download">
-              <button
-                type="button"
-                className="primary profile-summary-btn"
-                onClick={() => downloadUserSummaryPdf(sessionUserId)}
-                disabled={summaryLoading || !sessionUserId}
-              >
-                <FileDown size={15} />
-                {summaryLoading ? 'Generando…' : 'Descargar mi resumen completo'}
-              </button>
-              {summaryError ? (
-                <p className="profile-page__summary-error">{summaryError}</p>
-              ) : null}
-            </div>
             <ProfilePickHistory rows={myProfileExtras.pickHistory} />
           </ProfilePageCard>
 
