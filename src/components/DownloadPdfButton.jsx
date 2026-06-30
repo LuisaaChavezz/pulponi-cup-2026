@@ -1,10 +1,13 @@
 import { useMatchPdf } from '../hooks/useMatchPdf';
-import { matchHasFinalScore } from '../lib/matchUtils';
+import { isMatchFinished } from '../lib/matchUtils';
 
 export default function DownloadPdfButton({ match }) {
   const { downloadMatchPdf, loading, error } = useMatchPdf();
 
-  if (!match || !matchHasFinalScore(match)) return null;
+  // El botón depende ÚNICAMENTE de que el partido esté terminado (status/api
+  // = finished/FT). Sin condiciones ocultas (no exige pick_scores ni marcador
+  // no-nulo), así aparece en todos los partidos jugados de forma consistente.
+  if (!match || !isMatchFinished(match)) return null;
 
   return (
     <div className="community-insights__pdf">
