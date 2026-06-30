@@ -3,7 +3,7 @@
 --
 -- Reglas de puntuación de penales (solo si went_to_penalties = true):
 --   +1 si acertó al ganador de la tanda (penalty_winner)
---   +2 si acertó el marcador exacto de penales (penalty_home / penalty_away)
+--   +1 si acertó el marcador exacto de penales (penalty_home / penalty_away)
 -- Estos puntos se SUMAN a los puntos del marcador de 90' (3 exacto / 1 ganador / 0).
 
 -- 1) Columnas de marcador de penales (is_knockout / went_to_penalties / penalty_winner ya existen).
@@ -93,7 +93,7 @@ BEGIN
          AND p_penalty_home IS NOT NULL AND p_penalty_away IS NOT NULL
          AND v_pick_pen_home = p_penalty_home
          AND v_pick_pen_away = p_penalty_away THEN
-        v_bonus := v_bonus + 2;
+        v_bonus := v_bonus + 1;
       END IF;
     END IF;
 

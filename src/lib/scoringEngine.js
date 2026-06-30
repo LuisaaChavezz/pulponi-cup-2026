@@ -6,7 +6,7 @@ export const SCORING_RULES = {
   exactPoints: 3,
   winnerPoints: 1,
   penaltyWinnerPoints: 1,
-  penaltyExactPoints: 2,
+  penaltyExactPoints: 1,
 };
 
 function normalizeTeam(name) {
@@ -18,7 +18,7 @@ function normalizeTeam(name) {
 }
 
 /**
- * Bono de penales: +1 ganador de la tanda, +2 marcador exacto de penales.
+ * Bono de penales: +1 ganador de la tanda, +1 marcador exacto de penales.
  * Solo aplica si el partido fue a penales (went_to_penalties).
  * @param {unknown} rawPick — pick crudo del perfil (con penalty_*)
  * @param {object} match — fila del partido con penalty_* reales
