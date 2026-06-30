@@ -36,6 +36,34 @@ function buildPrediction(pick: unknown): string {
   return "—";
 }
 
+function buildPenalty(
+  pick: unknown,
+  m: Record<string, unknown>
+): { pred: string | null; points: number } {
+  if (!pick || typeof pick !== "object" || Array.isArray(pick)) return { pred: null, points: 0 };
+  const prow = pick as Record<string, unknown>;
+  const pw = prow.penalty_winner != null ? String(prow.penalty_winner).trim() : "";
+  const ph = prow.penalty_home;
+  const pa = prow.penalty_away;
+  const hasScore = ph != null && ph !== "" && pa != null && pa !== "";
+  if (!pw && !hasScore) return { pred: null, points: 0 };
+  const pred = [pw, hasScore ? `${ph}-${pa}` : ""].filter(Boolean).join(" ") || null;
+  let points = 0;
+  if (m.went_to_penalties && m.penalty_winner != null) {
+    if (pw && pw.toLowerCase() === String(m.penalty_winner).trim().toLowerCase()) points += 1;
+    if (
+      hasScore &&
+      m.penalty_home != null &&
+      m.penalty_away != null &&
+      Number(ph) === Number(m.penalty_home) &&
+      Number(pa) === Number(m.penalty_away)
+    ) {
+      points += 1;
+    }
+  }
+  return { pred, points };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
@@ -80,7 +108,9 @@ serve(async (req) => {
       const chunk = matchIds.slice(i, i + CHUNK);
       const { data: matches } = await supabase
         .from("matches")
-        .select("id, home_team, away_team, home_score, away_score, kickoff")
+        .select(
+          "id, home_team, away_team, home_score, away_score, kickoff, is_knockout, round_name, went_to_penalties, penalty_winner, penalty_home, penalty_away"
+        )
         .in("id", chunk);
       for (const m of matches ?? []) matchById.set(String((m as { id: string }).id), m);
     }
@@ -92,7 +122,17 @@ serve(async (req) => {
       let exactos = 0;
       let ganadores = 0;
       let fallos = 0;
-      const rows: Array<{ match: string; final: string; prediction: string; points: number; kickoff: number }> = [];
+      const rows: Array<{
+        match: string;
+        final: string;
+        prediction: string;
+        points: number;
+        kickoff: number;
+        round_name: string;
+        is_knockout: boolean;
+        penalty_pred: string | null;
+        penalty_points: number;
+      }> = [];
 
       for (const s of myScores) {
         const score = s as {
@@ -107,11 +147,15 @@ serve(async (req) => {
         const hs = m.home_score as number | null;
         const as = m.away_score as number | null;
         const final = hs != null && as != null ? `${hs}-${as}` : "—";
-        const prediction = buildPrediction(picks[String(score.match_id)]);
+        const pick = picks[String(score.match_id)];
+        const prediction = buildPrediction(pick);
 
         if (score.exact_hit) exactos += 1;
         else if (score.winner_hit) ganadores += 1;
         else fallos += 1;
+
+        const isKnockout = Boolean(m.is_knockout);
+        const pen = isKnockout ? buildPenalty(pick, m) : { pred: null, points: 0 };
 
         rows.push({
           match: `${(m.home_team as string) ?? "?"} vs ${(m.away_team as string) ?? "?"}`,
@@ -119,6 +163,10 @@ serve(async (req) => {
           prediction,
           points: score.points_awarded ?? 0,
           kickoff: m.kickoff ? new Date(m.kickoff as string).getTime() : 0,
+          round_name: (m.round_name as string) || (isKnockout ? "Eliminatoria" : "Fase de Grupos"),
+          is_knockout: isKnockout,
+          penalty_pred: pen.pred,
+          penalty_points: pen.points,
         });
       }
 

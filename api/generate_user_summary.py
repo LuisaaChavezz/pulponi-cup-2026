@@ -8,7 +8,6 @@ Pulponi Cup 2026 — Resumen personal del usuario (PDF compacto).
 """
 import io
 import base64
-import math
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -17,14 +16,25 @@ from reportlab.lib.colors import Color
 PAGE_W, PAGE_H = letter  # 612 x 792
 MARGIN_L = 30.0
 MARGIN_R = 30.0
-COL_GAP = 16.0
-ROW_H = 10.6
-FONT = 7.6
+FONT = 8.0
 
-COL_W = (PAGE_W - MARGIN_L - MARGIN_R - COL_GAP) / 2.0
-TABLE_TOP = PAGE_H - 86.0       # y del header de columna
-ROWS_TOP = TABLE_TOP - 15.0     # y de la primera fila
-BOTTOM_LIMIT = 64.0             # piso para las filas (deja espacio al footer)
+PAGE_LEFT = MARGIN_L
+PAGE_RIGHT = PAGE_W - MARGIN_R
+CONTENT_W = PAGE_RIGHT - PAGE_LEFT
+
+COLHDR_H = 13.0                 # alto del encabezado de columnas
+BANNER_H = 16.0                 # alto del mini-banner por etapa
+ROW_H = 12.0                    # alto de fila de partido
+PEN_H = 9.5                     # alto de la línea extra de penales
+BOTTOM_LIMIT = 64.0            # piso (deja espacio al footer de totales)
+HEADER_BOTTOM = PAGE_H - 70.0  # borde inferior del header morado
+
+# Posiciones de columnas (layout de una sola columna a lo ancho)
+PTS_X = PAGE_RIGHT - 16
+PRED_X = PAGE_RIGHT - 78
+FINAL_X = PAGE_RIGHT - 146
+MATCH_X = PAGE_LEFT + 6
+MATCH_MAXW = (FINAL_X - 40) - MATCH_X
 
 
 def rgb(r, g, b):
@@ -62,10 +72,6 @@ def _truncate(c, text, max_w, font, size):
     return (s + ell) if s else ""
 
 
-def _rows_per_col():
-    return max(1, int((ROWS_TOP - BOTTOM_LIMIT) // ROW_H))
-
-
 def _draw_page_background(c):
     """Fondo blanco explícito. Sin esto el PDF queda 'transparente' y algunos
     visores (modo oscuro / móvil) lo pintan negro, dejándolo ilegible."""
@@ -98,37 +104,75 @@ def _draw_page_header(c, user_name, total_points):
     c.drawRightString(PAGE_W - MARGIN_R, PAGE_H - 50, "puntos totales")
 
 
-def _draw_col_header(c, col_x):
+def _draw_col_header(c, y):
+    """Encabezado de columnas a lo ancho. Devuelve la y para el contenido."""
     c.setFillColor(C_PURPLE)
-    c.rect(col_x, TABLE_TOP - 2.5, COL_W, 13.0, fill=1, stroke=0)
+    c.rect(PAGE_LEFT, y - COLHDR_H, CONTENT_W, COLHDR_H, fill=1, stroke=0)
+    base = y - COLHDR_H + 4.0
     c.setFillColor(C_WHITE)
-    c.setFont("Helvetica-Bold", 7.0)
-    c.drawString(col_x + 3, TABLE_TOP + 1.0, "Partido")
-    c.drawCentredString(col_x + COL_W - 92, TABLE_TOP + 1.0, "Final")
-    c.drawCentredString(col_x + COL_W - 52, TABLE_TOP + 1.0, "Pred")
-    c.drawCentredString(col_x + COL_W - 16, TABLE_TOP + 1.0, "Pts")
+    c.setFont("Helvetica-Bold", 7.2)
+    c.drawString(MATCH_X, base, "Partido")
+    c.drawCentredString(FINAL_X, base, "Final")
+    c.drawCentredString(PRED_X, base, "Pred")
+    c.drawCentredString(PTS_X, base, "Pts")
+    return y - COLHDR_H - 3.0
 
 
-def _draw_row(c, col_x, y, row, alt):
+def _draw_stage_banner(c, y, stage_name, count=None):
+    """Mini-banner de sección por etapa del Mundial. Devuelve la nueva y."""
+    c.setFillColor(C_PURPLE)
+    c.rect(PAGE_LEFT, y - BANNER_H, CONTENT_W, BANNER_H, fill=1, stroke=0)
+    c.setFillColor(C_YELLOW)
+    c.setFont("Helvetica-Bold", 8.5)
+    c.drawString(PAGE_LEFT + 8, y - BANNER_H + 5.0, str(stage_name).upper())
+    if count is not None:
+        c.setFillColor(C_WHITE)
+        c.setFont("Helvetica", 7.0)
+        c.drawRightString(PAGE_RIGHT - 8, y - BANNER_H + 5.0, f"{count} partidos")
+    return y - BANNER_H - 2.0
+
+
+def _draw_row(c, y, row, alt):
+    """Dibuja una fila de partido. Devuelve la nueva y."""
     if alt:
         c.setFillColor(C_ROW_ALT)
-        c.rect(col_x, y - 2.6, COL_W, ROW_H, fill=1, stroke=0)
+        c.rect(PAGE_LEFT, y - ROW_H, CONTENT_W, ROW_H, fill=1, stroke=0)
 
     pts = int(row.get("points", 0) or 0)
+    base = y - ROW_H + 3.5
 
     c.setFillColor(C_DARK)
     c.setFont("Helvetica", FONT)
-    label = _truncate(c, row.get("match", ""), COL_W - 106, "Helvetica", FONT)
-    c.drawString(col_x + 3, y, label)
-
-    c.setFillColor(C_DARK)
-    c.setFont("Helvetica", FONT)
-    c.drawCentredString(col_x + COL_W - 92, y, str(row.get("final") or "—"))
-    c.drawCentredString(col_x + COL_W - 52, y, str(row.get("prediction") or "—"))
+    label = _truncate(c, row.get("match", ""), MATCH_MAXW, "Helvetica", FONT)
+    c.drawString(MATCH_X, base, label)
+    c.drawCentredString(FINAL_X, base, str(row.get("final") or "—"))
+    c.drawCentredString(PRED_X, base, str(row.get("prediction") or "—"))
 
     c.setFillColor(_pts_color(pts))
     c.setFont("Helvetica-Bold", FONT)
-    c.drawCentredString(col_x + COL_W - 16, y, str(pts))
+    c.drawCentredString(PTS_X, base, str(pts))
+    return y - ROW_H
+
+
+def _draw_penalty_line(c, y, row):
+    """Línea extra con la predicción de penales del usuario. Devuelve la nueva y."""
+    base = y - PEN_H + 2.5
+    c.setFillColor(C_GRAY)
+    c.setFont("Helvetica-Oblique", 6.9)
+    prefix = "Penales: "
+    c.drawString(MATCH_X + 10, base, prefix)
+    px = MATCH_X + 10 + c.stringWidth(prefix, "Helvetica-Oblique", 6.9)
+    pick = str(row.get("penalty_pred") or "—")
+    c.setFillColor(C_DARK)
+    c.setFont("Helvetica-BoldOblique", 6.9)
+    c.drawString(px, base, pick)
+    pen_pts = int(row.get("penalty_points", 0) or 0)
+    if pen_pts > 0:
+        px2 = px + c.stringWidth(pick, "Helvetica-BoldOblique", 6.9) + 6
+        c.setFillColor(C_PTS_3)
+        c.setFont("Helvetica-Bold", 6.9)
+        c.drawString(px2, base, f"(+{pen_pts} pen.)")
+    return y - PEN_H
 
 
 def _draw_summary(c, summary):
@@ -157,32 +201,57 @@ def _draw_summary(c, summary):
     c.drawCentredString(PAGE_W / 2, 14, "Generado por Pulponi · pulponicup.com.mx")
 
 
+def _group_by_stage(rows):
+    """Agrupa filas por etapa (round_name) preservando el orden cronológico
+    con el que llegan (las filas ya vienen ordenadas por kickoff)."""
+    order = []
+    buckets = {}
+    for r in rows:
+        rn = r.get("round_name") or ("Eliminatoria" if r.get("is_knockout") else "Fase de Grupos")
+        if rn not in buckets:
+            buckets[rn] = []
+            order.append(rn)
+        buckets[rn].append(r)
+    return [(rn, buckets[rn]) for rn in order]
+
+
+def _start_page(c, user_name, total_points):
+    _draw_page_background(c)
+    _draw_page_header(c, user_name, total_points)
+    y = HEADER_BOTTOM - 8.0
+    return _draw_col_header(c, y)
+
+
 def render_user_summary(c, user_name, total_points, rows, summary):
     """Dibuja el resumen de UN usuario en el canvas (una o varias páginas),
-    terminando cada página con showPage(). NO llama c.save(), para poder
-    encadenar varios usuarios en un mismo PDF."""
+    a una sola columna, con mini-banners por etapa del Mundial y una línea
+    extra de penales en partidos de eliminatoria. Termina cada página con
+    showPage(); NO llama c.save() para poder encadenar varios usuarios."""
     rows = rows or []
-    rpc = _rows_per_col()
-    per_page = rpc * 2
-    total = len(rows)
-    pages = max(1, math.ceil(total / per_page)) if total else 1
+    groups = _group_by_stage(rows)
 
-    for page in range(pages):
-        _draw_page_background(c)
-        _draw_page_header(c, user_name, total_points)
-        page_rows = rows[page * per_page:(page + 1) * per_page]
-        for col in range(2):
-            col_x = MARGIN_L + col * (COL_W + COL_GAP)
-            _draw_col_header(c, col_x)
-            col_rows = page_rows[col * rpc:(col + 1) * rpc]
-            y = ROWS_TOP
-            for i, row in enumerate(col_rows):
-                _draw_row(c, col_x, y, row, alt=(i % 2 == 1))
-                y -= ROW_H
+    y = _start_page(c, user_name, total_points)
 
-        if page == pages - 1:
-            _draw_summary(c, summary or {})
-        c.showPage()
+    for stage_name, items in groups:
+        # El banner necesita espacio para sí mismo + al menos una fila.
+        if y - (BANNER_H + ROW_H) < BOTTOM_LIMIT:
+            c.showPage()
+            y = _start_page(c, user_name, total_points)
+        y = _draw_stage_banner(c, y, stage_name, count=len(items))
+
+        for idx, row in enumerate(items):
+            has_pen = bool(row.get("is_knockout")) and bool(row.get("penalty_pred"))
+            need = ROW_H + (PEN_H if has_pen else 0)
+            if y - need < BOTTOM_LIMIT:
+                c.showPage()
+                y = _start_page(c, user_name, total_points)
+                y = _draw_stage_banner(c, y, f"{stage_name} (cont.)")
+            y = _draw_row(c, y, row, alt=(idx % 2 == 1))
+            if has_pen:
+                y = _draw_penalty_line(c, y, row)
+
+    _draw_summary(c, summary or {})
+    c.showPage()
 
 
 def _build(c, user_name, total_points, rows, summary):
