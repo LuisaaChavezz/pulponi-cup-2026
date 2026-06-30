@@ -21,6 +21,7 @@ import AdminMatchResultPanel from './AdminMatchResultPanel';
 import AdminMatchPredictionsPanel from './AdminMatchPredictionsPanel';
 import ElegidoAdminHistory from './ElegidoAdminHistory';
 import { useUserSummaryPdf } from '../hooks/useUserSummaryPdf';
+import { resolveAvatarUrl } from '../lib/avatars';
 import BadgeIcon from './BadgeIcon';
 import { ACTIVITY_TYPE_BADGE } from '../lib/recentActivityFeed';
 
@@ -99,11 +100,14 @@ export default function DashboardNotifications({
   const [saving, setSaving] = useState(false);
   const [selectedMatchId, setSelectedMatchId] = useState('');
   const [exportBusy, setExportBusy] = useState(false);
+  const [participantSearch, setParticipantSearch] = useState('');
+  const [downloadingParticipantId, setDownloadingParticipantId] = useState(null);
   const {
     downloadAllSummariesPdf,
     loading: allSummariesLoading,
     error: allSummariesError,
   } = useUserSummaryPdf();
+  const { downloadUserSummaryPdf, error: participantSummaryError } = useUserSummaryPdf();
 
   const profiles = Array.isArray(communityPickProfiles) ? communityPickProfiles : [];
   const activityLog = Array.isArray(predictionActivityLog) ? predictionActivityLog : [];
@@ -113,6 +117,24 @@ export default function DashboardNotifications({
     () => listMatchesWithPicks(profiles, matches),
     [profiles, matches]
   );
+
+  const participantList = useMemo(() => {
+    const base = profiles.filter((p) => String(p?.username || '').toLowerCase() !== 'el-kraken');
+    const sorted = [...base].sort((a, b) =>
+      String(a?.name || a?.username || '').localeCompare(
+        String(b?.name || b?.username || ''),
+        'es',
+        { sensitivity: 'base' }
+      )
+    );
+    const q = participantSearch.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter(
+      (p) =>
+        String(p?.name || '').toLowerCase().includes(q) ||
+        String(p?.username || '').toLowerCase().includes(q)
+    );
+  }, [profiles, participantSearch]);
 
   const adminMatchOptions = useMemo(
     () => sortMatchesForFocusedDropdown(matches ?? [], now),
@@ -226,6 +248,16 @@ export default function DashboardNotifications({
       window.alert(PDF_ERROR_MSG);
     } finally {
       setExportBusy(false);
+    }
+  }
+
+  async function handleDownloadParticipantSummary(profileId) {
+    if (!profileId || downloadingParticipantId) return;
+    setDownloadingParticipantId(profileId);
+    try {
+      await downloadUserSummaryPdf(profileId);
+    } finally {
+      setDownloadingParticipantId(null);
     }
   }
 
@@ -377,6 +409,68 @@ export default function DashboardNotifications({
           </>
         )}
       </div>
+
+      {adminToolsAllowed ? (
+        <div className="dash-notifications__section dash-notifications__section--participants">
+          <div className="dash-notifications__head">
+            <h3 className="dash-notifications__subtitle">Participantes</h3>
+            <p className="dash-notifications__hint">
+              Ver el perfil de cualquier participante (solo lectura) y descargar su resumen en PDF.
+            </p>
+          </div>
+
+          <input
+            type="search"
+            className="dash-notifications__participant-search"
+            placeholder="Buscar participante…"
+            value={participantSearch}
+            onChange={(e) => setParticipantSearch(e.target.value)}
+          />
+
+          {participantList.length === 0 ? (
+            <p className="dash-notifications__empty">No hay participantes que coincidan.</p>
+          ) : (
+            <ul className="dash-notifications__participants">
+              {participantList.map((p) => (
+                <li key={p.id} className="dash-notifications__participant">
+                  <button
+                    type="button"
+                    className="dash-notifications__participant-main profile-link-btn"
+                    onClick={() => onSelectUser?.(p.id)}
+                    aria-label={`Ver perfil de ${p.name || p.username || 'jugador'}`}
+                  >
+                    <UserAvatar avatarUrl={resolveAvatarUrl(p.photo_url)} variant="chat" alt="" />
+                    <span className="dash-notifications__participant-id">
+                      <strong>{p.name || p.username || 'Jugador'}</strong>
+                      {p.username ? <small>@{p.username}</small> : null}
+                    </span>
+                  </button>
+                  <div className="dash-notifications__participant-actions">
+                    <button
+                      type="button"
+                      className="dash-notifications__participant-btn"
+                      onClick={() => onSelectUser?.(p.id)}
+                    >
+                      Ver perfil
+                    </button>
+                    <button
+                      type="button"
+                      className="dash-notifications__participant-btn dash-notifications__participant-btn--primary"
+                      onClick={() => handleDownloadParticipantSummary(p.id)}
+                      disabled={downloadingParticipantId === p.id}
+                    >
+                      {downloadingParticipantId === p.id ? 'Generando…' : 'Descargar resumen'}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {participantSummaryError ? (
+            <p className="dash-notifications__admin-note">{participantSummaryError}</p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="dash-notifications__section dash-notifications__section--community dash-notifications__section--community-trends">
         <div className="dash-notifications__head">

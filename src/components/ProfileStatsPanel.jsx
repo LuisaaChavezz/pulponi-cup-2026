@@ -34,6 +34,9 @@ export default function ProfileStatsPanel({
   currentStreak = 0,
   badgesCount = 0,
   userId,
+  isOwnProfile = true,
+  targetUsername = null,
+  canDownload = true,
 }) {
   const [expanded, setExpanded] = useState(false);
   const { downloadUserSummaryPdf, loading, error } = useUserSummaryPdf();
@@ -179,18 +182,24 @@ export default function ProfileStatsPanel({
         )
       ) : null}
 
-      <div className="profile-stats-download">
-        <button
-          type="button"
-          className="primary profile-summary-btn"
-          onClick={() => downloadUserSummaryPdf(userId)}
-          disabled={loading || !userId}
-        >
-          <FileDown size={15} />
-          {loading ? 'Generando…' : 'Descargar mi resumen completo'}
-        </button>
-        {error ? <p className="profile-page__summary-error">{error}</p> : null}
-      </div>
+      {canDownload ? (
+        <div className="profile-stats-download">
+          <button
+            type="button"
+            className="primary profile-summary-btn"
+            onClick={() => downloadUserSummaryPdf(userId)}
+            disabled={loading || !userId}
+          >
+            <FileDown size={15} />
+            {loading
+              ? 'Generando…'
+              : isOwnProfile
+                ? 'Descargar mi resumen completo'
+                : `Descargar resumen de @${targetUsername ?? 'usuario'}`}
+          </button>
+          {error ? <p className="profile-page__summary-error">{error}</p> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

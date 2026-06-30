@@ -33,6 +33,25 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Autorización: cada quien puede descargar su propio resumen; solo un admin
+    // (is_admin = true o usuario autorizado) puede descargar el de otra persona.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^[Bb]earer\s+/, "").trim();
+    if (!token) throw new Error("No autenticado");
+    const { data: userData, error: uErr } = await supabase.auth.getUser(token);
+    const callerId = userData?.user?.id;
+    if (uErr || !callerId) throw new Error("No autenticado");
+    if (String(callerId) !== String(profile_id)) {
+      const { data: caller } = await supabase
+        .from("profiles")
+        .select("is_admin, username")
+        .eq("id", callerId)
+        .single();
+      const uname = String(caller?.username ?? "").trim().toLowerCase();
+      const isAdminCaller = caller?.is_admin === true || uname === "luisaachavezz";
+      if (!isAdminCaller) throw new Error("No autorizado para ver este resumen");
+    }
+
     const { data: profile, error: pErr } = await supabase
       .from("profiles")
       .select("id, username, name, points, picks")

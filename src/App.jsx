@@ -1174,6 +1174,7 @@ export default function App() {
                 loading={publicProfile.loading}
                 error={publicProfile.error}
                 isOwnProfile={viewProfileId === session.user.id}
+                isAdmin={isAdmin}
                 onEditProfile={() => navigateToSection('perfil')}
                 onBack={closeUserProfile}
                 onRetry={() => void publicProfile.reload()}

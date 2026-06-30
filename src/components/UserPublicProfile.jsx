@@ -1,13 +1,12 @@
 import Profile from './Profile';
+import ProfileStatsPanel from './ProfileStatsPanel';
 import { selectDisplayName } from '../lib/rankingHistory';
 import { resolveAvatarUrl } from '../lib/avatars';
 import { countAchievementsTotal } from '../data/achievements';
 import {
   ProfilePageCard,
-  ProfileStatsGrid,
   ProfileBadgesList,
   ProfileActivityList,
-  ProfilePickHistory,
   SHOW_PROFILE_ACTIVITY,
 } from './ProfilePageSections';
 
@@ -46,6 +45,7 @@ export default function UserPublicProfile({
   loading,
   error,
   isOwnProfile,
+  isAdmin = false,
   onEditProfile,
   onBack,
   onRetry,
@@ -114,15 +114,20 @@ export default function UserPublicProfile({
       />
 
       <div className="profile-page__cards profile-page__cards--public">
-        <ProfilePageCard title="Estadísticas">
-          <ProfileStatsGrid stats={safeStats} />
-        </ProfilePageCard>
-
         <ProfilePageCard
-          title="Historial de predicciones"
-          className="profile-page-card--predictions-history"
+          title={isOwnProfile ? 'Mis Estadísticas' : `Estadísticas de @${username}`}
+          className="profile-page-card--my-stats"
         >
-          <ProfilePickHistory rows={pickHistory} />
+          <ProfileStatsPanel
+            stats={safeStats}
+            pickHistory={pickHistory}
+            currentStreak={profile?.streak ?? safeStats.accumulatedStreak ?? 0}
+            badgesCount={unlockedBadges}
+            userId={profile?.id}
+            isOwnProfile={isOwnProfile}
+            targetUsername={username}
+            canDownload={isOwnProfile || isAdmin}
+          />
         </ProfilePageCard>
 
         <ProfilePageCard title="Badges desbloqueados" meta={`${unlockedBadges} / ${totalBadges}`}>
