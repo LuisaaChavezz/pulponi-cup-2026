@@ -125,7 +125,7 @@ export default function UserPublicProfile({
             badgesCount={unlockedBadges}
             userId={profile?.id}
             isOwnProfile={isOwnProfile}
-            targetUsername={username}
+            targetUsername={displayName || username}
             canDownload={isOwnProfile || isAdmin}
           />
         </ProfilePageCard>

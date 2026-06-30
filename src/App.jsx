@@ -55,6 +55,7 @@ import { useProfileUserBadges } from './hooks/useProfileUserBadges';
 import { useElegidoTransferAlerts } from './hooks/useElegidoTransferAlerts';
 import { useKrakenMessages } from './hooks/useKrakenMessages';
 import { resolveAvatarUrl } from './lib/avatars';
+import { canAdminExportPredictions } from './lib/predictionActivity';
 import UserAvatar from './components/UserAvatar';
 import HighlightsModal from './components/HighlightsModal';
 import RankingLeaderboard from './components/RankingLeaderboard';
@@ -261,6 +262,10 @@ export default function App() {
 
   const sessionUserId = session?.user?.id ?? null;
   const isAdmin = Boolean(data.profile?.is_admin);
+  // Mismo criterio que el panel admin: is_admin = true O usuario autorizado por
+  // nombre. Necesario porque la cuenta de admin puede tener is_admin = false en
+  // la BD y aun así debe poder ver/descargar resúmenes de otros.
+  const adminToolsAllowed = isAdmin || canAdminExportPredictions(data.profile?.username);
   const { rows: sessionUserBadgeRows } = useProfileUserBadges(sessionUserId);
   const elegidoTransferAlerts = useElegidoTransferAlerts({
     enabled: Boolean(sessionUserId),
@@ -1174,7 +1179,7 @@ export default function App() {
                 loading={publicProfile.loading}
                 error={publicProfile.error}
                 isOwnProfile={viewProfileId === session.user.id}
-                isAdmin={isAdmin}
+                isAdmin={adminToolsAllowed}
                 onEditProfile={() => navigateToSection('perfil')}
                 onBack={closeUserProfile}
                 onRetry={() => void publicProfile.reload()}

@@ -195,7 +195,7 @@ export default function ProfileStatsPanel({
               ? 'Generando…'
               : isOwnProfile
                 ? 'Descargar mi resumen completo'
-                : `Descargar resumen de @${targetUsername ?? 'usuario'}`}
+                : `Descargar resumen de ${targetUsername ?? 'usuario'}`}
           </button>
           {error ? <p className="profile-page__summary-error">{error}</p> : null}
         </div>
