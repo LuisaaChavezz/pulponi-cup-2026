@@ -7,6 +7,9 @@
   "functions": {
     "api/generate-pdf.py": {
       "maxDuration": 30
+    },
+    "api/generate-user-summary.py": {
+      "maxDuration": 30
     }
   }
 }

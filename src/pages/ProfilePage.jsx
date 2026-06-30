@@ -1,5 +1,6 @@
-import { Settings } from 'lucide-react';
+import { Settings, FileDown } from 'lucide-react';
 import Profile from '../components/Profile';
+import { useUserSummaryPdf } from '../hooks/useUserSummaryPdf';
 import AvatarSelector from '../components/AvatarSelector';
 import ProfileRankingSummary from '../components/ProfileRankingSummary';
 import ProfileAchievementsStrip from '../components/ProfileAchievementsStrip';
@@ -38,6 +39,8 @@ export default function ProfilePage({
   onViewAllAchievements,
   onSelectPreset,
 }) {
+  const { downloadUserSummaryPdf, loading: summaryLoading, error: summaryError } = useUserSummaryPdf();
+
   return (
     <article className="phone dash-perfil dash-profile pulponi-card profile-page">
       <div className="phone-header">
@@ -89,6 +92,20 @@ export default function ProfilePage({
           </ProfilePageCard>
 
           <ProfilePageCard title="Historial de predicciones" className="profile-page-card--predictions-history">
+            <div className="profile-page__summary-download">
+              <button
+                type="button"
+                className="primary profile-summary-btn"
+                onClick={() => downloadUserSummaryPdf(sessionUserId)}
+                disabled={summaryLoading || !sessionUserId}
+              >
+                <FileDown size={15} />
+                {summaryLoading ? 'Generando…' : 'Descargar mi resumen completo'}
+              </button>
+              {summaryError ? (
+                <p className="profile-page__summary-error">{summaryError}</p>
+              ) : null}
+            </div>
             <ProfilePickHistory rows={myProfileExtras.pickHistory} />
           </ProfilePageCard>
 
