@@ -91,20 +91,35 @@ serve(async (req) => {
     const profileList = profiles ?? [];
     const profileIds = profileList.map((p: { id: string }) => p.id);
 
-    // pick_scores de todos los participantes (una sola consulta).
+    // pick_scores de TODOS los participantes. PostgREST limita cada respuesta a
+    // ~1000 filas por defecto, así que con muchos usuarios (26 x 76 ≈ 1900) una
+    // sola consulta truncaría datos y a varios usuarios les faltarían partidos.
+    // Por eso paginamos con .range() hasta traer absolutamente todas las filas.
     const scoresByProfile = new Map<string, Array<Record<string, unknown>>>();
     const matchIdSet = new Set<string>();
     if (profileIds.length > 0) {
-      const { data: scores } = await supabase
-        .from("pick_scores")
-        .select("profile_id, match_id, points_awarded, exact_hit, winner_hit")
-        .in("profile_id", profileIds);
-      for (const s of scores ?? []) {
-        const row = s as { profile_id: string; match_id: string };
-        const key = String(row.profile_id);
-        if (!scoresByProfile.has(key)) scoresByProfile.set(key, []);
-        scoresByProfile.get(key)!.push(s as Record<string, unknown>);
-        matchIdSet.add(String(row.match_id));
+      const PAGE = 1000;
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data: page, error: pageErr } = await supabase
+          .from("pick_scores")
+          .select("profile_id, match_id, points_awarded, exact_hit, winner_hit")
+          .in("profile_id", profileIds)
+          .order("profile_id", { ascending: true })
+          .order("match_id", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (pageErr) throw new Error(`pick_scores: ${pageErr.message}`);
+        const rows = page ?? [];
+        for (const s of rows) {
+          const row = s as { profile_id: string; match_id: string };
+          const key = String(row.profile_id);
+          if (!scoresByProfile.has(key)) scoresByProfile.set(key, []);
+          scoresByProfile.get(key)!.push(s as Record<string, unknown>);
+          matchIdSet.add(String(row.match_id));
+        }
+        if (rows.length < PAGE) break;
+        from += PAGE;
       }
     }
 
