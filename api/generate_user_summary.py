@@ -157,7 +157,10 @@ def _draw_summary(c, summary):
     c.drawCentredString(PAGE_W / 2, 14, "Generado por Pulponi · pulponicup.com.mx")
 
 
-def _build(c, user_name, total_points, rows, summary):
+def render_user_summary(c, user_name, total_points, rows, summary):
+    """Dibuja el resumen de UN usuario en el canvas (una o varias páginas),
+    terminando cada página con showPage(). NO llama c.save(), para poder
+    encadenar varios usuarios en un mismo PDF."""
     rows = rows or []
     rpc = _rows_per_col()
     per_page = rpc * 2
@@ -181,6 +184,9 @@ def _build(c, user_name, total_points, rows, summary):
             _draw_summary(c, summary or {})
         c.showPage()
 
+
+def _build(c, user_name, total_points, rows, summary):
+    render_user_summary(c, user_name, total_points, rows, summary)
     c.save()
 
 

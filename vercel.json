@@ -10,6 +10,9 @@
     },
     "api/generate-user-summary.py": {
       "maxDuration": 30
+    },
+    "api/generate-all-summaries.py": {
+      "maxDuration": 60
     }
   }
 }

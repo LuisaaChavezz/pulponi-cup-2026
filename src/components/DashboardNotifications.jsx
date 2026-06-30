@@ -20,6 +20,7 @@ import {
 import AdminMatchResultPanel from './AdminMatchResultPanel';
 import AdminMatchPredictionsPanel from './AdminMatchPredictionsPanel';
 import ElegidoAdminHistory from './ElegidoAdminHistory';
+import { useUserSummaryPdf } from '../hooks/useUserSummaryPdf';
 import BadgeIcon from './BadgeIcon';
 import { ACTIVITY_TYPE_BADGE } from '../lib/recentActivityFeed';
 
@@ -98,6 +99,11 @@ export default function DashboardNotifications({
   const [saving, setSaving] = useState(false);
   const [selectedMatchId, setSelectedMatchId] = useState('');
   const [exportBusy, setExportBusy] = useState(false);
+  const {
+    downloadAllSummariesPdf,
+    loading: allSummariesLoading,
+    error: allSummariesError,
+  } = useUserSummaryPdf();
 
   const profiles = Array.isArray(communityPickProfiles) ? communityPickProfiles : [];
   const activityLog = Array.isArray(predictionActivityLog) ? predictionActivityLog : [];
@@ -253,6 +259,24 @@ export default function DashboardNotifications({
         isAdmin={isAdmin}
         onApplyFinalResult={onApplyFinalResult}
       />
+
+      {isAdmin ? (
+        <div className="dash-notifications__section dash-notifications__admin-summaries">
+          <button
+            type="button"
+            className="dash-notifications__export-toggle"
+            onClick={downloadAllSummariesPdf}
+            disabled={allSummariesLoading}
+          >
+            {allSummariesLoading
+              ? 'Generando…'
+              : '📄 Descargar resúmenes de todos los participantes'}
+          </button>
+          {allSummariesError ? (
+            <p className="dash-notifications__admin-note">{allSummariesError}</p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="dash-notifications__section dash-notifications__section--predictions">
         <div className="dash-notifications__head">
