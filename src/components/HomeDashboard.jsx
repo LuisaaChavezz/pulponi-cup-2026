@@ -25,13 +25,10 @@ import {
 } from '../lib/matchUtils';
 import { collectMatchPickScores, getCommunityOutcomeStatsDisplay } from '../lib/communityPicks';
 import { ACTIVITY_TYPE_BADGE } from '../lib/recentActivityFeed';
+import { formatActivityDisplayName } from '../lib/predictionActivity';
 
-function formatUsername(row) {
-  const name = String(row?.name ?? '').trim();
-  if (name) return name.split(/\s+/)[0];
-  const user = String(row?.username ?? '').replace(/^@+/, '').trim();
-  if (user) return user;
-  return 'Miembro';
+function formatCommunityProfileName(row) {
+  return formatActivityDisplayName(row);
 }
 
 function formatRelativeTime(at, now = new Date()) {
@@ -263,10 +260,10 @@ export default function HomeDashboard({
                 type="button"
                 className="home-dash-profile-row"
                 onClick={() => onSelectUser?.(row.id)}
-                aria-label={`Ver perfil de ${formatUsername(row)}`}
+                aria-label={`Ver perfil de ${formatCommunityProfileName(row)}`}
               >
                 <UserAvatar photoUrl={row.photo_url} variant="community" className="home-dash-profile-row__avatar" alt="" />
-                <span className="home-dash-profile-row__name">{formatUsername(row)}</span>
+                <span className="home-dash-profile-row__name">{formatCommunityProfileName(row)}</span>
                 <span className="home-dash-profile-row__pts">{Number(row.points ?? 0)}</span>
               </button>
             </li>

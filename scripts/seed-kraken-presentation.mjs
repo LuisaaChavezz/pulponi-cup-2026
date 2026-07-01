@@ -81,7 +81,7 @@ const { error: profileError } = await supabase.from('profiles').upsert(
   {
     id: KRAKEN_PROFILE_ID,
     username: KRAKEN_USERNAME,
-    name: 'El Kraken',
+    name: 'Kraken',
   },
   { onConflict: 'id' }
 );
