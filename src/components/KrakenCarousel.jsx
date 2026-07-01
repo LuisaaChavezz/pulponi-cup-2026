@@ -52,9 +52,11 @@ export default function KrakenCarousel({ messages = [] }) {
       onTouchEnd={onTouchEnd}
     >
       <div className="kraken-carousel__slide">
-        <p className="kraken-carousel__emoji" aria-hidden>
-          {emoji}
-        </p>
+        {emoji ? (
+          <p className="kraken-carousel__emoji" aria-hidden>
+            {emoji}
+          </p>
+        ) : null}
         <p className="kraken-carousel__text">{body}</p>
       </div>
 

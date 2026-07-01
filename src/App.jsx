@@ -1027,7 +1027,6 @@ export default function App() {
                 setChatInput={setChatInput}
                 onSendMessage={handleSendMessage}
                 memberCount={(data.communityProfiles ?? data.ranking ?? []).length}
-                krakenMessages={kraken.carouselMessages}
                 krakenPrivateMessages={kraken.privateMessages}
                 onDismissKrakenPrivate={kraken.dismissPrivate}
                 onMakePrediction={() => navigateToSection('partidos')}

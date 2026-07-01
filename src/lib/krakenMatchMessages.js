@@ -9,7 +9,7 @@ export function splitKrakenMatchEmoji(text) {
   const raw = String(text ?? '').trim();
   const match = raw.match(/^(\p{Extended_Pictographic}(?:\uFE0F)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F)?)*)\s*(.*)$/u);
   if (!match) {
-    return { emoji: '🦑', body: raw };
+    return { emoji: null, body: raw };
   }
   return {
     emoji: match[1] || '🦑',

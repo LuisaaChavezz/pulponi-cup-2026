@@ -136,7 +136,6 @@ export default function HomeDashboard({
   onViewRanking,
   onViewCommunity,
   onSelectUser,
-  krakenMessages = [],
   krakenPrivateMessages = [],
   onDismissKrakenPrivate,
 }) {
@@ -463,7 +462,7 @@ export default function HomeDashboard({
             </section>
           ) : null}
           <section className="home-dash-stack__section home-dash-stack__section--kraken-match">
-            <KrakenCarousel messages={krakenMessages} />
+            <KrakenCarousel messages={[{ id: 'kraken-home', text: '...¿Y si sí?' }]} />
           </section>
           <section
             className={`home-dash-stack__section${
