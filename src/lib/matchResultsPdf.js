@@ -33,8 +33,12 @@ function formatPenaltyPredictionFromPick(pick) {
   return [winner, scorePart].filter(Boolean).join(' ') || null;
 }
 
-/** Misma forma que espera generate_pulponi_final.py / Edge Function. */
-export function buildResultsPdfParticipants(profiles, pickScoreRows, matchId) {
+/**
+ * Misma forma que espera generate_pulponi_final.py / Edge Function.
+ * @param {Map<string, number>|null} totalsByProfile - total histórico (acumulado
+ *   hasta este partido inclusive). Si no se pasa, usa profile.points actual.
+ */
+export function buildResultsPdfParticipants(profiles, pickScoreRows, matchId, totalsByProfile = null) {
   const matchIdStr = String(matchId);
   const scoresByProfile = new Map(
     (pickScoreRows ?? []).map((row) => [String(row.profile_id), row])
@@ -50,12 +54,17 @@ export function buildResultsPdfParticipants(profiles, pickScoreRows, matchId) {
     const prediction = formatPredictionFromPick(pick);
     const penaltyPrediction = formatPenaltyPredictionFromPick(pick);
 
+    const total =
+      totalsByProfile != null
+        ? Number(totalsByProfile.get(String(profile.id)) ?? 0)
+        : Number(profile.points ?? 0);
+
     return {
       name: profile.name || profile.username || 'Anónimo',
       prediction,
       penalty_prediction: penaltyPrediction,
       points: Number(ps?.points_awarded ?? 0),
-      total: Number(profile.points ?? 0),
+      total,
       no_pick: !prediction,
     };
   });
@@ -99,13 +108,67 @@ export function resolvePdfServiceUrl() {
   return null;
 }
 
+/**
+ * Total histórico por perfil: suma de points_awarded en todos los partidos con
+ * kickoff <= al de este partido (inclusive). Devuelve null si no hay kickoff.
+ */
+function buildPriorMatchIdSet(priorMatches) {
+  const ids = new Set();
+  for (const m of priorMatches ?? []) {
+    ids.add(String(m.id));
+    if (m.official_id) ids.add(String(m.official_id));
+  }
+  return ids;
+}
+
+export async function buildHistoricalTotals(match, profileIds) {
+  if (!match?.kickoff || !profileIds?.length) return null;
+
+  const { data: priorMatches, error: pmErr } = await supabase
+    .from('matches')
+    .select('id, official_id')
+    .lte('kickoff', match.kickoff);
+
+  if (pmErr || !priorMatches?.length) return null;
+
+  const priorIdSet = buildPriorMatchIdSet(priorMatches);
+  const totals = new Map();
+  const pageSize = 1000;
+  let offset = 0;
+
+  for (;;) {
+    const { data: histScores, error: hsErr } = await supabase
+      .from('pick_scores')
+      .select('profile_id, points_awarded, match_id')
+      .in('profile_id', profileIds)
+      .range(offset, offset + pageSize - 1);
+
+    if (hsErr) return null;
+    if (!histScores?.length) break;
+
+    for (const row of histScores) {
+      if (!priorIdSet.has(String(row.match_id))) continue;
+      const key = String(row.profile_id);
+      totals.set(key, (totals.get(key) ?? 0) + Number(row.points_awarded ?? 0));
+    }
+
+    if (histScores.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return totals;
+}
+
 export async function fetchResultsPdfPayload(match) {
   const matchId = String(match.id);
+
+  const matchKeys = [matchId];
+  if (match.official_id) matchKeys.push(String(match.official_id));
 
   const { data: pickScores, error: psErr } = await supabase
     .from('pick_scores')
     .select('profile_id, points_awarded')
-    .eq('match_id', matchId);
+    .in('match_id', matchKeys);
 
   if (psErr) throw new Error(psErr.message || 'No se pudieron cargar los puntos del partido.');
 
@@ -118,7 +181,11 @@ export async function fetchResultsPdfPayload(match) {
 
   if (profErr) throw new Error(profErr.message || 'No se pudieron cargar los perfiles.');
 
-  const participants = buildResultsPdfParticipants(profiles, pickScores, matchId);
+  // Total histórico: suma de points_awarded hasta este partido (inclusive) por
+  // kickoff, no el profiles.points actual.
+  const totalsByProfile = await buildHistoricalTotals(match, profileIds);
+
+  const participants = buildResultsPdfParticipants(profiles, pickScores, matchId, totalsByProfile);
   if (!participants.length) {
     throw new Error('Este partido aún no tiene puntajes registrados para generar el PDF.');
   }

@@ -25,16 +25,19 @@ serve(async (req) => {
     const { data: match, error: mErr } = await supabase
       .from("matches")
       .select(
-        "id, home_team, away_team, home_score, away_score, kickoff, is_knockout, went_to_penalties, penalty_home, penalty_away, penalty_winner"
+        "id, official_id, home_team, away_team, home_score, away_score, kickoff, is_knockout, went_to_penalties, penalty_home, penalty_away, penalty_winner"
       )
       .eq("id", match_id)
       .single();
     if (mErr || !match) throw new Error("Partido no encontrado");
 
+    const matchKeys = [String(match_id)];
+    if (match.official_id) matchKeys.push(String(match.official_id));
+
     const { data: pickScores } = await supabase
       .from("pick_scores")
       .select("profile_id, points_awarded")
-      .eq("match_id", String(match_id));
+      .in("match_id", matchKeys);
 
     const profileIds = [...new Set((pickScores ?? []).map((p: { profile_id: string }) => p.profile_id))];
 
@@ -51,19 +54,38 @@ serve(async (req) => {
     if (match.kickoff && profileIds.length > 0) {
       const { data: priorMatches } = await supabase
         .from("matches")
-        .select("id")
+        .select("id, official_id")
         .lte("kickoff", match.kickoff);
-      const priorIds = (priorMatches ?? []).map((m: { id: string }) => String(m.id));
-      if (priorIds.length > 0) {
-        const { data: histScores } = await supabase
-          .from("pick_scores")
-          .select("profile_id, points_awarded, match_id")
-          .in("profile_id", profileIds)
-          .in("match_id", priorIds);
-        for (const r of histScores ?? []) {
-          const key = String((r as { profile_id: string }).profile_id);
-          const pts = (r as { points_awarded?: number }).points_awarded ?? 0;
-          cumulativeTotals.set(key, (cumulativeTotals.get(key) ?? 0) + pts);
+
+      const priorIdSet = new Set<string>();
+      for (const m of priorMatches ?? []) {
+        priorIdSet.add(String((m as { id: string }).id));
+        const oid = (m as { official_id?: string | null }).official_id;
+        if (oid) priorIdSet.add(String(oid));
+      }
+
+      if (priorIdSet.size > 0) {
+        const pageSize = 1000;
+        let offset = 0;
+        for (;;) {
+          const { data: histScores } = await supabase
+            .from("pick_scores")
+            .select("profile_id, points_awarded, match_id")
+            .in("profile_id", profileIds)
+            .range(offset, offset + pageSize - 1);
+
+          if (!histScores?.length) break;
+
+          for (const r of histScores) {
+            const mid = String((r as { match_id: string }).match_id);
+            if (!priorIdSet.has(mid)) continue;
+            const key = String((r as { profile_id: string }).profile_id);
+            const pts = (r as { points_awarded?: number }).points_awarded ?? 0;
+            cumulativeTotals.set(key, (cumulativeTotals.get(key) ?? 0) + pts);
+          }
+
+          if (histScores.length < pageSize) break;
+          offset += pageSize;
         }
       }
     }
