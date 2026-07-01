@@ -459,7 +459,7 @@ export default function HomeDashboard({
             </section>
           ) : null}
           <section className="home-dash-stack__section home-dash-stack__section--kraken-match">
-            <KrakenCarousel messages={[{ id: 'kraken-home', text: '...¿Y si sí?' }]} />
+            <KrakenCarousel messages={[{ id: 'kraken-home', text: 'Pulpos, ...¿Y si sí?' }]} />
           </section>
           <section
             className={`home-dash-stack__section${
