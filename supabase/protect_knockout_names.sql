@@ -2,13 +2,15 @@
 -- La API externa revierte home_team/away_team a placeholders ("1º Grupo A",
 -- "2º Grupo B", "Mejor 3º…", "Ganador…") y también pisa kickoff/venue. Este
 -- trigger conserva los nombres reales ya guardados cuando un UPDATE intenta
--- volver a un placeholder, y cuando el partido ya tiene nombres reales también
--- conserva su horario (kickoff) y su sede (venue / venue_city).
+-- volver a un placeholder, y blinda horario/sede en TODOS los partidos de
+-- eliminatoria (is_knockout) una vez definidos — incluso si los nombres siguen
+-- siendo placeholder ("Ganador P75").
 -- Ejecutar en Supabase → SQL Editor. Seguro para re-ejecutar.
 
 CREATE OR REPLACE FUNCTION public.protect_knockout_names()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = public
 AS $$
 BEGIN
   -- home_team: si el valor actual es real y el nuevo es placeholder, conservar el real.
@@ -43,14 +45,30 @@ BEGIN
     NEW.away_team := OLD.away_team;
   END IF;
 
-  -- Si el partido YA tiene nombre real de local (no placeholder), conservar
-  -- también su horario y sede: la API externa los revierte junto con los nombres.
-  -- Se usa guard "IS NOT NULL" para no borrar un valor recién poblado con NULL.
+  -- Refuerzo: cualquier partido de eliminatoria con horario/sede ya definidos
+  -- no debe perder kickoff/venue ante una resync de la API, aunque los nombres
+  -- sigan siendo placeholder (p. ej. "Ganador P75 vs Ganador P77").
+  IF COALESCE(OLD.is_knockout, false) THEN
+    IF OLD.kickoff IS NOT NULL THEN
+      NEW.kickoff := OLD.kickoff;
+    END IF;
+    IF OLD.venue IS NOT NULL AND OLD.venue <> '' THEN
+      NEW.venue := OLD.venue;
+    END IF;
+    IF OLD.venue_city IS NOT NULL AND OLD.venue_city <> '' THEN
+      NEW.venue_city := OLD.venue_city;
+    END IF;
+  END IF;
+
+  -- Si el local ya tiene nombre real (no placeholder), blindar también equipos
+  -- y sede/horario en cada UPDATE (la API los revierte junto con los nombres).
   IF OLD.home_team IS NOT NULL
      AND OLD.home_team <> ''
      AND OLD.home_team NOT ILIKE '%grupo%'
      AND OLD.home_team NOT ILIKE '%mejor%'
      AND OLD.home_team NOT ILIKE '%ganador%' THEN
+    NEW.home_team := OLD.home_team;
+    NEW.away_team := OLD.away_team;
     IF OLD.kickoff IS NOT NULL THEN
       NEW.kickoff := OLD.kickoff;
     END IF;
