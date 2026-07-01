@@ -926,6 +926,62 @@
   box-shadow: 0 0 8px rgba(255, 30, 39, 0.14);
 }
 
+/* Reacciones simplificadas (CommentReactions) */
+.comment-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.comment-reactions__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid #3d1a6e;
+  border-radius: 12px;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.comment-reactions__btn:hover:not(:disabled) {
+  border-color: rgba(255, 30, 39, 0.55);
+  background: rgba(61, 26, 110, 0.45);
+}
+
+.comment-reactions__btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.comment-reactions__btn--mine {
+  background: #3d1a6e;
+  border-color: rgba(255, 30, 39, 0.45);
+}
+
+.comment-reactions__btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.comment-reactions__emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.comment-reactions__count {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .dash-chat .reactions {
   flex-shrink: 0;
 }

@@ -1026,8 +1026,6 @@ export default function App() {
                 chatInput={chatInput}
                 setChatInput={setChatInput}
                 onSendMessage={handleSendMessage}
-                reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
-                onToggleReaction={data.toggleReaction}
                 memberCount={(data.communityProfiles ?? data.ranking ?? []).length}
                 krakenMessages={kraken.carouselMessages}
                 krakenPrivateMessages={kraken.privateMessages}
@@ -1235,8 +1233,6 @@ export default function App() {
                 setChatInput={setChatInput}
                 onSendMessage={handleSendMessage}
                 sessionUserId={session?.user?.id ?? null}
-                reactionRowsByMessage={data.reactionRowsByMessage ?? {}}
-                onToggleReaction={data.toggleReaction}
                 onSelectUser={openUserProfile}
                 events={data.events ?? []}
                 predictionActivityFeed={data.predictionActivityFeed ?? []}

@@ -8,8 +8,6 @@ export default function MatchChat({
   setChatInput,
   onSend,
   currentUserId,
-  reactionRowsByMessage,
-  onToggleReaction,
   onSelectUser,
   messagesListClassName = '',
   inputAreaClassName = '',
@@ -43,9 +41,7 @@ export default function MatchChat({
           <ChatMessage
             key={m.id ?? `demo-${i}`}
             message={m}
-            reactionRows={m.id ? reactionRowsByMessage[m.id] ?? [] : []}
             currentUserId={currentUserId}
-            onToggleReaction={onToggleReaction}
             onSelectUser={onSelectUser}
           />
         ))}

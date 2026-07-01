@@ -8,8 +8,6 @@ export default function ComunidadPage({
   setChatInput,
   onSendMessage,
   sessionUserId,
-  reactionRowsByMessage = {},
-  onToggleReaction,
   onSelectUser,
   events = [],
   predictionActivityFeed = [],
@@ -61,8 +59,6 @@ export default function ComunidadPage({
             setChatInput={setChatInput}
             onSend={onSendMessage}
             currentUserId={sessionUserId}
-            reactionRowsByMessage={reactionRowsByMessage}
-            onToggleReaction={onToggleReaction}
             onSelectUser={onSelectUser}
             messagesListClassName="chat-messages-list"
             inputAreaClassName="chat-input-area"

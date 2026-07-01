@@ -52,32 +52,6 @@ import {
 const MATCHES_CHUNK = 20;
 const MATCHES_HARD_LIMIT = 4999;
 
-const REACTION_SELECT = `
-  id,
-  comment_id,
-  profile_id,
-  emoji,
-  created_at,
-  profiles ( username, name, photo_url )
-`;
-
-function normalizeReactionRow(r) {
-  let prof = r.profiles && typeof r.profiles === 'object' ? r.profiles : null;
-  if (Array.isArray(prof)) prof = prof[0] ?? null;
-  const commentId = r.comment_id ?? r.message_id ?? null;
-  const profileId = r.profile_id ?? r.user_id ?? null;
-  return {
-    id: r.id,
-    comment_id: commentId,
-    profile_id: profileId,
-    emoji: r.emoji,
-    username: prof?.username ?? null,
-    displayName: prof?.name ?? null,
-    photoUrl: prof?.photo_url ?? null,
-    avatarUrl: resolveAvatarUrl(prof?.photo_url),
-  };
-}
-
 function mergeMatchesSorted(prev, incoming) {
   const map = new Map((prev ?? []).map((m) => [m.id, m]));
   for (const m of incoming ?? []) map.set(m.id, m);
@@ -175,7 +149,6 @@ export function useAppData(session) {
   const matchesRef = useRef([]);
   const predictionActivityLogRef = useRef([]);
   const communityPickProfilesRef = useRef([]);
-  const [reactionRowsByMessage, setReactionRowsByMessage] = useState({});
   /** Perfiles con picks para Termómetro / comunidad (Supabase real). */
   const [communityPickProfiles, setCommunityPickProfiles] = useState([]);
   /** Todos los perfiles visibles en Inicio (public.profiles). */
@@ -633,32 +606,6 @@ export function useAppData(session) {
     return { ok: true, data };
   }
 
-  const reloadReactionsForCommentIds = useCallback(async (commentIds) => {
-    const uniq = [...new Set(commentIds)].filter(Boolean);
-    if (!uniq.length) return;
-    const { data, error } = await supabase
-      .from('reactions')
-      .select(REACTION_SELECT)
-      .in('comment_id', uniq);
-    if (error) {
-      console.error('[REACTION ERROR]', error);
-      return;
-    }
-
-    const normalized = (data || []).map(normalizeReactionRow);
-
-    setReactionRowsByMessage((prev) => {
-      const next = { ...prev };
-      for (const cid of uniq) {
-        next[cid] = normalized.filter((r) => r.comment_id === cid);
-      }
-      return next;
-    });
-  }, []);
-
-  const reloadReactionsRef = useRef(reloadReactionsForCommentIds);
-  reloadReactionsRef.current = reloadReactionsForCommentIds;
-
   const loadComments = useCallback(async () => {
     await ensureKrakenPresentationMessage();
     const { data, error } = await timedQuery('comments', () => fetchCommunityComments(supabase));
@@ -666,21 +613,16 @@ export function useAppData(session) {
     if (error) {
       console.error('[loadComments] comments query failed', error);
       setChatData([]);
-      setReactionRowsByMessage({});
       return;
     }
 
     if (!data?.length) {
       setChatData([]);
-      setReactionRowsByMessage({});
       return;
     }
 
     setChatData(data.map(mapCommentRowToChatMessage));
-
-    const ids = data.map((c) => c.id);
-    await reloadReactionsForCommentIds(ids);
-  }, [reloadReactionsForCommentIds]);
+  }, []);
 
   useEffect(() => {
     matchesRef.current = matches;
@@ -967,38 +909,6 @@ export function useAppData(session) {
       )
       .subscribe();
 
-    const rxChannel = supabase
-      .channel('reactions-realtime')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'reactions' },
-        (payload) => {
-          const cid = payload.new?.comment_id;
-          if (cid) void reloadReactionsRef.current([cid]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'reactions' },
-        (payload) => {
-          const cid = payload.old?.comment_id;
-          if (cid) void reloadReactionsRef.current([cid]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'reactions' },
-        (payload) => {
-          const cid = payload.new?.comment_id ?? payload.old?.comment_id;
-          if (cid) void reloadReactionsRef.current([cid]);
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.error('[REACTION ERROR]', new Error('reactions realtime CHANNEL_ERROR'));
-        }
-      });
-
     const matchesChannel = supabase
       .channel('matches-realtime')
       .on(
@@ -1051,7 +961,6 @@ export function useAppData(session) {
 
     return () => {
       supabase.removeChannel(commentsChannel);
-      supabase.removeChannel(rxChannel);
       supabase.removeChannel(matchesChannel);
       supabase.removeChannel(pickScoresChannel);
       supabase.removeChannel(profilesChannel);
@@ -1238,96 +1147,6 @@ export function useAppData(session) {
     });
     loadComments();
   }
-
-  const toggleReaction = useCallback(
-    async (commentId, emoji) => {
-      if (!userId) {
-        console.warn('[toggleReaction] sin sesión');
-        return;
-      }
-      if (!isAllowedChatReactionEmoji(emoji)) {
-        console.warn('[toggleReaction] emoji no permitido', emoji);
-        return;
-      }
-
-      try {
-        const { data: rpcData, error: rpcErr } = await supabase.rpc('toggle_comment_reaction', {
-          p_comment_id: commentId,
-          p_emoji: emoji,
-        });
-
-        if (!rpcErr) {
-          if (rpcData?.action === 'added') {
-            await logActivityEvent('chat_reaction', { comment_id: commentId, emoji });
-          }
-          await reloadReactionsForCommentIds([commentId]);
-          return;
-        }
-
-        const rpcMissing =
-          rpcErr.code === '42883' ||
-          rpcErr.code === 'PGRST202' ||
-          /toggle_comment_reaction/i.test(rpcErr.message ?? '');
-
-        if (!rpcMissing) {
-          if (rpcErr.code === '23505') {
-            console.error(
-              '[REACTION ERROR] UNIQUE incorrecto en reactions — ejecuta supabase/fix_reactions_unique_constraint.sql',
-              rpcErr
-            );
-          } else {
-            console.error('[REACTION ERROR]', rpcErr);
-          }
-          return;
-        }
-
-        const { data: existing, error: selErr } = await supabase
-          .from('reactions')
-          .select('id')
-          .eq('comment_id', commentId)
-          .eq('profile_id', userId)
-          .eq('emoji', emoji)
-          .maybeSingle();
-
-        if (selErr) {
-          console.error('[REACTION ERROR]', selErr);
-          return;
-        }
-
-        if (existing?.id) {
-          const { error: delErr } = await supabase.from('reactions').delete().eq('id', existing.id);
-          if (delErr) {
-            console.error('[REACTION ERROR]', delErr);
-            return;
-          }
-        } else {
-          const { error: insErr } = await supabase.from('reactions').insert({
-            comment_id: commentId,
-            profile_id: userId,
-            emoji,
-          });
-
-          if (insErr) {
-            if (insErr.code === '23505') {
-              console.error(
-                '[REACTION ERROR] UNIQUE incorrecto en reactions — ejecuta supabase/fix_reactions_unique_constraint.sql',
-                insErr
-              );
-            } else {
-              console.error('[REACTION ERROR]', insErr);
-            }
-            return;
-          }
-          await logActivityEvent('chat_reaction', { comment_id: commentId, emoji });
-        }
-
-        await reloadReactionsForCommentIds([commentId]);
-      } catch (e) {
-        console.error('[REACTION ERROR]', e);
-      }
-    },
-    [userId, reloadReactionsForCommentIds]
-  );
 
   async function updateProfile(fields, options = {}) {
     if (!userId) return { message: 'Sin sesión' };
@@ -1565,8 +1384,6 @@ export function useAppData(session) {
     loadCommunityProfiles,
     savePick,
     sendComment,
-    toggleReaction,
-    reactionRowsByMessage,
     updateProfile,
     createEvent,
     applyManualMatchResult,

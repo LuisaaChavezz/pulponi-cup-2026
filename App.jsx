@@ -676,8 +676,6 @@ export default function App() {
                 setChatInput={setChatInput}
                 onSend={handleSendMessage}
                 currentUserId={session?.user?.id ?? null}
-                reactionRowsByMessage={data.reactionRowsByMessage}
-                onToggleReaction={data.toggleReaction}
               />
             ) : (
               <div className="chat-list chat-list--notifications">

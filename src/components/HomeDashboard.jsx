@@ -131,8 +131,6 @@ export default function HomeDashboard({
   chatInput = '',
   setChatInput,
   onSendMessage,
-  reactionRowsByMessage = {},
-  onToggleReaction,
   memberCount = 0,
   onMakePrediction,
   onViewRanking,
@@ -294,8 +292,6 @@ export default function HomeDashboard({
           setChatInput={setChatInput}
           onSend={onSendMessage}
           currentUserId={session?.user?.id ?? null}
-          reactionRowsByMessage={reactionRowsByMessage}
-          onToggleReaction={onToggleReaction}
           onSelectUser={onSelectUser}
         />
       </div>
