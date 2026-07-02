@@ -15,6 +15,7 @@ import {
   releaseEmailSend,
   sendResendEmail,
 } from '../_shared/emailUtils.ts';
+import { invokeKrakenMatchMessage } from '../_shared/krakenInvoke.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -176,6 +177,15 @@ serve(async (req) => {
     } catch (sendErr) {
       await releaseEmailSend(supabase, matchId, 'predictions');
       throw sendErr;
+    }
+
+    try {
+      const kraken = await invokeKrakenMatchMessage(matchId, 'before');
+      if (!kraken.ok) {
+        console.warn('[send-predictions-email] kraken-messages before', kraken.status, kraken.body);
+      }
+    } catch (krakenErr) {
+      console.warn('[send-predictions-email] kraken-messages before', krakenErr);
     }
 
     return new Response(JSON.stringify({ ok: true, message: 'Sent', match_id: match.id }), {

@@ -1331,6 +1331,20 @@ export function useAppData(session) {
           );
         }
 
+        try {
+          const { error: krakenErr } = await supabase.functions.invoke('kraken-messages', {
+            body: { match_id: resolvedMatchId, type: 'after' },
+          });
+          if (krakenErr) {
+            console.warn('[applyManualMatchResult] kraken-messages', krakenErr.message);
+          }
+        } catch (krakenInvokeErr) {
+          console.warn(
+            '[applyManualMatchResult] kraken-messages',
+            krakenInvokeErr?.message ?? krakenInvokeErr
+          );
+        }
+
         return {
           ...applyResult,
           score: pipeline?.score,

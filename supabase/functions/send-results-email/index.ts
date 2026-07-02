@@ -12,6 +12,7 @@ import {
   listParticipantEmails,
   sendResendEmail,
 } from '../_shared/emailUtils.ts';
+import { invokeKrakenMatchMessage } from '../_shared/krakenInvoke.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -203,6 +204,15 @@ serve(async (req) => {
       subject: `🦑 Resultados: ${match.home_team} ${homeScore}-${awayScore} ${match.away_team}`,
       html,
     });
+
+    try {
+      const kraken = await invokeKrakenMatchMessage(String(match_id), 'after');
+      if (!kraken.ok) {
+        console.warn('[send-results-email] kraken-messages after', kraken.status, kraken.body);
+      }
+    } catch (krakenErr) {
+      console.warn('[send-results-email] kraken-messages after', krakenErr);
+    }
 
     return new Response(JSON.stringify({ ok: true, message: 'Sent', match_id }), {
       status: 200,

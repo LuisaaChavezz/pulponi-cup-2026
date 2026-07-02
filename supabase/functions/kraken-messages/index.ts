@@ -169,6 +169,188 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+type MatchRow = {
+  id: string;
+  official_id?: string | null;
+  home_team?: string | null;
+  away_team?: string | null;
+  home_score?: number | null;
+  away_score?: number | null;
+};
+
+async function fetchMatchById(supabase: SupabaseClient, matchId: string): Promise<MatchRow | null> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select('id, official_id, home_team, away_team, home_score, away_score')
+    .eq('id', matchId)
+    .maybeSingle();
+
+  if (!error && data) return data as MatchRow;
+
+  const { data: byOfficial } = await supabase
+    .from('matches')
+    .select('id, official_id, home_team, away_team, home_score, away_score')
+    .eq('official_id', matchId)
+    .maybeSingle();
+
+  return (byOfficial as MatchRow | null) ?? null;
+}
+
+async function krakenBeforeAlreadySent(
+  supabase: SupabaseClient,
+  match: MatchRow,
+): Promise<boolean> {
+  const home = String(match.home_team ?? '');
+  const away = String(match.away_team ?? '');
+  if (!home || !away) return false;
+
+  const since = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from('comments')
+    .select('id')
+    .eq('is_kraken', true)
+    .gte('created_at', since)
+    .ilike('body', `%${home}%`)
+    .ilike('body', `%${away}%`)
+    .limit(1);
+
+  return Boolean(data?.length);
+}
+
+async function krakenAfterAlreadySent(
+  supabase: SupabaseClient,
+  match: MatchRow,
+  marcador: string,
+): Promise<boolean> {
+  const home = String(match.home_team ?? '');
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from('comments')
+    .select('id')
+    .eq('is_kraken', true)
+    .gte('created_at', since)
+    .ilike('body', `%${marcador}%`)
+    .ilike('body', `%${home}%`)
+    .limit(1);
+
+  return Boolean(data?.length);
+}
+
+async function insertKrakenPublicComment(
+  supabase: SupabaseClient,
+  body: string,
+  now = new Date(),
+): Promise<{ id: string | null; error?: string }> {
+  const text = body.trim();
+  if (!text) return { id: null, error: 'empty_body' };
+
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({
+      profile_id: KRAKEN_ID,
+      match_id: 'general',
+      body: text,
+      is_kraken: true,
+      created_at: now.toISOString(),
+    })
+    .select('id')
+    .single();
+
+  if (error) return { id: null, error: error.message };
+  return { id: data.id as string };
+}
+
+async function handleTargetedKrakenMessage(
+  supabase: SupabaseClient,
+  matchId: string,
+  type: 'before' | 'after',
+): Promise<Response> {
+  const match = await fetchMatchById(supabase, matchId);
+  if (!match) {
+    return jsonResponse({ ok: false, error: 'match_not_found', match_id: matchId }, 404);
+  }
+
+  const local = String(match.home_team ?? 'Local');
+  const visitante = String(match.away_team ?? 'Visitante');
+  const now = new Date();
+
+  if (type === 'before') {
+    if (await krakenBeforeAlreadySent(supabase, match)) {
+      return jsonResponse({ ok: true, skipped: 'already_sent_before', match_id: match.id, type }, 200);
+    }
+
+    const body = resolveMessage(pick(MESSAGES_BEFORE), {
+      local,
+      visitante,
+      elegido: '',
+      retador: '',
+      nuevo: '',
+      anterior: '',
+      ganador: '',
+      marcador: '',
+      exactos: '0',
+      miNombre: '',
+    });
+
+    const inserted = await insertKrakenPublicComment(supabase, body, now);
+    if (inserted.error) {
+      return jsonResponse({ ok: false, error: inserted.error, match_id: match.id, type }, 500);
+    }
+
+    return jsonResponse(
+      { ok: true, match_id: match.id, type, comment_id: inserted.id, preview: body.slice(0, 80) },
+      200,
+    );
+  }
+
+  const home = Number(match.home_score);
+  const away = Number(match.away_score);
+  if (!Number.isFinite(home) || !Number.isFinite(away)) {
+    return jsonResponse({ ok: false, error: 'match_not_scored', match_id: match.id, type }, 400);
+  }
+
+  const marcador = `${home}-${away}`;
+  if (await krakenAfterAlreadySent(supabase, match, marcador)) {
+    return jsonResponse({ ok: true, skipped: 'already_sent_after', match_id: match.id, type }, 200);
+  }
+
+  const matchKeys = [String(match.id)];
+  if (match.official_id) matchKeys.push(String(match.official_id));
+
+  const { count: exactos } = await supabase
+    .from('pick_scores')
+    .select('*', { count: 'exact', head: true })
+    .in('match_id', matchKeys)
+    .eq('exact_hit', true);
+
+  let ganador = 'Empate';
+  if (home > away) ganador = local;
+  else if (away > home) ganador = visitante;
+
+  const body = resolveMessage(pick(MESSAGES_AFTER), {
+    local,
+    visitante,
+    ganador,
+    marcador,
+    exactos: String(exactos ?? 0),
+    elegido: '',
+    retador: '',
+    nuevo: '',
+    anterior: '',
+    miNombre: '',
+  });
+
+  const inserted = await insertKrakenPublicComment(supabase, body, now);
+  if (inserted.error) {
+    return jsonResponse({ ok: false, error: inserted.error, match_id: match.id, type }, 500);
+  }
+
+  return jsonResponse(
+    { ok: true, match_id: match.id, type, comment_id: inserted.id, preview: body.slice(0, 80) },
+    200,
+  );
+}
+
 function normalizeUsername(value: string | null | undefined): string {
   return String(value ?? '').replace(/^@+/, '').trim();
 }
@@ -201,6 +383,26 @@ Deno.serve(async (req) => {
 
   if (req.method !== 'GET' && req.method !== 'POST') {
     return jsonResponse({ error: 'method_not_allowed' }, 405);
+  }
+
+  let payload: Record<string, unknown> = {};
+  if (req.method === 'POST') {
+    try {
+      payload = (await req.json()) as Record<string, unknown>;
+    } catch {
+      payload = {};
+    }
+  }
+
+  const targetedMatchId = payload.match_id != null ? String(payload.match_id) : '';
+  const targetedType = payload.type === 'before' || payload.type === 'after' ? payload.type : null;
+
+  if (targetedMatchId && targetedType) {
+    const supabase = createServiceRoleClient();
+    if (!supabase) {
+      return jsonResponse({ ok: false, error: 'missing_supabase_service_role_key' }, 503);
+    }
+    return handleTargetedKrakenMessage(supabase, targetedMatchId, targetedType);
   }
 
   if (!isAuthorized(req)) {
