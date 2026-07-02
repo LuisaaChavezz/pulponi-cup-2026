@@ -159,10 +159,11 @@ BEGIN
       END IF;
 
       FOR prof IN
-        SELECT id, picks
-        FROM public.profiles
-        WHERE picks IS NOT NULL
-          AND picks <> '{}'::jsonb
+        SELECT p.id, p.picks
+        FROM public.profiles p
+        WHERE p.picks IS NOT NULL
+          AND p.picks <> '{}'::jsonb
+          AND public._profile_is_scorable(p.*)
       LOOP
         pick_key := NULL;
         pick := NULL;

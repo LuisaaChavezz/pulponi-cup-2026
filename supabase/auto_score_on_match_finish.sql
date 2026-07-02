@@ -12,6 +12,17 @@ BEGIN
   END IF;
 
   EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION public._profile_is_scorable(p public.profiles)
+    RETURNS boolean
+    LANGUAGE sql
+    STABLE
+    AS $body$
+      SELECT coalesce(p.hidden, false) = false
+        OR lower(trim(replace(coalesce(p.username, ''), '@', ''))) = 'el-kraken';
+    $body$;
+  $fn$;
+
+  EXECUTE $fn$
     CREATE OR REPLACE FUNCTION public._recompute_profiles_from_pick_scores(p_profile_ids uuid[])
     RETURNS void
     LANGUAGE plpgsql
@@ -88,14 +99,15 @@ BEGIN
       END IF;
 
       FOR prof IN
-        SELECT id, picks
-        FROM public.profiles
-        WHERE picks IS NOT NULL
-          AND picks <> '{}'::jsonb
+        SELECT p.id, p.picks
+        FROM public.profiles p
+        WHERE p.picks IS NOT NULL
+          AND p.picks <> '{}'::jsonb
           AND (
-            picks ? mid_db
-            OR (mid_official IS NOT NULL AND picks ? mid_official)
+            p.picks ? mid_db
+            OR (mid_official IS NOT NULL AND p.picks ? mid_official)
           )
+          AND public._profile_is_scorable(p.*)
       LOOP
         pick_key := NULL;
         pick := NULL;

@@ -30,6 +30,7 @@ BEGIN
       SELECT p.id
       INTO v_new_elegido
       FROM public.profiles p
+      WHERE lower(trim(replace(coalesce(p.username, ''), '@', ''))) <> 'el-kraken'
       ORDER BY p.points DESC, p.exacts DESC, p.streak DESC NULLS LAST, p.username ASC NULLS LAST
       LIMIT 1;
 

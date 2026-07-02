@@ -8,6 +8,11 @@ UPDATE public.profiles
 SET hidden = true
 WHERE lower(trim(replace(coalesce(username, ''), '@', ''))) = 'pirata12';
 
+UPDATE public.profiles
+SET hidden = true
+WHERE lower(trim(replace(coalesce(username, ''), '@', ''))) = 'el-kraken'
+   OR id = '00000000-0000-0000-0000-000000000001'::uuid;
+
 CREATE OR REPLACE VIEW public.ranking_leaderboard AS
 SELECT
   p.id,

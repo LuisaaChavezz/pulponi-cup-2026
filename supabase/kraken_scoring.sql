@@ -1,18 +1,13 @@
--- Pulponi Cup — Predicción de penales en partidos de eliminación directa.
--- Ejecutar en Supabase → SQL Editor. Seguro para re-ejecutar.
---
--- Reglas de puntuación de penales (solo si went_to_penalties = true):
---   +1 si acertó al ganador de la tanda (penalty_winner)
---   +1 si acertó el marcador exacto de penales (penalty_home / penalty_away)
--- Estos puntos se SUMAN a los puntos del marcador de 90' (3 exacto / 1 ganador / 0).
+-- Kraken: puntuar siempre (aunque hidden=true) pero fuera del leaderboard público.
+-- Ejecutar en Supabase SQL Editor. Seguro para re-ejecutar.
 
--- 1) Columnas de marcador de penales (is_knockout / went_to_penalties / penalty_winner ya existen).
-ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS penalty_home integer;
-ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS penalty_away integer;
+-- 1) Ocultar al Kraken del ranking / comunidad visible (sigue acumulando puntos).
+UPDATE public.profiles
+SET hidden = true
+WHERE lower(trim(replace(coalesce(username, ''), '@', ''))) = 'el-kraken'
+   OR id = '00000000-0000-0000-0000-000000000001'::uuid;
 
--- 2) RPC score_match con parámetros opcionales de penales (overload de 7 args).
---    Incluye al Kraken (el-kraken) aunque hidden=true; excluye otros hidden.
---    Ver también supabase/kraken_scoring.sql
+-- 2) Helper: perfiles que deben recibir puntos al puntuar un partido.
 CREATE OR REPLACE FUNCTION public._profile_is_scorable(p public.profiles)
 RETURNS boolean
 LANGUAGE sql
@@ -22,6 +17,7 @@ AS $$
     OR lower(trim(replace(coalesce(p.username, ''), '@', ''))) = 'el-kraken';
 $$;
 
+-- 3) score_match (7 args) — producción usa este overload con penales.
 CREATE OR REPLACE FUNCTION public.score_match(
   p_match_id text,
   p_home_score integer,
@@ -115,7 +111,6 @@ BEGIN
     ELSE v_points := 0;
     END IF;
 
-    -- Bono de penales
     v_bonus := 0;
     IF coalesce(p_went_to_penalties, false) THEN
       v_pick_pen_winner := nullif(trim(v_profile.picks->pick_key->>'penalty_winner'), '');
@@ -153,18 +148,16 @@ BEGIN
     v_count := v_count + 1;
   END LOOP;
 
-  -- Re-sumar puntos totales de los perfiles afectados
   UPDATE public.profiles p SET points = (
     SELECT COALESCE(SUM(ps.points_awarded), 0) FROM public.pick_scores ps WHERE ps.profile_id = p.id
   )
-  WHERE p.id IN (
-    SELECT DISTINCT profile_id
-    FROM public.pick_scores
-    WHERE match_id = target_match_id
-       OR (mid_official IS NOT NULL AND match_id = mid_official)
-  );
+  WHERE p.id IN (SELECT profile_id FROM public.pick_scores WHERE match_id IN (target_match_id, coalesce(mid_official, target_match_id)));
 
-  -- Recalcular rachas y pulpo index si las RPC existen
+  UPDATE public.profiles p SET exacts = (
+    SELECT COALESCE(COUNT(*)::integer, 0) FROM public.pick_scores ps WHERE ps.profile_id = p.id AND ps.exact_hit
+  )
+  WHERE p.id IN (SELECT profile_id FROM public.pick_scores WHERE match_id IN (target_match_id, coalesce(mid_official, target_match_id)));
+
   IF to_regprocedure('public.recompute_profile_streaks()') IS NOT NULL THEN
     PERFORM public.recompute_profile_streaks();
   END IF;
@@ -178,3 +171,70 @@ $body$;
 
 GRANT EXECUTE ON FUNCTION public.score_match(text, integer, integer, boolean, text, integer, integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.score_match(text, integer, integer, boolean, text, integer, integer) TO service_role;
+
+-- 4) Trono Kraken: nunca asignar el badge al Kraken aunque tenga más puntos.
+CREATE OR REPLACE FUNCTION public.transfer_kraken_throne_if_needed()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $body$
+DECLARE
+  v_new_elegido uuid;
+  v_current_elegido uuid;
+  v_previous_username text;
+  v_new_username text;
+BEGIN
+  IF to_regclass('public.user_badges') IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT p.id
+  INTO v_new_elegido
+  FROM public.profiles p
+  WHERE lower(trim(replace(coalesce(p.username, ''), '@', ''))) <> 'el-kraken'
+  ORDER BY p.points DESC, p.exacts DESC, p.streak DESC NULLS LAST, p.username ASC NULLS LAST
+  LIMIT 1;
+
+  IF v_new_elegido IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT ub.profile_id
+  INTO v_current_elegido
+  FROM public.user_badges ub
+  WHERE ub.badge_id = 'el-elegido'
+  LIMIT 1;
+
+  IF v_new_elegido IS NOT DISTINCT FROM v_current_elegido THEN
+    RETURN;
+  END IF;
+
+  SELECT lower(trim(replace(coalesce(p.username, ''), '@', '')))
+  INTO v_previous_username
+  FROM public.profiles p
+  WHERE p.id = v_current_elegido;
+
+  SELECT lower(trim(replace(coalesce(p.username, ''), '@', '')))
+  INTO v_new_username
+  FROM public.profiles p
+  WHERE p.id = v_new_elegido;
+
+  IF v_new_username IS NULL OR v_new_username = '' THEN
+    RETURN;
+  END IF;
+
+  DELETE FROM public.user_badges
+  WHERE badge_id = 'el-elegido';
+
+  INSERT INTO public.user_badges (profile_id, badge_id, earned_at)
+  VALUES (v_new_elegido, 'el-elegido', now())
+  ON CONFLICT (profile_id, badge_id) DO UPDATE
+    SET earned_at = excluded.earned_at;
+
+  IF to_regclass('public.elegido_history') IS NOT NULL THEN
+    INSERT INTO public.elegido_history (previous_username, new_username, transferred_at)
+    VALUES (nullif(v_previous_username, ''), v_new_username, now());
+  END IF;
+END;
+$body$;
