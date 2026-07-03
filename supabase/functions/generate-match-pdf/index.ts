@@ -36,7 +36,7 @@ serve(async (req) => {
 
     const { data: pickScores } = await supabase
       .from("pick_scores")
-      .select("profile_id, points_awarded")
+      .select("profile_id, points_awarded, exact_hit, winner_hit")
       .in("match_id", matchKeys);
 
     const profileIds = [...new Set((pickScores ?? []).map((p: { profile_id: string }) => p.profile_id))];
@@ -94,13 +94,15 @@ serve(async (req) => {
     const raw = (profiles ?? []).map((profile: Record<string, unknown>) => {
       const ps = (pickScores ?? []).find(
         (p: { profile_id: string }) => p.profile_id === profile.id
-      ) as { points_awarded?: number } | undefined;
+      ) as { points_awarded?: number; exact_hit?: boolean; winner_hit?: boolean } | undefined;
       const picks = profile.picks as Record<string, unknown> | null | undefined;
       const pick = picks?.[matchIdStr] ?? picks?.[match_id as string];
 
       let prediction: string | null = null;
       let penaltyPrediction: string | null = null;
       let penaltyPoints = 0;
+      let penaltyWinnerHit = false;
+      let penaltyScoreHit = false;
       if (pick) {
         if (typeof pick === "string") prediction = pick;
         else if (typeof pick === "object" && !Array.isArray(pick)) {
@@ -124,7 +126,10 @@ serve(async (req) => {
             const pickWinner = pw.toLowerCase();
             const realWinner =
               match.penalty_winner != null ? String(match.penalty_winner).trim().toLowerCase() : "";
-            if (pickWinner && realWinner && pickWinner === realWinner) penaltyPoints += 1;
+            if (pickWinner && realWinner && pickWinner === realWinner) {
+              penaltyPoints += 1;
+              penaltyWinnerHit = true;
+            }
             if (
               hasPenScore &&
               match.penalty_home != null &&
@@ -133,6 +138,7 @@ serve(async (req) => {
               Number(pa) === Number(match.penalty_away)
             ) {
               penaltyPoints += 1;
+              penaltyScoreHit = true;
             }
           }
         } else if (Array.isArray(pick)) {
@@ -156,6 +162,10 @@ serve(async (req) => {
         prediction,
         penalty_prediction: penaltyPrediction,
         penalty_points: penaltyPoints,
+        penalty_winner_hit: penaltyWinnerHit,
+        penalty_score_hit: penaltyScoreHit,
+        exact_hit: Boolean(ps?.exact_hit),
+        winner_hit: Boolean(ps?.winner_hit),
         points: pointsAwarded,
         total: historicalTotal,
         no_pick: !prediction,
