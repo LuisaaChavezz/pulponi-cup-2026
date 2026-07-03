@@ -140,6 +140,13 @@ serve(async (req) => {
         }
       }
 
+      const pointsAwarded = (ps?.points_awarded as number) ?? 0;
+      if (!match.went_to_penalties) {
+        penaltyPoints = 0;
+      } else {
+        penaltyPoints = Math.max(0, Math.min(penaltyPoints, 2, pointsAwarded));
+      }
+
       const historicalTotal = match.kickoff
         ? (cumulativeTotals.get(String(profile.id)) ?? 0)
         : ((profile.points as number) ?? 0);
@@ -149,7 +156,7 @@ serve(async (req) => {
         prediction,
         penalty_prediction: penaltyPrediction,
         penalty_points: penaltyPoints,
-        points: ps?.points_awarded ?? 0,
+        points: pointsAwarded,
         total: historicalTotal,
         no_pick: !prediction,
       };

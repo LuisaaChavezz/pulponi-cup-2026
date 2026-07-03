@@ -21,6 +21,38 @@ function formatPredictionFromPick(pick) {
   return null;
 }
 
+function computePenaltyPointsForPdf(pick, match) {
+  if (!match?.went_to_penalties || !pick || typeof pick !== 'object' || Array.isArray(pick)) {
+    return 0;
+  }
+
+  let pts = 0;
+  const pickWinner = pick.penalty_winner != null ? String(pick.penalty_winner).trim() : '';
+  const pickHome = pick.penalty_home;
+  const pickAway = pick.penalty_away;
+  const realWinner =
+    match.penalty_winner != null ? String(match.penalty_winner).trim().toLowerCase() : '';
+
+  if (pickWinner && realWinner && pickWinner.toLowerCase() === realWinner) {
+    pts += 1;
+  }
+
+  if (
+    pickHome != null &&
+    pickHome !== '' &&
+    pickAway != null &&
+    pickAway !== '' &&
+    match.penalty_home != null &&
+    match.penalty_away != null &&
+    Number(pickHome) === Number(match.penalty_home) &&
+    Number(pickAway) === Number(match.penalty_away)
+  ) {
+    pts += 1;
+  }
+
+  return pts;
+}
+
 function formatPenaltyPredictionFromPick(pick) {
   if (!pick || typeof pick !== 'object' || Array.isArray(pick)) return null;
   const winner = pick.penalty_winner != null ? String(pick.penalty_winner).trim() : '';
@@ -38,7 +70,13 @@ function formatPenaltyPredictionFromPick(pick) {
  * @param {Map<string, number>|null} totalsByProfile - total histórico (acumulado
  *   hasta este partido inclusive). Si no se pasa, usa profile.points actual.
  */
-export function buildResultsPdfParticipants(profiles, pickScoreRows, matchId, totalsByProfile = null) {
+export function buildResultsPdfParticipants(
+  profiles,
+  pickScoreRows,
+  matchId,
+  totalsByProfile = null,
+  match = null
+) {
   const matchIdStr = String(matchId);
   const scoresByProfile = new Map(
     (pickScoreRows ?? []).map((row) => [String(row.profile_id), row])
@@ -53,6 +91,9 @@ export function buildResultsPdfParticipants(profiles, pickScoreRows, matchId, to
         : null;
     const prediction = formatPredictionFromPick(pick);
     const penaltyPrediction = formatPenaltyPredictionFromPick(pick);
+    const pointsAwarded = Number(ps?.points_awarded ?? 0);
+    let penaltyPoints = computePenaltyPointsForPdf(pick, match);
+    penaltyPoints = Math.max(0, Math.min(penaltyPoints, 2, pointsAwarded));
 
     const total =
       totalsByProfile != null
@@ -63,7 +104,8 @@ export function buildResultsPdfParticipants(profiles, pickScoreRows, matchId, to
       name: profile.name || profile.username || 'Anónimo',
       prediction,
       penalty_prediction: penaltyPrediction,
-      points: Number(ps?.points_awarded ?? 0),
+      penalty_points: penaltyPoints,
+      points: pointsAwarded,
       total,
       no_pick: !prediction,
     };
@@ -185,7 +227,13 @@ export async function fetchResultsPdfPayload(match) {
   // kickoff, no el profiles.points actual.
   const totalsByProfile = await buildHistoricalTotals(match, profileIds);
 
-  const participants = buildResultsPdfParticipants(profiles, pickScores, matchId, totalsByProfile);
+  const participants = buildResultsPdfParticipants(
+    profiles,
+    pickScores,
+    matchId,
+    totalsByProfile,
+    match
+  );
   if (!participants.length) {
     throw new Error('Este partido aún no tiene puntajes registrados para generar el PDF.');
   }
