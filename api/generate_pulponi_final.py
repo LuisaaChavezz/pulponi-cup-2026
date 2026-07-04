@@ -324,7 +324,7 @@ def draw_table_header(c, team_color, top_y, show_penalty_column=False, show_brea
         c.drawString(268.0, top_y-22, "Pts partido")
         c.drawString(302.0, top_y-22, "Pred. penales")
         c.drawString(392.0, top_y-22, "Pts penales")
-        c.drawString(478.0, top_y-22, "Total")
+        c.drawString(462.0, top_y-22, "Total acumulado")
     elif show_penalty_column:
         c.drawString(57.0,  top_y-24, "Lugar")
         c.drawString(96.4,  top_y-24, "Participante")
