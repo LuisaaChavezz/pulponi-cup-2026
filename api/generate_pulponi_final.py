@@ -225,10 +225,39 @@ def _compute_score_flags(participant, home_score, away_score):
     return exact_hit, winner_hit
 
 
+def _resultado_90_label(participant, home_score, away_score, no_pick=False):
+    if no_pick:
+        return "Fallo"
+    if participant.get("pts_partido") is not None:
+        if participant.get("exact_hit"):
+            return "Exacto"
+        if participant.get("winner_hit"):
+            if int(home_score) == int(away_score):
+                return "Empate"
+            return "Ganador"
+        return "Fallo"
+
+    exact_hit, winner_hit = _compute_score_flags(participant, home_score, away_score)
+    if exact_hit:
+        return "Exacto"
+    if winner_hit:
+        if int(home_score) == int(away_score):
+            return "Empate"
+        return "Ganador"
+    return "Fallo"
+
+
 def _pts_90_label(participant, home_score, away_score, no_pick=False):
-    """Pts del marcador normal calculados desde pick vs marcador real."""
     if no_pick:
         return "0"
+    if participant.get("pts_partido") is not None:
+        pts = int(participant.get("pts_partido", 0) or 0)
+        if pts >= 3:
+            return "+3"
+        if pts >= 1:
+            return "+1"
+        return "0"
+
     exact_hit, winner_hit = _compute_score_flags(participant, home_score, away_score)
     if exact_hit:
         return "+3"
@@ -237,17 +266,21 @@ def _pts_90_label(participant, home_score, away_score, no_pick=False):
     return "0"
 
 
-def _resultado_90_label(participant, home_score, away_score, no_pick=False):
-    exact_hit, winner_hit = _compute_score_flags(participant, home_score, away_score)
-    if no_pick:
-        return "Fallo"
-    if exact_hit:
-        return "Exacto"
-    if winner_hit:
-        if int(home_score) == int(away_score):
-            return "Empate"
-        return "Ganador"
-    return "Fallo"
+def _format_pts_penales_label(participant, went_to_penalties):
+    if participant.get("pts_penales_label"):
+        return participant["pts_penales_label"]
+    if not went_to_penalties:
+        return "N/A"
+
+    pts = int(participant.get("pts_penales", 0) or 0)
+    detalle = []
+    if participant.get("penalty_winner_hit"):
+        detalle.append("Gan.✓")
+    if participant.get("penalty_score_hit"):
+        detalle.append("Marc.✓")
+    if detalle:
+        return f"+{pts} ({', '.join(detalle)})"
+    return "0"
 
 
 def _penalty_pts_label(participant, match):
@@ -300,27 +333,19 @@ def _penalty_breakdown(
     match_penalty_home=None,
     match_penalty_away=None,
 ):
-    """Pts partido/resultado calculados desde pick vs marcador; total partido = points_awarded."""
+    """Usa pts_partido/pts_penales de Supabase cuando vienen en el payload."""
     total_pts = int(participant.get("points", 0) or 0)
     no_pick = bool(participant.get("no_pick"))
-    exact_hit, winner_hit = _compute_score_flags(participant, home_score, away_score)
+
+    if participant.get("pts_partido") is not None:
+        pts_90_val = int(participant.get("pts_partido", 0) or 0)
+    else:
+        exact_hit, winner_hit = _compute_score_flags(participant, home_score, away_score)
+        pts_90_val = 3 if exact_hit else (1 if winner_hit else 0)
 
     pts_90_label = _pts_90_label(participant, home_score, away_score, no_pick)
-    if exact_hit:
-        pts_90_val = 3
-    elif winner_hit:
-        pts_90_val = 1
-    else:
-        pts_90_val = 0
-
     pred_pen = participant.get("penalty_prediction") or "—"
-    match_penalty = {
-        "went_to_penalties": bool(went_to_penalties),
-        "penalty_winner": match_penalty_winner,
-        "penalty_home": match_penalty_home,
-        "penalty_away": match_penalty_away,
-    }
-    pts_pen_label = _penalty_pts_label(participant, match_penalty)
+    pts_pen_label = _format_pts_penales_label(participant, went_to_penalties)
 
     return {
         "total": total_pts,
@@ -432,7 +457,7 @@ def draw_row(
             penalty_home,
             penalty_away,
         )
-        acum_str = str(participant.get("total", ""))
+        acum_str = str(participant.get("total_acumulado", participant.get("total", "")))
         # Tu predicción
         sf(c, C_DARK); c.setFont("Helvetica", 8)
         pred90 = "—" if no_pick else (participant.get("prediction") or "—")
@@ -441,10 +466,9 @@ def draw_row(
         c.drawString(196.0, ty, bd["resultado_90"])
         # Pts partido
         pts90 = bd["pts_90_label"]
-        exact_hit, winner_hit = _compute_score_flags(participant, home_score, away_score)
-        if exact_hit:
+        if participant.get("exact_hit") or bd["pts_90"] >= 3:
             sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 9)
-        elif winner_hit:
+        elif participant.get("winner_hit") or bd["pts_90"] >= 1:
             sf(c, C_PTS_1); c.setFont("Helvetica-Bold", 9)
         else:
             sf(c, C_PTS_0); c.setFont("Helvetica", 9)

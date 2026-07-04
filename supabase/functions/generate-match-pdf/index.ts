@@ -10,21 +10,89 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function findPickScoreRow(
-  pickScoreRows: Array<{ profile_id: string; match_id?: string }> | null | undefined,
-  profileId: unknown,
-  matchId: string,
-  officialId: string | null
-) {
-  const pid = String(profileId);
-  const matchKeys = new Set([String(matchId)]);
-  if (officialId) matchKeys.add(String(officialId));
+type PdfDataRow = {
+  username?: string | null;
+  name?: string | null;
+  home_pick?: number | null;
+  away_pick?: number | null;
+  penalty_winner_pick?: string | null;
+  penalty_home_pick?: number | null;
+  penalty_away_pick?: number | null;
+  points_awarded?: number | null;
+  exact_hit?: boolean | null;
+  winner_hit?: boolean | null;
+  pts_partido?: number | null;
+  pts_penales?: number | null;
+  penalty_winner_hit?: boolean | null;
+  penalty_score_hit?: boolean | null;
+  total_acumulado?: number | null;
+};
 
-  const rows = (pickScoreRows ?? []).filter((row) => String(row.profile_id) === pid);
-  for (const row of rows) {
-    if (row.match_id != null && matchKeys.has(String(row.match_id))) return row;
-  }
-  return rows[0];
+function buildPtsPenalesLabel(
+  ptsPenales: number,
+  winnerHit: boolean,
+  scoreHit: boolean,
+  wentToPenalties: boolean
+) {
+  if (!wentToPenalties) return "N/A";
+  const detalle: string[] = [];
+  if (winnerHit) detalle.push("Gan.✓");
+  if (scoreHit) detalle.push("Marc.✓");
+  if (detalle.length) return `+${ptsPenales} (${detalle.join(", ")})`;
+  return "0";
+}
+
+function mapPdfRowToParticipant(row: PdfDataRow, match: Record<string, unknown>) {
+  const homePick = row.home_pick != null ? Number(row.home_pick) : null;
+  const awayPick = row.away_pick != null ? Number(row.away_pick) : null;
+  const prediction = homePick != null && awayPick != null ? `${homePick}-${awayPick}` : null;
+  const pw = row.penalty_winner_pick != null ? String(row.penalty_winner_pick).trim() : "";
+  const ph = row.penalty_home_pick != null ? Number(row.penalty_home_pick) : null;
+  const pa = row.penalty_away_pick != null ? Number(row.penalty_away_pick) : null;
+  const hasPenScore = ph != null && pa != null;
+  const penaltyPrediction =
+    [pw, hasPenScore ? `${ph}-${pa}` : ""].filter(Boolean).join(" ") || null;
+  const wentToPenalties = Boolean(match.went_to_penalties);
+  const ptsPenales = Number(row.pts_penales ?? 0);
+  const winnerHit = Boolean(row.penalty_winner_hit);
+  const scoreHit = Boolean(row.penalty_score_hit);
+
+  return {
+    name: (row.name as string) || (row.username as string) || "Anónimo",
+    prediction,
+    home_pick: homePick,
+    away_pick: awayPick,
+    penalty_prediction: penaltyPrediction,
+    penalty_winner_pick: pw,
+    penalty_home_pick: ph,
+    penalty_away_pick: pa,
+    penalty_winner_hit: winnerHit,
+    penalty_score_hit: scoreHit,
+    points: Number(row.points_awarded ?? 0),
+    pts_partido: Number(row.pts_partido ?? 0),
+    pts_penales: ptsPenales,
+    pts_penales_label: buildPtsPenalesLabel(ptsPenales, winnerHit, scoreHit, wentToPenalties),
+    exact_hit: Boolean(row.exact_hit),
+    winner_hit: Boolean(row.winner_hit),
+    total: Number(row.total_acumulado ?? 0),
+    total_acumulado: Number(row.total_acumulado ?? 0),
+    no_pick: !prediction,
+  };
+}
+
+function assignPlaces(
+  participants: Array<{ points: number; total: number; place?: string }>
+) {
+  let lastPts = -1;
+  let lastTotal = -1;
+  let lastPlace = 0;
+
+  return participants.map((p, i) => {
+    if (p.points !== lastPts || p.total !== lastTotal) lastPlace = i + 1;
+    lastPts = p.points;
+    lastTotal = p.total;
+    return { ...p, place: `${lastPlace}°` };
+  });
 }
 
 serve(async (req) => {
@@ -48,192 +116,19 @@ serve(async (req) => {
       .single();
     if (mErr || !match) throw new Error("Partido no encontrado");
 
-    const matchKeys = [String(match_id)];
-    if (match.official_id) matchKeys.push(String(match.official_id));
+    const { data: pdfRows, error: pdfErr } = await supabase.rpc("get_match_pdf_data", {
+      p_match_id: String(match_id),
+    });
+    if (pdfErr) throw new Error(pdfErr.message || "get_match_pdf_data falló");
 
-    const { data: pickScores } = await supabase
-      .from("pick_scores")
-      .select("profile_id, match_id, points_awarded, exact_hit, winner_hit")
-      .in("match_id", matchKeys);
-
-    const profileIds = [...new Set((pickScores ?? []).map((p: { profile_id: string }) => p.profile_id))];
-
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, username, name, picks, points")
-      .in("id", profileIds.length > 0 ? profileIds : ["00000000-0000-0000-0000-000000000000"]);
-
-    // Total histórico: suma de points_awarded del usuario en todos los partidos
-    // con kickoff <= al de ESTE partido (inclusive), ordenado cronológicamente.
-    // Así un PDF de un partido viejo muestra el total que el usuario tenía
-    // justo después de ese partido, no el profiles.points actual.
-    const cumulativeTotals = new Map<string, number>();
-    if (match.kickoff && profileIds.length > 0) {
-      const { data: priorMatches } = await supabase
-        .from("matches")
-        .select("id, official_id")
-        .lte("kickoff", match.kickoff);
-
-      const priorIdSet = new Set<string>();
-      for (const m of priorMatches ?? []) {
-        priorIdSet.add(String((m as { id: string }).id));
-        const oid = (m as { official_id?: string | null }).official_id;
-        if (oid) priorIdSet.add(String(oid));
-      }
-
-      if (priorIdSet.size > 0) {
-        const pageSize = 1000;
-        let offset = 0;
-        for (;;) {
-          const { data: histScores } = await supabase
-            .from("pick_scores")
-            .select("profile_id, points_awarded, match_id")
-            .in("profile_id", profileIds)
-            .range(offset, offset + pageSize - 1);
-
-          if (!histScores?.length) break;
-
-          for (const r of histScores) {
-            const mid = String((r as { match_id: string }).match_id);
-            if (!priorIdSet.has(mid)) continue;
-            const key = String((r as { profile_id: string }).profile_id);
-            const pts = (r as { points_awarded?: number }).points_awarded ?? 0;
-            cumulativeTotals.set(key, (cumulativeTotals.get(key) ?? 0) + pts);
-          }
-
-          if (histScores.length < pageSize) break;
-          offset += pageSize;
-        }
-      }
+    const raw = (pdfRows ?? []).map((row: PdfDataRow) =>
+      mapPdfRowToParticipant(row, match as Record<string, unknown>)
+    );
+    if (!raw.length) {
+      throw new Error("Este partido aún no tiene puntajes registrados para generar el PDF.");
     }
 
-    const matchIdStr = String(match_id);
-    const officialId = match.official_id != null ? String(match.official_id) : null;
-    const raw = (profiles ?? []).map((profile: Record<string, unknown>) => {
-      const ps = findPickScoreRow(
-        pickScores as Array<{ profile_id: string; match_id?: string }> | null,
-        profile.id,
-        matchIdStr,
-        officialId
-      ) as { points_awarded?: number; exact_hit?: boolean; winner_hit?: boolean } | undefined;
-      const picks = profile.picks as Record<string, unknown> | null | undefined;
-      const pick = picks?.[matchIdStr] ?? picks?.[match_id as string];
-
-      let prediction: string | null = null;
-      let penaltyPrediction: string | null = null;
-      let penaltyPoints = 0;
-      let penaltyWinnerHit = false;
-      let penaltyScoreHit = false;
-      let penaltyWinnerPick = "";
-      let penaltyHomePick: unknown = null;
-      let penaltyAwayPick: unknown = null;
-      let homePick: number | null = null;
-      let awayPick: number | null = null;
-      if (pick) {
-        if (typeof pick === "string") {
-          prediction = pick;
-          const scoreMatch = pick.trim().match(/^(\d+)\s*-\s*(\d+)$/);
-          if (scoreMatch) {
-            homePick = Number(scoreMatch[1]);
-            awayPick = Number(scoreMatch[2]);
-          }
-        } else if (typeof pick === "object" && !Array.isArray(pick)) {
-          const row = pick as Record<string, unknown>;
-          const hp = row.home_pick ?? row.home ?? row.local;
-          const ap = row.away_pick ?? row.away ?? row.visitante;
-          if (hp != null && ap != null) {
-            prediction = `${hp}-${ap}`;
-            homePick = Number(hp);
-            awayPick = Number(ap);
-          }
-
-          const pw = String(row.penalty_winner ?? row.advances_team ?? "").trim();
-          const ph = row.penalty_home;
-          const pa = row.penalty_away;
-          penaltyWinnerPick = pw;
-          penaltyHomePick = ph ?? null;
-          penaltyAwayPick = pa ?? null;
-          const hasPenScore =
-            ph != null && ph !== "" && pa != null && pa !== "";
-          if (pw || hasPenScore) {
-            const scorePart = hasPenScore ? `${ph}-${pa}` : "";
-            penaltyPrediction = [pw, scorePart].filter(Boolean).join(" ") || null;
-          }
-
-          // Desglose del bono de penales (+1 ganador, +1 marcador exacto).
-          if (match.went_to_penalties) {
-            const realWinner =
-              match.penalty_winner != null ? String(match.penalty_winner).trim() : "";
-            if (pw && realWinner && pw.toLowerCase() === realWinner.toLowerCase()) {
-              penaltyPoints += 1;
-              penaltyWinnerHit = true;
-            }
-            try {
-              if (
-                ph != null &&
-                ph !== "" &&
-                pa != null &&
-                pa !== "" &&
-                match.penalty_home != null &&
-                match.penalty_away != null &&
-                Number(ph) === Number(match.penalty_home) &&
-                Number(pa) === Number(match.penalty_away)
-              ) {
-                penaltyPoints += 1;
-                penaltyScoreHit = true;
-              }
-            } catch {
-              // comparación inválida — sin bono de marcador de penales
-            }
-          }
-        } else if (Array.isArray(pick)) {
-          prediction = `${pick[0]}-${pick[1]}`;
-          homePick = Number(pick[0]);
-          awayPick = Number(pick[1]);
-        }
-      }
-
-      const pointsAwarded = (ps?.points_awarded as number) ?? 0;
-      if (!match.went_to_penalties) {
-        penaltyPoints = 0;
-        penaltyWinnerHit = false;
-        penaltyScoreHit = false;
-      }
-
-      const historicalTotal = (profile.points as number) ?? 0;
-
-      return {
-        name: (profile.name as string) || (profile.username as string) || "Anónimo",
-        prediction,
-        home_pick: homePick,
-        away_pick: awayPick,
-        penalty_prediction: penaltyPrediction,
-        penalty_winner_pick: penaltyWinnerPick,
-        penalty_home_pick: penaltyHomePick,
-        penalty_away_pick: penaltyAwayPick,
-        penalty_points: penaltyPoints,
-        penalty_winner_hit: penaltyWinnerHit,
-        penalty_score_hit: penaltyScoreHit,
-        points: pointsAwarded,
-        total: historicalTotal,
-        no_pick: !prediction,
-      };
-    });
-
-    raw.sort(
-      (a: { points: number; total: number }, b: { points: number; total: number }) =>
-        b.points - a.points || b.total - a.total
-    );
-
-    let lastPts = -1;
-    let lastTotal = -1;
-    let lastPlace = 0;
-    const participants = raw.map((p: { points: number; total: number }, i: number) => {
-      if (p.points !== lastPts || p.total !== lastTotal) lastPlace = i + 1;
-      lastPts = p.points;
-      lastTotal = p.total;
-      return { ...p, place: `${lastPlace}°` };
-    });
+    const participants = assignPlaces(raw);
 
     const kickoff = new Date(match.kickoff);
     const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
