@@ -111,6 +111,14 @@ export function buildResultsPdfParticipants(
       name: profile.name || profile.username || 'Anónimo',
       prediction,
       penalty_prediction: penaltyPrediction,
+      penalty_winner_pick:
+        pick && typeof pick === 'object' && !Array.isArray(pick)
+          ? (pick.penalty_winner ?? '')
+          : '',
+      penalty_home_pick:
+        pick && typeof pick === 'object' && !Array.isArray(pick) ? (pick.penalty_home ?? null) : null,
+      penalty_away_pick:
+        pick && typeof pick === 'object' && !Array.isArray(pick) ? (pick.penalty_away ?? null) : null,
       penalty_points: ptsPenales,
       penalty_winner_hit: penaltyWinnerHit,
       penalty_score_hit: penaltyScoreHit,

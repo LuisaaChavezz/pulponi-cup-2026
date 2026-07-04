@@ -188,67 +188,91 @@ def _pts_tier(pts):
     return 1
 
 
-def _pts_90_label(pts_90, no_pick=False):
+def _pts_90_label(participant, no_pick=False):
+    """Pts del marcador normal según flags de pick_scores (no recalcular)."""
     if no_pick:
         return "0"
-    if pts_90 >= 3:
+    if participant.get("exact_hit"):
         return "+3"
-    if pts_90 >= 1:
+    if participant.get("winner_hit"):
         return "+1"
     return "0"
 
 
 def _resultado_90_label(participant, home_score, away_score, no_pick=False):
     if no_pick:
-        return "—"
+        return "Fallo"
     if participant.get("exact_hit"):
-        return "⭐ Exacto +3"
+        return "Exacto"
     if participant.get("winner_hit"):
         if int(home_score) == int(away_score):
-            return "✅ Empate +1"
-        return "✅ Ganador +1"
-    return "❌ 0 pts"
+            return "Empate"
+        return "Ganador"
+    return "Fallo"
 
 
-def _penalty_breakdown(participant, went_to_penalties=False, home_score=0, away_score=0):
-    """
-    Desglose para PDF: total = pick_scores.points_awarded (sin recalcular).
-    pts_penales desde aciertos de penales; pts_marcador = total - pts_penales.
-    """
+def _penalty_pts_label(participant, went_to_penalties, match_penalty_winner, match_penalty_home, match_penalty_away):
+    if not went_to_penalties:
+        return "N/A"
+
+    pts_pen = 0
+    detalle = []
+    pen_winner = participant.get("penalty_winner_pick", participant.get("penalty_winner", "")) or ""
+    pen_home = participant.get("penalty_home_pick")
+    pen_away = participant.get("penalty_away_pick")
+
+    if pen_winner and str(pen_winner).lower() == str(match_penalty_winner or "").lower():
+        pts_pen += 1
+        detalle.append("Gan.✓")
+
+    try:
+        if int(pen_home) == int(match_penalty_home) and int(pen_away) == int(match_penalty_away):
+            pts_pen += 1
+            detalle.append("Marc.✓")
+    except (TypeError, ValueError):
+        pass
+
+    if detalle:
+        return f"+{pts_pen} ({', '.join(detalle)})"
+    return "0"
+
+
+def _penalty_breakdown(
+    participant,
+    went_to_penalties=False,
+    home_score=0,
+    away_score=0,
+    match_penalty_winner=None,
+    match_penalty_home=None,
+    match_penalty_away=None,
+):
+    """Total = points_awarded de DB. Pts partido y penales por reglas de flags/picks."""
     total_pts = int(participant.get("points", 0) or 0)
     no_pick = bool(participant.get("no_pick"))
 
-    pen_pts = 0
-    winner_hit = False
-    score_hit = False
-    if went_to_penalties:
-        winner_hit = bool(participant.get("penalty_winner_hit"))
-        score_hit = bool(participant.get("penalty_score_hit"))
-        if winner_hit:
-            pen_pts += 1
-        if score_hit:
-            pen_pts += 1
+    pts_90_label = _pts_90_label(participant, no_pick)
+    if participant.get("exact_hit"):
+        pts_90_val = 3
+    elif participant.get("winner_hit"):
+        pts_90_val = 1
+    else:
+        pts_90_val = 0
 
-    pts_90 = max(0, total_pts - pen_pts)
-
-    pred_pen = "—"
-    pts_pen_label = "—"
-    if went_to_penalties:
-        pred_pen = participant.get("penalty_prediction") or "—"
-        pen_detalles = []
-        if winner_hit:
-            pen_detalles.append("Gan.✓")
-        if score_hit:
-            pen_detalles.append("Marc.✓")
-        if pen_detalles:
-            pts_pen_label = f"+{pen_pts} ({', '.join(pen_detalles)})"
+    pred_pen = participant.get("penalty_prediction") or "—"
+    pts_pen_label = _penalty_pts_label(
+        participant,
+        went_to_penalties,
+        match_penalty_winner,
+        match_penalty_home,
+        match_penalty_away,
+    )
 
     return {
         "total": total_pts,
-        "pts_90": pts_90,
-        "pts_90_label": _pts_90_label(pts_90, no_pick),
+        "pts_90": pts_90_val,
+        "pts_90_label": pts_90_label,
         "resultado_90": _resultado_90_label(participant, home_score, away_score, no_pick),
-        "pred_pen": pred_pen,
+        "pred_pen": pred_pen if went_to_penalties else "—",
         "pts_pen_label": pts_pen_label,
     }
 
@@ -301,6 +325,9 @@ def draw_row(
     went_to_penalties=False,
     home_score=0,
     away_score=0,
+    penalty_winner=None,
+    penalty_home=None,
+    penalty_away=None,
 ):
     pts     = participant["points"]
     no_pick = participant.get("no_pick", False)
@@ -340,32 +367,40 @@ def draw_row(
         sf(c, C_PTS_0); c.setFont("Helvetica", 10)
 
     if show_breakdown:
-        bd = _penalty_breakdown(participant, went_to_penalties, home_score, away_score)
+        bd = _penalty_breakdown(
+            participant,
+            went_to_penalties,
+            home_score,
+            away_score,
+            penalty_winner,
+            penalty_home,
+            penalty_away,
+        )
         pts_str = str(bd["total"])
-        # Pred. 90'
+        # Tu predicción
         sf(c, C_DARK); c.setFont("Helvetica", 8)
         pred90 = "—" if no_pick else (participant.get("prediction") or "—")
         c.drawString(148.0, ty, pred90[:8])
-        # Resultado 90'
+        # Resultado
         c.drawString(196.0, ty, bd["resultado_90"])
-        # Pts 90'
+        # Pts partido
         pts90 = bd["pts_90_label"]
-        if bd["pts_90"] >= 3:
+        if participant.get("exact_hit"):
             sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 9)
-        elif bd["pts_90"] >= 1:
+        elif participant.get("winner_hit"):
             sf(c, C_PTS_1); c.setFont("Helvetica-Bold", 9)
         else:
             sf(c, C_PTS_0); c.setFont("Helvetica", 9)
         _draw_centered(c, 281.0, ty + 0.3, pts90, c._fontname, 9)
-        # Pred. Penales
+        # Pred. penales
         sf(c, C_DARK); c.setFont("Helvetica", 7.5)
         pred_pen = bd["pred_pen"]
         if len(pred_pen) > 16:
             pred_pen = pred_pen[:15] + "…"
         c.drawString(302.0, ty, pred_pen)
-        # Pts Pen.
+        # Pts penales
         pen_lbl = bd["pts_pen_label"]
-        if pen_lbl != "—":
+        if pen_lbl.startswith("+"):
             sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 8)
         else:
             sf(c, C_PTS_0); c.setFont("Helvetica", 8)
@@ -491,7 +526,10 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
             row_y     = draw_table_header(cv, team_color, table_top, show_penalty_column, show_breakdown)
             rows_top  = table_top
         row_y -= ROW_H
-        draw_row(cv, row_y, p, show_penalty_column, show_breakdown, went, home_score, away_score)
+        draw_row(
+            cv, row_y, p, show_penalty_column, show_breakdown, went,
+            home_score, away_score, penalty_winner, penalty_home, penalty_away,
+        )
 
     draw_table_border(cv, rows_top, row_y)
     total_p  = len(participants)

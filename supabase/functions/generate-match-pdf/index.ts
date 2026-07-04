@@ -103,6 +103,9 @@ serve(async (req) => {
       let penaltyPoints = 0;
       let penaltyWinnerHit = false;
       let penaltyScoreHit = false;
+      let penaltyWinnerPick = "";
+      let penaltyHomePick: unknown = null;
+      let penaltyAwayPick: unknown = null;
       if (pick) {
         if (typeof pick === "string") prediction = pick;
         else if (typeof pick === "object" && !Array.isArray(pick)) {
@@ -114,6 +117,9 @@ serve(async (req) => {
           const pw = row.penalty_winner != null ? String(row.penalty_winner).trim() : "";
           const ph = row.penalty_home;
           const pa = row.penalty_away;
+          penaltyWinnerPick = pw;
+          penaltyHomePick = ph ?? null;
+          penaltyAwayPick = pa ?? null;
           const hasPenScore =
             ph != null && ph !== "" && pa != null && pa !== "";
           if (pw || hasPenScore) {
@@ -123,22 +129,28 @@ serve(async (req) => {
 
           // Desglose del bono de penales (+1 ganador, +1 marcador exacto).
           if (match.went_to_penalties) {
-            const pickWinner = pw;
             const realWinner =
               match.penalty_winner != null ? String(match.penalty_winner).trim() : "";
-            if (pickWinner && realWinner && pickWinner === realWinner) {
+            if (pw && realWinner && pw.toLowerCase() === realWinner.toLowerCase()) {
               penaltyPoints += 1;
               penaltyWinnerHit = true;
             }
-            if (
-              hasPenScore &&
-              match.penalty_home != null &&
-              match.penalty_away != null &&
-              String(ph) === String(match.penalty_home) &&
-              String(pa) === String(match.penalty_away)
-            ) {
-              penaltyPoints += 1;
-              penaltyScoreHit = true;
+            try {
+              if (
+                ph != null &&
+                ph !== "" &&
+                pa != null &&
+                pa !== "" &&
+                match.penalty_home != null &&
+                match.penalty_away != null &&
+                Number(ph) === Number(match.penalty_home) &&
+                Number(pa) === Number(match.penalty_away)
+              ) {
+                penaltyPoints += 1;
+                penaltyScoreHit = true;
+              }
+            } catch {
+              // comparación inválida — sin bono de marcador de penales
             }
           }
         } else if (Array.isArray(pick)) {
@@ -161,6 +173,9 @@ serve(async (req) => {
         name: (profile.name as string) || (profile.username as string) || "Anónimo",
         prediction,
         penalty_prediction: penaltyPrediction,
+        penalty_winner_pick: penaltyWinnerPick,
+        penalty_home_pick: penaltyHomePick,
+        penalty_away_pick: penaltyAwayPick,
         penalty_points: penaltyPoints,
         penalty_winner_hit: penaltyWinnerHit,
         penalty_score_hit: penaltyScoreHit,
