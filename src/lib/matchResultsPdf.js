@@ -33,9 +33,9 @@ function computePenaltyBreakdownForPdf(pick, match) {
   const pickHome = pick.penalty_home;
   const pickAway = pick.penalty_away;
   const realWinner =
-    match.penalty_winner != null ? String(match.penalty_winner).trim().toLowerCase() : '';
+    match.penalty_winner != null ? String(match.penalty_winner).trim() : '';
 
-  if (pickWinner && realWinner && pickWinner.toLowerCase() === realWinner) {
+  if (pickWinner && realWinner && pickWinner === realWinner) {
     penaltyPoints += 1;
     penaltyWinnerHit = true;
   }
@@ -47,8 +47,8 @@ function computePenaltyBreakdownForPdf(pick, match) {
     pickAway !== '' &&
     match.penalty_home != null &&
     match.penalty_away != null &&
-    Number(pickHome) === Number(match.penalty_home) &&
-    Number(pickAway) === Number(match.penalty_away)
+    String(pickHome) === String(match.penalty_home) &&
+    String(pickAway) === String(match.penalty_away)
   ) {
     penaltyPoints += 1;
     penaltyScoreHit = true;
@@ -100,9 +100,7 @@ export function buildResultsPdfParticipants(
       pick,
       match
     );
-    const cappedPenaltyPoints = match?.went_to_penalties
-      ? Math.max(0, Math.min(penaltyPoints, 2, pointsAwarded))
-      : 0;
+    const ptsPenales = match?.went_to_penalties ? penaltyPoints : 0;
 
     const total =
       totalsByProfile != null
@@ -113,7 +111,7 @@ export function buildResultsPdfParticipants(
       name: profile.name || profile.username || 'Anónimo',
       prediction,
       penalty_prediction: penaltyPrediction,
-      penalty_points: cappedPenaltyPoints,
+      penalty_points: ptsPenales,
       penalty_winner_hit: penaltyWinnerHit,
       penalty_score_hit: penaltyScoreHit,
       exact_hit: Boolean(ps?.exact_hit),

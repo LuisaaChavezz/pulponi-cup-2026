@@ -202,72 +202,54 @@ def _resultado_90_label(participant, home_score, away_score, no_pick=False):
     if no_pick:
         return "—"
     if participant.get("exact_hit"):
-        return "⭐ Exacto"
+        return "⭐ Exacto +3"
     if participant.get("winner_hit"):
         if int(home_score) == int(away_score):
-            return "✅ Empate"
-        return "✅ Ganador"
-    return "❌"
-
-
-def _penalty_pts_label(pen_pts, winner_hit=False, score_hit=False):
-    if pen_pts <= 0:
-        return "—"
-    if winner_hit and score_hit:
-        return "+2 (Gan.+Marc.)"
-    if winner_hit:
-        return "+1 (Gan.)"
-    if score_hit:
-        return "+1 (Marc.)"
-    if pen_pts == 2:
-        return "+2"
-    return f"+{pen_pts}"
+            return "✅ Empate +1"
+        return "✅ Ganador +1"
+    return "❌ 0 pts"
 
 
 def _penalty_breakdown(participant, went_to_penalties=False, home_score=0, away_score=0):
     """
-    Desglose completo hasta 5 pts: Pts 90' + Pts Pen. = pick_scores.points_awarded.
+    Desglose para PDF: total = pick_scores.points_awarded (sin recalcular).
+    pts_penales desde aciertos de penales; pts_marcador = total - pts_penales.
     """
     total_pts = int(participant.get("points", 0) or 0)
     no_pick = bool(participant.get("no_pick"))
 
-    if not went_to_penalties:
-        pts_90 = max(0, total_pts)
-        return {
-            "total": total_pts,
-            "pts_90": pts_90,
-            "pts_90_label": _pts_90_label(pts_90, no_pick),
-            "resultado_90": _resultado_90_label(participant, home_score, away_score, no_pick),
-            "pred_pen": "—",
-            "pts_pen_label": "—",
-        }
+    pen_pts = 0
+    winner_hit = False
+    score_hit = False
+    if went_to_penalties:
+        winner_hit = bool(participant.get("penalty_winner_hit"))
+        score_hit = bool(participant.get("penalty_score_hit"))
+        if winner_hit:
+            pen_pts += 1
+        if score_hit:
+            pen_pts += 1
 
-    if participant.get("exact_hit"):
-        pts_90 = 3
-    elif participant.get("winner_hit"):
-        pts_90 = 1
-    else:
-        pts_90 = 0
+    pts_90 = max(0, total_pts - pen_pts)
 
-    winner_hit_pen = bool(participant.get("penalty_winner_hit"))
-    score_hit_pen = bool(participant.get("penalty_score_hit"))
-    pen_pts = int(participant.get("penalty_points", 0) or 0)
-    pen_pts = max(0, min(pen_pts, 2))
-
-    if pts_90 + pen_pts != total_pts:
-        pen_pts = max(0, min(2, total_pts - pts_90))
-        pts_90 = max(0, total_pts - pen_pts)
-        if pts_90 > 3:
-            pts_90 = 3
-            pen_pts = max(0, total_pts - 3)
+    pred_pen = "—"
+    pts_pen_label = "—"
+    if went_to_penalties:
+        pred_pen = participant.get("penalty_prediction") or "—"
+        pen_detalles = []
+        if winner_hit:
+            pen_detalles.append("Gan.✓")
+        if score_hit:
+            pen_detalles.append("Marc.✓")
+        if pen_detalles:
+            pts_pen_label = f"+{pen_pts} ({', '.join(pen_detalles)})"
 
     return {
         "total": total_pts,
-        "pts_90": max(0, pts_90),
-        "pts_90_label": _pts_90_label(max(0, pts_90), no_pick),
+        "pts_90": pts_90,
+        "pts_90_label": _pts_90_label(pts_90, no_pick),
         "resultado_90": _resultado_90_label(participant, home_score, away_score, no_pick),
-        "pred_pen": participant.get("penalty_prediction") or "—",
-        "pts_pen_label": _penalty_pts_label(pen_pts, winner_hit_pen, score_hit_pen),
+        "pred_pen": pred_pen,
+        "pts_pen_label": pts_pen_label,
     }
 
 

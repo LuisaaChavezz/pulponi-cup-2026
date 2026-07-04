@@ -123,9 +123,9 @@ serve(async (req) => {
 
           // Desglose del bono de penales (+1 ganador, +1 marcador exacto).
           if (match.went_to_penalties) {
-            const pickWinner = pw.toLowerCase();
+            const pickWinner = pw;
             const realWinner =
-              match.penalty_winner != null ? String(match.penalty_winner).trim().toLowerCase() : "";
+              match.penalty_winner != null ? String(match.penalty_winner).trim() : "";
             if (pickWinner && realWinner && pickWinner === realWinner) {
               penaltyPoints += 1;
               penaltyWinnerHit = true;
@@ -134,8 +134,8 @@ serve(async (req) => {
               hasPenScore &&
               match.penalty_home != null &&
               match.penalty_away != null &&
-              Number(ph) === Number(match.penalty_home) &&
-              Number(pa) === Number(match.penalty_away)
+              String(ph) === String(match.penalty_home) &&
+              String(pa) === String(match.penalty_away)
             ) {
               penaltyPoints += 1;
               penaltyScoreHit = true;
@@ -149,8 +149,8 @@ serve(async (req) => {
       const pointsAwarded = (ps?.points_awarded as number) ?? 0;
       if (!match.went_to_penalties) {
         penaltyPoints = 0;
-      } else {
-        penaltyPoints = Math.max(0, Math.min(penaltyPoints, 2, pointsAwarded));
+        penaltyWinnerHit = false;
+        penaltyScoreHit = false;
       }
 
       const historicalTotal = match.kickoff
