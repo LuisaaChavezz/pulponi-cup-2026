@@ -371,14 +371,14 @@ def draw_table_header(c, team_color, top_y, show_penalty_column=False, show_brea
     sf(c, C_WHITE); c.setFont("Helvetica-Bold", 10)
     if show_breakdown:
         c.setFont("Helvetica-Bold", 8.5)
-        c.drawString(54.0,  top_y-22, "Lugar")
-        c.drawString(74.0,  top_y-22, "Participante")
-        c.drawString(148.0, top_y-22, "Tu predicción")
-        c.drawString(196.0, top_y-22, "Resultado")
-        c.drawString(268.0, top_y-22, "Pts partido")
-        c.drawString(302.0, top_y-22, "Pred. penales")
-        c.drawString(392.0, top_y-22, "Pts penales")
-        c.drawString(462.0, top_y-22, "Total acumulado")
+        c.drawString(54.0,  top_y-22, "N°")
+        c.drawString(72.0,  top_y-22, "Participante")
+        c.drawString(165.0, top_y-22, "Pred.")
+        c.drawString(207.0, top_y-22, "Resultado")
+        c.drawString(263.0, top_y-22, "Pts 90'")
+        c.drawString(308.0, top_y-22, "Pred. penales")
+        c.drawString(393.0, top_y-22, "Pts pen.")
+        c.drawString(462.0, top_y-22, "Total acum.")
     elif show_penalty_column:
         c.drawString(57.0,  top_y-24, "Lugar")
         c.drawString(96.4,  top_y-24, "Participante")
@@ -413,8 +413,11 @@ def draw_row(
     pts     = participant["points"]
     no_pick = participant.get("no_pick", False)
     tier    = _pts_tier(pts)
-
-    bg = C_ROW_3 if tier==3 else (C_ROW_1 if tier==1 else C_ROW_0)
+    if show_breakdown:
+        total_match_pts = int(participant.get('pts_partido', 0) or 0) + int(participant.get('pts_penales', 0) or 0)
+        bg = C_ROW_3 if total_match_pts > 0 else C_ROW_0
+    else:
+        bg = C_ROW_3 if tier==3 else (C_ROW_1 if tier==1 else C_ROW_0)
     sf(c, bg); c.rect(PAGE_LEFT, y_bottom, PAGE_RIGHT-PAGE_LEFT, ROW_H, fill=1, stroke=0)
 
     ty = y_bottom + 8
@@ -461,9 +464,9 @@ def draw_row(
         # Tu predicción
         sf(c, C_DARK); c.setFont("Helvetica", 8)
         pred90 = "—" if no_pick else (participant.get("prediction") or "—")
-        c.drawString(148.0, ty, pred90[:8])
+        c.drawString(165.0, ty, pred90[:8])
         # Resultado
-        c.drawString(196.0, ty, bd["resultado_90"])
+        c.drawString(207.0, ty, bd["resultado_90"])
         # Pts partido
         pts90 = bd["pts_90_label"]
         if participant.get("exact_hit") or bd["pts_90"] >= 3:
@@ -472,23 +475,23 @@ def draw_row(
             sf(c, C_PTS_1); c.setFont("Helvetica-Bold", 9)
         else:
             sf(c, C_PTS_0); c.setFont("Helvetica", 9)
-        _draw_centered(c, 281.0, ty + 0.3, pts90, c._fontname, 9)
+        _draw_centered(c, 278.0, ty + 0.3, pts90, c._fontname, 9)
         # Pred. penales
         sf(c, C_DARK); c.setFont("Helvetica", 7.5)
         pred_pen = bd["pred_pen"]
         if len(pred_pen) > 16:
             pred_pen = pred_pen[:15] + "…"
-        c.drawString(302.0, ty, pred_pen)
+        c.drawString(308.0, ty, pred_pen)
         # Pts penales
         pen_lbl = bd["pts_pen_label"]
         if pen_lbl.startswith("+"):
             sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 8)
         else:
             sf(c, C_PTS_0); c.setFont("Helvetica", 8)
-        c.drawString(392.0, ty + 0.3, pen_lbl)
-        # Total acumulado (quiniela hasta este partido inclusive)
+        c.drawString(393.0, ty + 0.3, pen_lbl)
+        # Total acumulado
         sf(c, C_DARK); c.setFont("Helvetica-Bold", 10)
-        _draw_centered(c, 518.0, ty + 0.3, acum_str, "Helvetica-Bold", 10)
+        _draw_centered(c, 505.0, ty + 0.3, acum_str, "Helvetica-Bold", 10)
         return
 
     if show_penalty_column:
@@ -606,6 +609,20 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
     table_top = PAGE_H - 228.5
     row_y     = draw_table_header(cv, team_color, table_top, show_penalty_column, show_breakdown)
     rows_top  = table_top
+
+    if show_breakdown:
+        participants = sorted(participants, key=lambda p: (
+            -(int(p.get('pts_partido', 0) or 0) + int(p.get('pts_penales', 0) or 0)),
+            -int(p.get('total_acumulado', p.get('total', 0)) or 0)
+        ))
+        last_pts = -1; last_total = -1; last_place = 0
+        for i, p in enumerate(participants):
+            pts_tot = int(p.get('pts_partido', 0) or 0) + int(p.get('pts_penales', 0) or 0)
+            tot = int(p.get('total_acumulado', p.get('total', 0)) or 0)
+            if pts_tot != last_pts or tot != last_total:
+                last_place = i + 1
+            p['place'] = f"{last_place}°"
+            last_pts = pts_tot; last_total = tot
 
     for p in participants:
         if row_y - ROW_H < 80:
