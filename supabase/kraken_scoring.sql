@@ -18,6 +18,8 @@ AS $$
 $$;
 
 -- 3) score_match (7 args) — producción usa este overload con penales.
+CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA extensions;
+
 CREATE OR REPLACE FUNCTION public.score_match(
   p_match_id text,
   p_home_score integer,
@@ -30,7 +32,7 @@ CREATE OR REPLACE FUNCTION public.score_match(
 RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $body$
 DECLARE
   v_profile RECORD;
@@ -115,15 +117,19 @@ BEGIN
     IF coalesce(p_went_to_penalties, false) THEN
       v_pick_pen_winner := nullif(trim(v_profile.picks->pick_key->>'penalty_winner'), '');
       v_pick_pen_home := CASE
-        WHEN (v_profile.picks->pick_key->>'penalty_home') ~ '^[0-9]+$'
-        THEN (v_profile.picks->pick_key->>'penalty_home')::INT END;
+        WHEN trim(coalesce(v_profile.picks->pick_key->>'penalty_home', '')) ~ '^[0-9]+$'
+        THEN trim(v_profile.picks->pick_key->>'penalty_home')::INT
+        ELSE NULL
+      END;
       v_pick_pen_away := CASE
-        WHEN (v_profile.picks->pick_key->>'penalty_away') ~ '^[0-9]+$'
-        THEN (v_profile.picks->pick_key->>'penalty_away')::INT END;
+        WHEN trim(coalesce(v_profile.picks->pick_key->>'penalty_away', '')) ~ '^[0-9]+$'
+        THEN trim(v_profile.picks->pick_key->>'penalty_away')::INT
+        ELSE NULL
+      END;
 
       IF v_pick_pen_winner IS NOT NULL
          AND p_penalty_winner IS NOT NULL
-         AND lower(trim(v_pick_pen_winner)) = lower(trim(p_penalty_winner)) THEN
+         AND lower(trim(unaccent(v_pick_pen_winner))) = lower(trim(unaccent(p_penalty_winner))) THEN
         v_bonus := v_bonus + 1;
       END IF;
 
