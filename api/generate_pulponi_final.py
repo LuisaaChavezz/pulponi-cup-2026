@@ -250,29 +250,44 @@ def _resultado_90_label(participant, home_score, away_score, no_pick=False):
     return "Fallo"
 
 
-def _penalty_pts_label(participant, went_to_penalties, match_penalty_winner, match_penalty_home, match_penalty_away):
-    if not went_to_penalties:
+def _penalty_pts_label(participant, match):
+    """Pts penales: comparación normalizada pick vs marcador real del partido."""
+    pts_penales = 0
+    detalle_pen = []
+
+    if not match.get("went_to_penalties"):
         return "N/A"
 
-    pts_pen = 0
-    detalle = []
-    pen_winner = participant.get("penalty_winner_pick", participant.get("penalty_winner", "")) or ""
-    pen_home = participant.get("penalty_home_pick")
-    pen_away = participant.get("penalty_away_pick")
+    pick = {
+        "penalty_winner": participant.get("penalty_winner_pick")
+        or participant.get("advances_team")
+        or participant.get("penalty_winner")
+        or "",
+        "penalty_home": participant.get("penalty_home_pick"),
+        "penalty_away": participant.get("penalty_away_pick"),
+    }
 
-    if pen_winner and str(pen_winner).lower() == str(match_penalty_winner or "").lower():
-        pts_pen += 1
-        detalle.append("Gan.✓")
+    pick_pen_winner = str(pick.get("penalty_winner", "") or "").lower().strip()
+    real_pen_winner = str(match.get("penalty_winner", "") or "").lower().strip()
+
+    if pick_pen_winner and real_pen_winner and pick_pen_winner == real_pen_winner:
+        pts_penales += 1
+        detalle_pen.append("Gan.✓")
 
     try:
-        if int(pen_home) == int(match_penalty_home) and int(pen_away) == int(match_penalty_away):
-            pts_pen += 1
-            detalle.append("Marc.✓")
-    except (TypeError, ValueError):
+        pick_pen_home = int(pick.get("penalty_home", -1) or -1)
+        pick_pen_away = int(pick.get("penalty_away", -1) or -1)
+        real_pen_home = int(match.get("penalty_home", -2) or -2)
+        real_pen_away = int(match.get("penalty_away", -2) or -2)
+
+        if pick_pen_home == real_pen_home and pick_pen_away == real_pen_away:
+            pts_penales += 1
+            detalle_pen.append("Marc.✓")
+    except (ValueError, TypeError):
         pass
 
-    if detalle:
-        return f"+{pts_pen} ({', '.join(detalle)})"
+    if detalle_pen:
+        return f"+{pts_penales} ({', '.join(detalle_pen)})"
     return "0"
 
 
@@ -299,13 +314,13 @@ def _penalty_breakdown(
         pts_90_val = 0
 
     pred_pen = participant.get("penalty_prediction") or "—"
-    pts_pen_label = _penalty_pts_label(
-        participant,
-        went_to_penalties,
-        match_penalty_winner,
-        match_penalty_home,
-        match_penalty_away,
-    )
+    match_penalty = {
+        "went_to_penalties": bool(went_to_penalties),
+        "penalty_winner": match_penalty_winner,
+        "penalty_home": match_penalty_home,
+        "penalty_away": match_penalty_away,
+    }
+    pts_pen_label = _penalty_pts_label(participant, match_penalty)
 
     return {
         "total": total_pts,
@@ -368,6 +383,7 @@ def draw_row(
     penalty_winner=None,
     penalty_home=None,
     penalty_away=None,
+    match_went_to_penalties=False,
 ):
     pts     = participant["points"]
     no_pick = participant.get("no_pick", False)
@@ -409,7 +425,7 @@ def draw_row(
     if show_breakdown:
         bd = _penalty_breakdown(
             participant,
-            went_to_penalties,
+            match_went_to_penalties,
             home_score,
             away_score,
             penalty_winner,
@@ -531,6 +547,14 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
     # El desglose de puntos (Pts Marcador / Pts Penales / Total) solo si fue a penales.
     show_breakdown = went
 
+    match_penalty_data = {
+        "went_to_penalties": bool(went_to_penalties),
+        "penalty_winner": penalty_winner,
+        "penalty_home": penalty_home,
+        "penalty_away": penalty_away,
+    }
+    print(f"[PDF penales] match={match_penalty_data}", flush=True)
+
     penalty_line = None
     if went:
         ph = penalty_home if penalty_home is not None else "?"
@@ -570,6 +594,7 @@ def _build_pdf(cv, home_team, away_team, home_score, away_score,
         draw_row(
             cv, row_y, p, show_penalty_column, show_breakdown, went,
             home_score, away_score, penalty_winner, penalty_home, penalty_away,
+            went_to_penalties,
         )
 
     draw_table_border(cv, rows_top, row_y)

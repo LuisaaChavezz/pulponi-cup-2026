@@ -63,13 +63,15 @@ function computePenaltyBreakdownForPdf(pick, match) {
   let penaltyPoints = 0;
   let penaltyWinnerHit = false;
   let penaltyScoreHit = false;
-  const pickWinner = pick.penalty_winner != null ? String(pick.penalty_winner).trim() : '';
+  const pickWinner = String(
+    pick.penalty_winner ?? pick.advances_team ?? ''
+  ).trim();
   const pickHome = pick.penalty_home;
   const pickAway = pick.penalty_away;
   const realWinner =
-    match.penalty_winner != null ? String(match.penalty_winner).trim() : '';
+    match.penalty_winner != null ? String(match.penalty_winner).trim().toLowerCase() : '';
 
-  if (pickWinner && realWinner && pickWinner === realWinner) {
+  if (pickWinner && realWinner && pickWinner.toLowerCase() === realWinner) {
     penaltyPoints += 1;
     penaltyWinnerHit = true;
   }
@@ -145,7 +147,7 @@ export function buildResultsPdfParticipants(
       penalty_prediction: penaltyPrediction,
       penalty_winner_pick:
         pick && typeof pick === 'object' && !Array.isArray(pick)
-          ? (pick.penalty_winner ?? '')
+          ? (pick.penalty_winner ?? pick.advances_team ?? '')
           : '',
       penalty_home_pick:
         pick && typeof pick === 'object' && !Array.isArray(pick) ? (pick.penalty_home ?? null) : null,

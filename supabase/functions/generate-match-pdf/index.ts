@@ -147,7 +147,7 @@ serve(async (req) => {
             awayPick = Number(ap);
           }
 
-          const pw = row.penalty_winner != null ? String(row.penalty_winner).trim() : "";
+          const pw = String(row.penalty_winner ?? row.advances_team ?? "").trim();
           const ph = row.penalty_home;
           const pa = row.penalty_away;
           penaltyWinnerPick = pw;
