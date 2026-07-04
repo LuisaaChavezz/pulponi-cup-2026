@@ -188,23 +188,48 @@ def _pts_tier(pts):
     return 1
 
 
+def _db_bool(value):
+    """Normaliza exact_hit/winner_hit de pick_scores (bool, 't'/'f', 1/0)."""
+    if value is True:
+        return True
+    if value is False or value is None:
+        return False
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ("true", "t", "1", "yes", "y"):
+            return True
+        if normalized in ("false", "f", "0", "no", "n", ""):
+            return False
+    if isinstance(value, (int, float)):
+        return int(value) == 1
+    return bool(value)
+
+
+def _participant_score_flags(participant):
+    exact_hit = _db_bool(participant.get("exact_hit"))
+    winner_hit = _db_bool(participant.get("winner_hit"))
+    return exact_hit, winner_hit
+
+
 def _pts_90_label(participant, no_pick=False):
     """Pts del marcador normal según flags de pick_scores (no recalcular)."""
+    exact_hit, winner_hit = _participant_score_flags(participant)
     if no_pick:
         return "0"
-    if participant.get("exact_hit"):
+    if exact_hit:
         return "+3"
-    if participant.get("winner_hit"):
+    if winner_hit:
         return "+1"
     return "0"
 
 
 def _resultado_90_label(participant, home_score, away_score, no_pick=False):
+    exact_hit, winner_hit = _participant_score_flags(participant)
     if no_pick:
         return "Fallo"
-    if participant.get("exact_hit"):
+    if exact_hit:
         return "Exacto"
-    if participant.get("winner_hit"):
+    if winner_hit:
         if int(home_score) == int(away_score):
             return "Empate"
         return "Ganador"
@@ -246,14 +271,15 @@ def _penalty_breakdown(
     match_penalty_home=None,
     match_penalty_away=None,
 ):
-    """Total = points_awarded de DB. Pts partido y penales por reglas de flags/picks."""
+    """Total partido = points_awarded. Pts partido/resultado desde flags de pick_scores."""
     total_pts = int(participant.get("points", 0) or 0)
     no_pick = bool(participant.get("no_pick"))
+    exact_hit, winner_hit = _participant_score_flags(participant)
 
     pts_90_label = _pts_90_label(participant, no_pick)
-    if participant.get("exact_hit"):
+    if exact_hit:
         pts_90_val = 3
-    elif participant.get("winner_hit"):
+    elif winner_hit:
         pts_90_val = 1
     else:
         pts_90_val = 0
@@ -385,9 +411,10 @@ def draw_row(
         c.drawString(196.0, ty, bd["resultado_90"])
         # Pts partido
         pts90 = bd["pts_90_label"]
-        if participant.get("exact_hit"):
+        exact_hit, winner_hit = _participant_score_flags(participant)
+        if exact_hit:
             sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 9)
-        elif participant.get("winner_hit"):
+        elif winner_hit:
             sf(c, C_PTS_1); c.setFont("Helvetica-Bold", 9)
         else:
             sf(c, C_PTS_0); c.setFont("Helvetica", 9)

@@ -10,6 +10,37 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function parsePickScoreBool(value: unknown): boolean {
+  if (value === true) return true;
+  if (value === false || value == null) return false;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "t" || normalized === "1") return true;
+    if (normalized === "false" || normalized === "f" || normalized === "0" || normalized === "") {
+      return false;
+    }
+  }
+  if (typeof value === "number") return value === 1;
+  return Boolean(value);
+}
+
+function findPickScoreRow(
+  pickScoreRows: Array<{ profile_id: string; match_id?: string }> | null | undefined,
+  profileId: unknown,
+  matchId: string,
+  officialId: string | null
+) {
+  const pid = String(profileId);
+  const matchKeys = new Set([String(matchId)]);
+  if (officialId) matchKeys.add(String(officialId));
+
+  const rows = (pickScoreRows ?? []).filter((row) => String(row.profile_id) === pid);
+  for (const row of rows) {
+    if (row.match_id != null && matchKeys.has(String(row.match_id))) return row;
+  }
+  return rows[0];
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
@@ -36,7 +67,7 @@ serve(async (req) => {
 
     const { data: pickScores } = await supabase
       .from("pick_scores")
-      .select("profile_id, points_awarded, exact_hit, winner_hit")
+      .select("profile_id, match_id, points_awarded, exact_hit, winner_hit")
       .in("match_id", matchKeys);
 
     const profileIds = [...new Set((pickScores ?? []).map((p: { profile_id: string }) => p.profile_id))];
@@ -91,9 +122,13 @@ serve(async (req) => {
     }
 
     const matchIdStr = String(match_id);
+    const officialId = match.official_id != null ? String(match.official_id) : null;
     const raw = (profiles ?? []).map((profile: Record<string, unknown>) => {
-      const ps = (pickScores ?? []).find(
-        (p: { profile_id: string }) => p.profile_id === profile.id
+      const ps = findPickScoreRow(
+        pickScores as Array<{ profile_id: string; match_id?: string }> | null,
+        profile.id,
+        matchIdStr,
+        officialId
       ) as { points_awarded?: number; exact_hit?: boolean; winner_hit?: boolean } | undefined;
       const picks = profile.picks as Record<string, unknown> | null | undefined;
       const pick = picks?.[matchIdStr] ?? picks?.[match_id as string];
@@ -179,8 +214,8 @@ serve(async (req) => {
         penalty_points: penaltyPoints,
         penalty_winner_hit: penaltyWinnerHit,
         penalty_score_hit: penaltyScoreHit,
-        exact_hit: Boolean(ps?.exact_hit),
-        winner_hit: Boolean(ps?.winner_hit),
+        exact_hit: parsePickScoreBool(ps?.exact_hit),
+        winner_hit: parsePickScoreBool(ps?.winner_hit),
         points: pointsAwarded,
         total: historicalTotal,
         no_pick: !prediction,

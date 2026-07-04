@@ -21,6 +21,32 @@ function formatPredictionFromPick(pick) {
   return null;
 }
 
+function parsePickScoreBool(value) {
+  if (value === true) return true;
+  if (value === false || value == null) return false;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true' || normalized === 't' || normalized === '1') return true;
+    if (normalized === 'false' || normalized === 'f' || normalized === '0' || normalized === '') {
+      return false;
+    }
+  }
+  if (typeof value === 'number') return value === 1;
+  return Boolean(value);
+}
+
+function findPickScoreRow(pickScoreRows, profileId, matchId, officialId = null) {
+  const pid = String(profileId);
+  const matchKeys = new Set([String(matchId)]);
+  if (officialId) matchKeys.add(String(officialId));
+
+  const rows = (pickScoreRows ?? []).filter((row) => String(row.profile_id) === pid);
+  for (const row of rows) {
+    if (matchKeys.has(String(row.match_id))) return row;
+  }
+  return rows[0];
+}
+
 function computePenaltyBreakdownForPdf(pick, match) {
   if (!match?.went_to_penalties || !pick || typeof pick !== 'object' || Array.isArray(pick)) {
     return { penaltyPoints: 0, penaltyWinnerHit: false, penaltyScoreHit: false };
@@ -82,12 +108,10 @@ export function buildResultsPdfParticipants(
   match = null
 ) {
   const matchIdStr = String(matchId);
-  const scoresByProfile = new Map(
-    (pickScoreRows ?? []).map((row) => [String(row.profile_id), row])
-  );
+  const officialId = match?.official_id != null ? String(match.official_id) : null;
 
   const raw = (profiles ?? []).map((profile) => {
-    const ps = scoresByProfile.get(String(profile.id));
+    const ps = findPickScoreRow(pickScoreRows, profile.id, matchIdStr, officialId);
     const picks = profile.picks;
     const pick =
       picks && typeof picks === 'object'
@@ -122,8 +146,8 @@ export function buildResultsPdfParticipants(
       penalty_points: ptsPenales,
       penalty_winner_hit: penaltyWinnerHit,
       penalty_score_hit: penaltyScoreHit,
-      exact_hit: Boolean(ps?.exact_hit),
-      winner_hit: Boolean(ps?.winner_hit),
+      exact_hit: parsePickScoreBool(ps?.exact_hit),
+      winner_hit: parsePickScoreBool(ps?.winner_hit),
       points: pointsAwarded,
       total,
       no_pick: !prediction,
@@ -228,7 +252,7 @@ export async function fetchResultsPdfPayload(match) {
 
   const { data: pickScores, error: psErr } = await supabase
     .from('pick_scores')
-    .select('profile_id, points_awarded, exact_hit, winner_hit')
+    .select('profile_id, match_id, points_awarded, exact_hit, winner_hit')
     .in('match_id', matchKeys);
 
   if (psErr) throw new Error(psErr.message || 'No se pudieron cargar los puntos del partido.');
