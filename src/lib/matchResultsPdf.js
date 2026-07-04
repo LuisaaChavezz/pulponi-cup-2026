@@ -21,18 +21,26 @@ function formatPredictionFromPick(pick) {
   return null;
 }
 
-function parsePickScoreBool(value) {
-  if (value === true) return true;
-  if (value === false || value == null) return false;
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === 'true' || normalized === 't' || normalized === '1') return true;
-    if (normalized === 'false' || normalized === 'f' || normalized === '0' || normalized === '') {
-      return false;
+function extractPickScoresFromPick(pick) {
+  if (!pick) return { homePick: null, awayPick: null };
+  if (typeof pick === 'string') {
+    const match = pick.trim().match(/^(\d+)\s*-\s*(\d+)$/);
+    if (match) return { homePick: Number(match[1]), awayPick: Number(match[2]) };
+    return { homePick: null, awayPick: null };
+  }
+  if (Array.isArray(pick)) {
+    return { homePick: Number(pick[0]), awayPick: Number(pick[1]) };
+  }
+  if (typeof pick === 'object') {
+    const parsed = parsePickScore(pick);
+    if (parsed) return { homePick: parsed.home, awayPick: parsed.away };
+    const h = pick.home_pick ?? pick.home ?? pick.local ?? null;
+    const a = pick.away_pick ?? pick.away ?? pick.visitante ?? null;
+    if (h != null && a != null) {
+      return { homePick: Number(h), awayPick: Number(a) };
     }
   }
-  if (typeof value === 'number') return value === 1;
-  return Boolean(value);
+  return { homePick: null, awayPick: null };
 }
 
 function findPickScoreRow(pickScoreRows, profileId, matchId, officialId = null) {
@@ -118,6 +126,7 @@ export function buildResultsPdfParticipants(
         ? picks[matchIdStr] ?? picks[matchId]
         : null;
     const prediction = formatPredictionFromPick(pick);
+    const { homePick, awayPick } = extractPickScoresFromPick(pick);
     const penaltyPrediction = formatPenaltyPredictionFromPick(pick);
     const pointsAwarded = Number(ps?.points_awarded ?? 0);
     const { penaltyPoints, penaltyWinnerHit, penaltyScoreHit } = computePenaltyBreakdownForPdf(
@@ -126,14 +135,13 @@ export function buildResultsPdfParticipants(
     );
     const ptsPenales = match?.went_to_penalties ? penaltyPoints : 0;
 
-    const total =
-      totalsByProfile != null
-        ? Number(totalsByProfile.get(String(profile.id)) ?? 0)
-        : Number(profile.points ?? 0);
+    const total = Number(profile.points ?? 0);
 
     return {
       name: profile.name || profile.username || 'Anónimo',
       prediction,
+      home_pick: homePick,
+      away_pick: awayPick,
       penalty_prediction: penaltyPrediction,
       penalty_winner_pick:
         pick && typeof pick === 'object' && !Array.isArray(pick)
@@ -146,8 +154,6 @@ export function buildResultsPdfParticipants(
       penalty_points: ptsPenales,
       penalty_winner_hit: penaltyWinnerHit,
       penalty_score_hit: penaltyScoreHit,
-      exact_hit: parsePickScoreBool(ps?.exact_hit),
-      winner_hit: parsePickScoreBool(ps?.winner_hit),
       points: pointsAwarded,
       total,
       no_pick: !prediction,
@@ -266,15 +272,11 @@ export async function fetchResultsPdfPayload(match) {
 
   if (profErr) throw new Error(profErr.message || 'No se pudieron cargar los perfiles.');
 
-  // Total histórico: suma de points_awarded hasta este partido (inclusive) por
-  // kickoff, no el profiles.points actual.
-  const totalsByProfile = await buildHistoricalTotals(match, profileIds);
-
   const participants = buildResultsPdfParticipants(
     profiles,
     pickScores,
     matchId,
-    totalsByProfile,
+    null,
     match
   );
   if (!participants.length) {

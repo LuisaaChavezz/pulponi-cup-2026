@@ -10,20 +10,6 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function parsePickScoreBool(value: unknown): boolean {
-  if (value === true) return true;
-  if (value === false || value == null) return false;
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true" || normalized === "t" || normalized === "1") return true;
-    if (normalized === "false" || normalized === "f" || normalized === "0" || normalized === "") {
-      return false;
-    }
-  }
-  if (typeof value === "number") return value === 1;
-  return Boolean(value);
-}
-
 function findPickScoreRow(
   pickScoreRows: Array<{ profile_id: string; match_id?: string }> | null | undefined,
   profileId: unknown,
@@ -141,13 +127,25 @@ serve(async (req) => {
       let penaltyWinnerPick = "";
       let penaltyHomePick: unknown = null;
       let penaltyAwayPick: unknown = null;
+      let homePick: number | null = null;
+      let awayPick: number | null = null;
       if (pick) {
-        if (typeof pick === "string") prediction = pick;
-        else if (typeof pick === "object" && !Array.isArray(pick)) {
+        if (typeof pick === "string") {
+          prediction = pick;
+          const scoreMatch = pick.trim().match(/^(\d+)\s*-\s*(\d+)$/);
+          if (scoreMatch) {
+            homePick = Number(scoreMatch[1]);
+            awayPick = Number(scoreMatch[2]);
+          }
+        } else if (typeof pick === "object" && !Array.isArray(pick)) {
           const row = pick as Record<string, unknown>;
           const hp = row.home_pick ?? row.home ?? row.local;
           const ap = row.away_pick ?? row.away ?? row.visitante;
-          if (hp != null && ap != null) prediction = `${hp}-${ap}`;
+          if (hp != null && ap != null) {
+            prediction = `${hp}-${ap}`;
+            homePick = Number(hp);
+            awayPick = Number(ap);
+          }
 
           const pw = row.penalty_winner != null ? String(row.penalty_winner).trim() : "";
           const ph = row.penalty_home;
@@ -190,6 +188,8 @@ serve(async (req) => {
           }
         } else if (Array.isArray(pick)) {
           prediction = `${pick[0]}-${pick[1]}`;
+          homePick = Number(pick[0]);
+          awayPick = Number(pick[1]);
         }
       }
 
@@ -200,13 +200,13 @@ serve(async (req) => {
         penaltyScoreHit = false;
       }
 
-      const historicalTotal = match.kickoff
-        ? (cumulativeTotals.get(String(profile.id)) ?? 0)
-        : ((profile.points as number) ?? 0);
+      const historicalTotal = (profile.points as number) ?? 0;
 
       return {
         name: (profile.name as string) || (profile.username as string) || "Anónimo",
         prediction,
+        home_pick: homePick,
+        away_pick: awayPick,
         penalty_prediction: penaltyPrediction,
         penalty_winner_pick: penaltyWinnerPick,
         penalty_home_pick: penaltyHomePick,
@@ -214,8 +214,6 @@ serve(async (req) => {
         penalty_points: penaltyPoints,
         penalty_winner_hit: penaltyWinnerHit,
         penalty_score_hit: penaltyScoreHit,
-        exact_hit: parsePickScoreBool(ps?.exact_hit),
-        winner_hit: parsePickScoreBool(ps?.winner_hit),
         points: pointsAwarded,
         total: historicalTotal,
         no_pick: !prediction,

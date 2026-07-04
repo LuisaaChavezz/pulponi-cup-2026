@@ -188,34 +188,48 @@ def _pts_tier(pts):
     return 1
 
 
-def _db_bool(value):
-    """Normaliza exact_hit/winner_hit de pick_scores (bool, 't'/'f', 1/0)."""
-    if value is True:
-        return True
-    if value is False or value is None:
-        return False
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in ("true", "t", "1", "yes", "y"):
-            return True
-        if normalized in ("false", "f", "0", "no", "n", ""):
-            return False
-    if isinstance(value, (int, float)):
-        return int(value) == 1
-    return bool(value)
+def _parse_pick_scores(participant):
+    """Extrae home_pick/away_pick del payload (campos o predicción 'H-A')."""
+    home = participant.get("home_pick")
+    away = participant.get("away_pick")
+    if home is not None and away is not None:
+        try:
+            return int(home), int(away)
+        except (TypeError, ValueError):
+            pass
+
+    pred = participant.get("prediction")
+    if pred and isinstance(pred, str) and "-" in pred:
+        parts = pred.split("-", 1)
+        try:
+            return int(parts[0].strip()), int(parts[1].strip())
+        except (TypeError, ValueError):
+            pass
+    return None, None
 
 
-def _participant_score_flags(participant):
-    exact_hit = _db_bool(participant.get("exact_hit"))
-    winner_hit = _db_bool(participant.get("winner_hit"))
+def _compute_score_flags(participant, home_score, away_score):
+    """Calcula exact_hit/winner_hit comparando pick vs marcador real."""
+    home_pick, away_pick = _parse_pick_scores(participant)
+    if home_pick is None or away_pick is None:
+        return False, False
+
+    hs = int(home_score)
+    aws = int(away_score)
+    exact_hit = home_pick == hs and away_pick == aws
+    winner_hit = (
+        (home_pick > away_pick and hs > aws)
+        or (home_pick < away_pick and hs < aws)
+        or (home_pick == away_pick and hs == aws)
+    )
     return exact_hit, winner_hit
 
 
-def _pts_90_label(participant, no_pick=False):
-    """Pts del marcador normal según flags de pick_scores (no recalcular)."""
-    exact_hit, winner_hit = _participant_score_flags(participant)
+def _pts_90_label(participant, home_score, away_score, no_pick=False):
+    """Pts del marcador normal calculados desde pick vs marcador real."""
     if no_pick:
         return "0"
+    exact_hit, winner_hit = _compute_score_flags(participant, home_score, away_score)
     if exact_hit:
         return "+3"
     if winner_hit:
@@ -224,7 +238,7 @@ def _pts_90_label(participant, no_pick=False):
 
 
 def _resultado_90_label(participant, home_score, away_score, no_pick=False):
-    exact_hit, winner_hit = _participant_score_flags(participant)
+    exact_hit, winner_hit = _compute_score_flags(participant, home_score, away_score)
     if no_pick:
         return "Fallo"
     if exact_hit:
@@ -271,12 +285,12 @@ def _penalty_breakdown(
     match_penalty_home=None,
     match_penalty_away=None,
 ):
-    """Total partido = points_awarded. Pts partido/resultado desde flags de pick_scores."""
+    """Pts partido/resultado calculados desde pick vs marcador; total partido = points_awarded."""
     total_pts = int(participant.get("points", 0) or 0)
     no_pick = bool(participant.get("no_pick"))
-    exact_hit, winner_hit = _participant_score_flags(participant)
+    exact_hit, winner_hit = _compute_score_flags(participant, home_score, away_score)
 
-    pts_90_label = _pts_90_label(participant, no_pick)
+    pts_90_label = _pts_90_label(participant, home_score, away_score, no_pick)
     if exact_hit:
         pts_90_val = 3
     elif winner_hit:
@@ -402,7 +416,7 @@ def draw_row(
             penalty_home,
             penalty_away,
         )
-        pts_str = str(bd["total"])
+        acum_str = str(participant.get("total", ""))
         # Tu predicción
         sf(c, C_DARK); c.setFont("Helvetica", 8)
         pred90 = "—" if no_pick else (participant.get("prediction") or "—")
@@ -411,7 +425,7 @@ def draw_row(
         c.drawString(196.0, ty, bd["resultado_90"])
         # Pts partido
         pts90 = bd["pts_90_label"]
-        exact_hit, winner_hit = _participant_score_flags(participant)
+        exact_hit, winner_hit = _compute_score_flags(participant, home_score, away_score)
         if exact_hit:
             sf(c, C_PTS_3); c.setFont("Helvetica-Bold", 9)
         elif winner_hit:
@@ -432,9 +446,9 @@ def draw_row(
         else:
             sf(c, C_PTS_0); c.setFont("Helvetica", 8)
         c.drawString(392.0, ty + 0.3, pen_lbl)
-        # Total (= points_awarded)
+        # Total acumulado (quiniela hasta este partido inclusive)
         sf(c, C_DARK); c.setFont("Helvetica-Bold", 10)
-        _draw_centered(c, 518.0, ty + 0.3, pts_str, "Helvetica-Bold", 10)
+        _draw_centered(c, 518.0, ty + 0.3, acum_str, "Helvetica-Bold", 10)
         return
 
     if show_penalty_column:
