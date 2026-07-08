@@ -12,6 +12,7 @@ export const KRAKEN_MSG_KEYS = {
   privateSafe: (weekKey) => `kraken_msg_private_safe_${weekKey}`,
   privateNewKing: (profileId) => `kraken_msg_private_new_king_${profileId}`,
   privateLostThrone: (profileId) => `kraken_msg_private_lost_throne_${profileId}`,
+  daily: (today, matchKey) => `kraken_msg_daily_${today}_${matchKey}`,
 };
 
 function readStorage(key) {

@@ -1,4 +1,12 @@
 export { MESSAGES_BEFORE, MESSAGES_AFTER, resolveMessage as resolveMatchMessage, pickRandom as pickRandomKrakenMatchMessage } from './krakenMessageCatalog';
+export {
+  KRAKEN_MESSAGES_GENERAL,
+  getMessageForMatch,
+  fetchTodayScheduledMatches,
+  filterTodayScheduledMatches,
+  resolveMessagesForToday,
+  pickKrakenDailyMessage,
+} from './krakenDailyMessages';
 
 export const KRAKEN_MATCH_MODE = {
   BEFORE: 'before',

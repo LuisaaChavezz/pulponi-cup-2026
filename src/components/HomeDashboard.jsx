@@ -9,6 +9,7 @@ import HomeMobileMatchesCarousel from './HomeMobileMatchesCarousel';
 import RankingMovement from './RankingMovement';
 import KrakenCarousel from './KrakenCarousel';
 import KrakenPrivateCard from './KrakenPrivateCard';
+import { useKrakenHomeMessage } from '../hooks/useKrakenHomeMessage';
 import BadgeIcon from './BadgeIcon';
 import { useKickoffClock } from '../hooks/useKickoffClock';
 import {
@@ -138,6 +139,7 @@ export default function HomeDashboard({
 }) {
   const now = useKickoffClock(1000);
   const isMobileHome = useMobileViewport(767);
+  const krakenHomeMessage = useKrakenHomeMessage(matches);
 
   const heroPick = useMemo(() => pickInicioMatch(matches, now), [matches, now]);
 
@@ -459,7 +461,9 @@ export default function HomeDashboard({
             </section>
           ) : null}
           <section className="home-dash-stack__section home-dash-stack__section--kraken-match">
-            <KrakenCarousel messages={[{ id: 'kraken-home', text: 'Pulpos, ...¿Y si sí?' }]} />
+            {krakenHomeMessage ? (
+              <KrakenCarousel messages={[{ id: 'kraken-home', text: krakenHomeMessage }]} />
+            ) : null}
           </section>
           <section
             className={`home-dash-stack__section${
